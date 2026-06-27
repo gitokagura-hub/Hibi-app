@@ -14,6 +14,7 @@ export function todayStr() {
 function emptyData() {
   return {
     tasks: [],     // { id, date, title, completed, createdAt }
+    events: [],    // { id, date, time, title, createdAt }
     memos: {},     // { [date]: text }
     notes: [],     // { id, text, source: 'text'|'voice', createdAt }
     projects: [],  // { id, name, items: [{id, text, createdAt}], createdAt }
@@ -63,6 +64,13 @@ export function DataProvider({ children }) {
   function deleteTask(id) {
     setData(prev => ({ ...prev, tasks: prev.tasks.filter(t => t.id !== id) }));
   }
+  function addEvent(date, time, title) {
+    const event = { id: uid(), date, time, title, createdAt: Date.now() };
+    setData(prev => ({ ...prev, events: [...prev.events, event] }));
+  }
+  function deleteEvent(id) {
+    setData(prev => ({ ...prev, events: prev.events.filter(e => e.id !== id) }));
+  }
   function setMemo(date, text) {
     setData(prev => ({ ...prev, memos: { ...prev.memos, [date]: text } }));
   }
@@ -94,6 +102,7 @@ export function DataProvider({ children }) {
   const value = {
     data,
     addTask, toggleTask, deleteTask,
+    addEvent, deleteEvent,
     setMemo,
     addNote, deleteNote,
     addProject,

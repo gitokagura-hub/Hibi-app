@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useData, todayStr } from "../dataStore";
 import BottomNavigation from "../components/BottomNavigation";
 
@@ -10,7 +10,7 @@ function getMonthGrid(y, m) {
   const cells = [];
   for (let i = 0; i < startWeekday; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-  while (cells.length % 7 !== 0) cells.push(null);
+  while (cells.length < 42) cells.push(null);
   return cells;
 }
 
@@ -18,17 +18,26 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 export default function CalendarPage({ setTab }) {
-  const { data, addTask, toggleTask, setMemo } = useData();
+  const { data, addTask, toggleTask, addEvent, deleteEvent, setMemo } = useData();
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [taskInput, setTaskInput] = useState("");
+  const [eventTime, setEventTime] = useState("09:00");
+  const [eventTitle, setEventTitle] = useState("");
+  const page2Ref = useRef(null);
 
   const grid = useMemo(() => getMonthGrid(calMonth.y, calMonth.m), [calMonth]);
   const todayS = todayStr();
   const dateOf = (d) => fmt(calMonth.y, calMonth.m, d);
 
+  const dayEvents = data.events.filter((e) => e.date === selectedDate).sort((a, b) => a.time.localeCompare(b.time));
   const dayTasks = data.tasks.filter((t) => t.date === selectedDate);
   const memoText = data.memos[selectedDate] || "";
+
+  function selectDate(ds) {
+    setSelectedDate(ds);
+    page2Ref.current?.scrollIntoView({ behavior: "smooth" });
+  }
 
   function handleAddTask(e) {
     if (e.key === "Enter" && taskInput.trim()) {
@@ -37,10 +46,16 @@ export default function CalendarPage({ setTab }) {
     }
   }
 
+  function handleAddEvent() {
+    if (!eventTitle.trim()) return;
+    addEvent(selectedDate, eventTime, eventTitle.trim());
+    setEventTitle("");
+  }
+
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="h-screen bg-white flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 bg-white z-20 px-5 pt-safe pb-2">
+      <header className="sticky top-0 z-20 bg-white px-5 pt-14 pb-3">
         <div className="flex items-center justify-between">
           <button>☰</button>
           <h1 className="text-xl font-semibold">Dayliy Brains</h1>
@@ -48,50 +63,78 @@ export default function CalendarPage({ setTab }) {
         </div>
       </header>
 
-      {/* Calendar */}
-      <section className="flex-none">
-        {/* Month */}
-        <div className="px-5 pt-2 pb-3">
-          <div className="flex items-center justify-between">
-            <button onClick={() => setCalMonth(({ y, m }) => m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 })}>{"<"}</button>
-            <h2 className="text-4xl font-bold">{MONTH_NAMES[calMonth.m]}</h2>
-            <button onClick={() => setCalMonth(({ y, m }) => m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 })}>{">"}</button>
+      {/* Full Screen Scroll */}
+      <main className="flex-1 overflow-y-auto snap-y snap-mandatory">
+        {/* ========= PAGE 1 ========= */}
+        <section className="snap-start h-screen flex flex-col">
+          {/* Month */}
+          <div className="px-5 py-3">
+            <div className="flex items-center justify-between">
+              <button onClick={() => setCalMonth(({ y, m }) => m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 })}>{"<"}</button>
+              <div className="text-center">
+                <h2 className="text-4xl font-bold">{MONTH_NAMES[calMonth.m]}</h2>
+                <p className="text-gray-500">{calMonth.y}</p>
+              </div>
+              <button onClick={() => setCalMonth(({ y, m }) => m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 })}>{">"}</button>
+            </div>
           </div>
-          <p className="text-gray-500 mt-1">{calMonth.y}</p>
-        </div>
 
-        {/* Week */}
-        <div className="grid grid-cols-7 text-center text-xs text-gray-400 pb-2">
-          {WEEKDAYS.map((w) => <div key={w}>{w}</div>)}
-        </div>
+          {/* Week */}
+          <div className="grid grid-cols-7 text-center text-xs text-gray-400">
+            {WEEKDAYS.map((w) => <div key={w}>{w}</div>)}
+          </div>
 
-        {/* Calendar */}
-        <div className="grid grid-cols-7">
-          {grid.map((d, i) => {
-            if (!d) return <div key={i} className="h-20 border-r border-b border-gray-100" />;
-            const ds = dateOf(d);
-            const isToday = ds === todayS;
-            const isSelected = ds === selectedDate;
-            return (
-              <button
-                key={i}
-                onClick={() => setSelectedDate(ds)}
-                className={`h-20 border-r border-b border-gray-100 flex flex-col items-start px-2 pt-2 ${isSelected ? "bg-gray-100" : ""}`}
-              >
-                <span className={`text-lg ${isToday ? "font-bold" : ""}`}>
+          {/* Calendar */}
+          <div className="flex-1 grid grid-cols-7 grid-rows-6">
+            {grid.map((d, index) => {
+              if (!d) return <div key={index} className="border border-gray-100" />;
+              const ds = dateOf(d);
+              const isToday = ds === todayS;
+              const isSelected = ds === selectedDate;
+              return (
+                <button
+                  key={index}
+                  onClick={() => selectDate(ds)}
+                  className={`border border-gray-100 flex items-start justify-start p-2 text-lg ${isSelected ? "bg-gray-100" : ""} ${isToday ? "font-bold" : ""}`}
+                >
                   {d}
-                </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ========= PAGE 2 ========= */}
+        <section ref={page2Ref} className="snap-start min-h-screen px-5 py-8">
+          <h2 className="text-2xl font-semibold mb-6">
+            {MONTH_NAMES[calMonth.m]} {Number(selectedDate.split("-")[2])}'s Schedule
+          </h2>
+
+          <div className="space-y-3 mb-10">
+            {dayEvents.map((e) => (
+              <button key={e.id} onClick={() => deleteEvent(e.id)} className="w-full text-left rounded-2xl border p-4">
+                {e.time}　{e.title}
               </button>
-            );
-          })}
-        </div>
-      </section>
+            ))}
+            <div className="flex gap-2">
+              <input
+                type="time"
+                value={eventTime}
+                onChange={(ev) => setEventTime(ev.target.value)}
+                className="rounded-2xl border p-4 w-32"
+              />
+              <input
+                type="text"
+                value={eventTitle}
+                onChange={(ev) => setEventTitle(ev.target.value)}
+                onKeyDown={(ev) => { if (ev.key === "Enter") handleAddEvent(); }}
+                placeholder="Add schedule..."
+                className="flex-1 rounded-2xl border p-4"
+              />
+            </div>
+          </div>
 
-      {/* Scroll */}
-      <div className="flex-1 overflow-y-auto">
-        <section className="px-5 py-6">
-          <h3 className="text-xl font-semibold mb-3">Task</h3>
-
+          <h2 className="text-2xl font-semibold mb-4">Task</h2>
           <div className="space-y-2 mb-3">
             {dayTasks.map((t) => (
               <button
@@ -103,29 +146,24 @@ export default function CalendarPage({ setTab }) {
               </button>
             ))}
           </div>
-
           <textarea
             value={taskInput}
             onChange={(e) => setTaskInput(e.target.value)}
             onKeyDown={handleAddTask}
             placeholder="Add Task..."
-            className="w-full min-h-[140px] rounded-2xl border p-4"
+            className="w-full h-40 rounded-2xl border p-4 mb-10"
           />
-        </section>
 
-        <section className="px-5 pb-32">
-          <h3 className="text-xl font-semibold mb-3">Memo</h3>
-
+          <h2 className="text-2xl font-semibold mb-4">📝 Memo</h2>
           <textarea
             value={memoText}
             onChange={(e) => setMemo(selectedDate, e.target.value)}
             placeholder="Add Memo..."
-            className="w-full min-h-[220px] rounded-2xl border p-4"
+            className="w-full h-64 rounded-2xl border p-4"
           />
         </section>
-      </div>
+      </main>
 
-      {/* Bottom Navigation */}
       <BottomNavigation current="calendar" setTab={setTab} />
     </div>
   );
