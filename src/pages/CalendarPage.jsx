@@ -55,10 +55,10 @@ export default function CalendarPage({ setTab }) {
   return (
     <div className="h-screen bg-white flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-white px-5 pt-14 pb-3">
+      <header className="sticky top-0 z-20 bg-white px-5 pt-8 pb-1">
         <div className="flex items-center justify-between">
           <button>☰</button>
-          <h1 className="text-xl font-semibold">Dayliy Brains</h1>
+          <h1 className="text-[10px] font-semibold">Dayliy Brains</h1>
           <button onClick={() => setTab("search")}>🔍</button>
         </div>
       </header>
@@ -68,12 +68,12 @@ export default function CalendarPage({ setTab }) {
         {/* ========= PAGE 1 ========= */}
         <section className="snap-start h-screen flex flex-col">
           {/* Month */}
-          <div className="px-5 py-3">
+          <div className="px-5 py-1">
             <div className="flex items-center justify-between">
               <button onClick={() => setCalMonth(({ y, m }) => m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 })}>{"<"}</button>
-              <div className="text-center">
-                <h2 className="text-4xl font-bold">{MONTH_NAMES[calMonth.m]}</h2>
-                <p className="text-gray-500">{calMonth.y}</p>
+              <div className="flex items-baseline gap-2">
+                <h2 className="text-2xl font-bold">{MONTH_NAMES[calMonth.m]}</h2>
+                <span className="text-sm text-gray-500">{calMonth.y}</span>
               </div>
               <button onClick={() => setCalMonth(({ y, m }) => m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 })}>{">"}</button>
             </div>
