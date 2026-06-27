@@ -10,6 +10,7 @@ function getMonthGrid(y, m) {
   const cells = [];
   for (let i = 0; i < startWeekday; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
   return cells;
 }
 
@@ -39,53 +40,57 @@ export default function CalendarPage({ setTab }) {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       {/* Header */}
-      <header className="px-5 pt-14 pb-4">
-        <h1 className="text-3xl font-semibold">Dayliy Brains</h1>
+      <header className="sticky top-0 bg-white z-20 px-5 pt-safe pb-2">
+        <div className="flex items-center justify-between">
+          <button>☰</button>
+          <h1 className="text-xl font-semibold">Dayliy Brains</h1>
+          <button onClick={() => setTab("search")}>🔍</button>
+        </div>
       </header>
 
       {/* Calendar */}
-      <section className="px-4">
-        <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
+      <section className="flex-none">
+        {/* Month */}
+        <div className="px-5 pt-2 pb-3">
+          <div className="flex items-center justify-between">
             <button onClick={() => setCalMonth(({ y, m }) => m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 })}>{"<"}</button>
-            <h2 className="text-lg font-medium">{MONTH_NAMES[calMonth.m]} {calMonth.y}</h2>
+            <h2 className="text-4xl font-bold">{MONTH_NAMES[calMonth.m]}</h2>
             <button onClick={() => setCalMonth(({ y, m }) => m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 })}>{">"}</button>
           </div>
+          <p className="text-gray-500 mt-1">{calMonth.y}</p>
+        </div>
 
-          <div className="grid grid-cols-7 text-center text-xs text-gray-500 mb-2">
-            {WEEKDAYS.map((w) => <div key={w}>{w}</div>)}
-          </div>
+        {/* Week */}
+        <div className="grid grid-cols-7 text-center text-xs text-gray-400 pb-2">
+          {WEEKDAYS.map((w) => <div key={w}>{w}</div>)}
+        </div>
 
-          <div className="grid grid-cols-7 gap-2">
-            {grid.map((d, i) => {
-              if (!d) return <div key={i} />;
-              const ds = dateOf(d);
-              const isToday = ds === todayS;
-              const isSelected = ds === selectedDate;
-              return (
-                <button
-                  key={i}
-                  onClick={() => setSelectedDate(ds)}
-                  className={`aspect-square rounded-xl text-sm ${
-                    isSelected
-                      ? "bg-black text-white"
-                      : isToday
-                      ? "ring-1 ring-black"
-                      : "hover:bg-gray-100"
-                  }`}
-                >
+        {/* Calendar */}
+        <div className="grid grid-cols-7">
+          {grid.map((d, i) => {
+            if (!d) return <div key={i} className="h-20 border-r border-b border-gray-100" />;
+            const ds = dateOf(d);
+            const isToday = ds === todayS;
+            const isSelected = ds === selectedDate;
+            return (
+              <button
+                key={i}
+                onClick={() => setSelectedDate(ds)}
+                className={`h-20 border-r border-b border-gray-100 flex flex-col items-start px-2 pt-2 ${isSelected ? "bg-gray-100" : ""}`}
+              >
+                <span className={`text-lg ${isToday ? "font-bold" : ""}`}>
                   {d}
-                </button>
-              );
-            })}
-          </div>
+                </span>
+              </button>
+            );
+          })}
         </div>
       </section>
 
-      {/* Scroll Area */}
-      <main className="flex-1 overflow-y-auto px-4 pt-5 pb-24">
-        <section className="mb-8">
-          <h3 className="text-lg font-semibold mb-3">Task</h3>
+      {/* Scroll */}
+      <div className="flex-1 overflow-y-auto">
+        <section className="px-5 py-6">
+          <h3 className="text-xl font-semibold mb-3">Task</h3>
 
           <div className="space-y-2 mb-3">
             {dayTasks.map((t) => (
@@ -104,22 +109,21 @@ export default function CalendarPage({ setTab }) {
             onChange={(e) => setTaskInput(e.target.value)}
             onKeyDown={handleAddTask}
             placeholder="Add Task..."
-            rows={1}
-            className="w-full rounded-2xl border p-4"
+            className="w-full min-h-[140px] rounded-2xl border p-4"
           />
         </section>
 
-        <section>
-          <h3 className="text-lg font-semibold mb-3">Memo</h3>
+        <section className="px-5 pb-32">
+          <h3 className="text-xl font-semibold mb-3">Memo</h3>
 
           <textarea
             value={memoText}
             onChange={(e) => setMemo(selectedDate, e.target.value)}
             placeholder="Add Memo..."
-            className="w-full rounded-2xl border p-4 h-40"
+            className="w-full min-h-[220px] rounded-2xl border p-4"
           />
         </section>
-      </main>
+      </div>
 
       {/* Bottom Navigation */}
       <BottomNavigation current="calendar" setTab={setTab} />
