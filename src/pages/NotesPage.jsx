@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Layout } from "../components";
+import { Layout, AIConnections } from "../components";
 import { useData, todayStr } from "../dataStore";
 
 function deriveTitle(text) {
@@ -128,6 +128,7 @@ export default function NotesPage({ setTab }) {
   const [text, setText] = useState("");
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [pasteTarget, setPasteTarget] = useState(null);
+  const [selectedAI, setSelectedAI] = useState("ChatGPT");
   const sorted = [...data.notes].sort((a, b) => b.createdAt - a.createdAt);
 
   function handleAdd() {
@@ -139,6 +140,10 @@ export default function NotesPage({ setTab }) {
   return (
     <Layout title="Notes" subtitle="Ideas & Conversations" current="notes" setTab={setTab}>
       <div className="px-5">
+        <div className="mb-4 overflow-x-auto">
+          <AIConnections selected={selectedAI} onSelect={setSelectedAI} />
+        </div>
+
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
