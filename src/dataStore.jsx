@@ -11,6 +11,12 @@ export function todayStr() {
   return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
 }
 
+export function formatDateTime(ts) {
+  const d = new Date(ts);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 // Reads an image file and resizes/compresses it to a base64 data URL,
 // so photos can be stored directly in the browser without any external service.
 export function fileToCompressedDataUrl(file, maxDim = 1280, quality = 0.7) {
@@ -39,13 +45,25 @@ export function fileToCompressedDataUrl(file, maxDim = 1280, quality = 0.7) {
   });
 }
 
+// Reads any file (not just images) as a plain base64 data URL, no compression.
+// Used for the generic "file attachment" feature.
+export function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve({ name: file.name, type: file.type, dataUrl: reader.result });
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function emptyData() {
   return {
     tasks: [],     // { id, date, title, completed, createdAt }
     events: [],    // { id, date, time, title, createdAt }
-    memos: {},     // { [date]: { text, images: [] } }
-    notes: [],     // { id, text, images: [], source: 'text'|'voice', createdAt }
-    projects: [],  // { id, name, items: [{id, text, images: [], createdAt}], createdAt }
+    memos: {},     // { [date]: { text, images: [], files: [] } }
+    notes: [],     // { id, text, images: [], files: [], source: 'text'|'voice', createdAt }
+    projects: [],  // { id, name, items: [{id, text, images, files, createdAt}], driveFolder: '', createdAt }
+    settings: { geminiKey: '', chatgptKey: '' },
   };
 }
 
@@ -54,12 +72,14 @@ function loadData() {
     const raw = localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : null;
     if (!parsed) return emptyData();
-    // migrate old plain-string memos to { text, images } shape
+    // migrate old plain-string / partial memo shapes to { text, images, files }
     const migratedMemos = {};
     for (const [date, val] of Object.entries(parsed.memos || {})) {
-      migratedMemos[date] = typeof val === 'string' ? { text: val, images: [] } : val;
+      if (typeof val === 'string') migratedMemos[date] = { text: val, images: [], files: [] };
+      else migratedMemos[date] = { text: val.text || '', images: val.images || [], files: val.files || [] };
     }
-    return { ...emptyData(), ...parsed, memos: migratedMemos };
+    const migratedProjects = (parsed.projects || []).map(p => ({ driveFolder: '', ...p, items: (p.items || []).map(it => ({ images: [], files: [], ...it })) }));
+    return { ...emptyData(), ...parsed, memos: migratedMemos, projects: migratedProjects, settings: { ...emptyData().settings, ...(parsed.settings || {}) } };
   } catch {
     return emptyData();
   }
@@ -110,49 +130,66 @@ export function DataProvider({ children }) {
     setData(prev => ({ ...prev, events: prev.events.filter(e => e.id !== id) }));
   }
   function getMemo(date) {
-    return data.memos[date] || { text: '', images: [] };
+    return data.memos[date] || { text: '', images: [], files: [] };
   }
   function setMemo(date, text) {
-    setData(prev => ({ ...prev, memos: { ...prev.memos, [date]: { ...(prev.memos[date] || { images: [] }), text } } }));
+    setData(prev => ({ ...prev, memos: { ...prev.memos, [date]: { ...(prev.memos[date] || { images: [], files: [] }), text } } }));
   }
   function addMemoImages(date, dataUrls) {
     setData(prev => {
-      const existing = prev.memos[date] || { text: '', images: [] };
+      const existing = prev.memos[date] || { text: '', images: [], files: [] };
       return { ...prev, memos: { ...prev.memos, [date]: { ...existing, images: [...existing.images, ...dataUrls] } } };
     });
   }
   function removeMemoImage(date, index) {
     setData(prev => {
-      const existing = prev.memos[date] || { text: '', images: [] };
+      const existing = prev.memos[date] || { text: '', images: [], files: [] };
       return { ...prev, memos: { ...prev.memos, [date]: { ...existing, images: existing.images.filter((_, i) => i !== index) } } };
     });
   }
-  function addNote(text, source, images) {
-    const note = { id: uid(), text, source: source || 'text', images: images || [], createdAt: Date.now() };
+  function addMemoFiles(date, files) {
+    setData(prev => {
+      const existing = prev.memos[date] || { text: '', images: [], files: [] };
+      return { ...prev, memos: { ...prev.memos, [date]: { ...existing, files: [...existing.files, ...files] } } };
+    });
+  }
+  function removeMemoFile(date, index) {
+    setData(prev => {
+      const existing = prev.memos[date] || { text: '', images: [], files: [] };
+      return { ...prev, memos: { ...prev.memos, [date]: { ...existing, files: existing.files.filter((_, i) => i !== index) } } };
+    });
+  }
+  function addNote(text, source, images, files) {
+    const note = { id: uid(), text, source: source || 'text', images: images || [], files: files || [], createdAt: Date.now() };
     setData(prev => ({ ...prev, notes: [...prev.notes, note] }));
   }
   function deleteNote(id) {
     setData(prev => ({ ...prev, notes: prev.notes.filter(n => n.id !== id) }));
   }
   function addProject(name) {
-    const project = { id: uid(), name, items: [], createdAt: Date.now() };
+    const project = { id: uid(), name, items: [], driveFolder: '', createdAt: Date.now() };
     setData(prev => ({ ...prev, projects: [...prev.projects, project] }));
+  }
+  function setProjectDriveFolder(projectId, folderName) {
+    setData(prev => ({ ...prev, projects: prev.projects.map(p => p.id === projectId ? { ...p, driveFolder: folderName } : p) }));
   }
   function pasteNoteToCalendar(note, date) {
     addTask(date, note.text);
-    if (note.images && note.images.length > 0) {
-      addMemoImages(date, note.images);
-    }
+    if (note.images && note.images.length > 0) addMemoImages(date, note.images);
+    if (note.files && note.files.length > 0) addMemoFiles(date, note.files);
     deleteNote(note.id);
   }
   function pasteNoteToProject(note, projectId) {
     setData(prev => ({
       ...prev,
       projects: prev.projects.map(p => p.id === projectId
-        ? { ...p, items: [...p.items, { id: uid(), text: note.text, images: note.images || [], createdAt: Date.now() }] }
+        ? { ...p, items: [...p.items, { id: uid(), text: note.text, images: note.images || [], files: note.files || [], createdAt: Date.now() }] }
         : p),
     }));
     deleteNote(note.id);
+  }
+  function setSettings(patch) {
+    setData(prev => ({ ...prev, settings: { ...prev.settings, ...patch } }));
   }
 
   const value = {
@@ -160,10 +197,11 @@ export function DataProvider({ children }) {
     storageError,
     addTask, toggleTask, deleteTask,
     addEvent, deleteEvent,
-    getMemo, setMemo, addMemoImages, removeMemoImage,
+    getMemo, setMemo, addMemoImages, removeMemoImage, addMemoFiles, removeMemoFile,
     addNote, deleteNote,
-    addProject,
+    addProject, setProjectDriveFolder,
     pasteNoteToCalendar, pasteNoteToProject,
+    setSettings,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

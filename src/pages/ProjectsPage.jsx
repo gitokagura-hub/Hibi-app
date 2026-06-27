@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Layout } from "../components";
-import { useData } from "../dataStore";
+import { useData, formatDateTime } from "../dataStore";
 
 export default function ProjectsPage({ setTab }) {
-  const { data, addProject } = useData();
+  const { data, addProject, setProjectDriveFolder } = useData();
   const [name, setName] = useState("");
   const [openId, setOpenId] = useState(null);
 
@@ -16,31 +16,80 @@ export default function ProjectsPage({ setTab }) {
   return (
     <Layout title="Projects" current="projects" setTab={setTab}>
       <div className="px-5">
-        <div className="space-y-4 mb-6">
-          {data.projects.length === 0 && <p className="text-gray-400">No projects yet</p>}
+        <div className="rounded-3xl border border-gray-200 overflow-hidden mb-6">
+          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+            <span className="font-bold text-[15px]">項目名（プロジェクト名）</span>
+            <span className="text-xs text-gray-500 font-semibold">作成日</span>
+          </div>
+
+          {data.projects.length === 0 && (
+            <div className="p-5 text-gray-400 text-sm">プロジェクトはまだありません</div>
+          )}
+
           {data.projects.map((p) => {
             const isOpen = openId === p.id;
             return (
-              <div key={p.id} className="rounded-2xl border border-gray-200 p-5">
-                <button onClick={() => setOpenId(isOpen ? null : p.id)} className="w-full text-left">
-                  <h2 className="text-lg font-medium">{p.name}</h2>
-                  <p className="text-sm text-gray-500 mt-2">Notes: {p.items.length} {isOpen ? "▲" : "▼"}</p>
+              <div key={p.id} className="border-b border-gray-200 last:border-b-0">
+                <button onClick={() => setOpenId(isOpen ? null : p.id)} className="w-full text-left px-4 py-5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold">{p.name}</span>
+                    <span className="text-xs text-gray-400">{formatDateTime(p.createdAt).split(" ")[0]}</span>
+                  </div>
                 </button>
+
                 {isOpen && (
-                  <div className="mt-4 space-y-3">
-                    {p.items.length === 0 && <p className="text-sm text-gray-400">No notes pasted yet</p>}
-                    {p.items.map((item) => (
-                      <div key={item.id} className="rounded-xl border border-gray-100 p-3">
-                        {item.text && <p className="text-sm whitespace-pre-wrap">{item.text}</p>}
-                        {item.images && item.images.length > 0 && (
-                          <div className="flex gap-2 overflow-x-auto mt-2">
-                            {item.images.map((src, i) => (
-                              <img key={i} src={src} alt="" className="w-16 h-16 object-cover rounded-lg border flex-shrink-0" />
-                            ))}
-                          </div>
-                        )}
+                  <div className="px-4 pb-5">
+                    <div className="bg-gray-100 rounded-2xl p-3.5">
+                      <div className="text-xs font-bold text-gray-600 mb-2">📂 連携ルーム・統合レイヤー</div>
+
+                      <div className="text-[13px] text-gray-800 mb-3 space-y-1">
+                        <div>• [ノート連携] ノートから転送されたアイデアを{p.items.length}件格納</div>
+                        <div>
+                          • [Google Drive]{" "}
+                          {p.driveFolder ? `「${p.driveFolder}」フォルダに連携中` : "未連携"}
+                        </div>
                       </div>
-                    ))}
+
+                      <input
+                        value={p.driveFolder}
+                        onChange={(e) => setProjectDriveFolder(p.id, e.target.value)}
+                        placeholder="連携するDriveフォルダ名を入力..."
+                        className="w-full rounded-lg border p-2 text-xs mb-3 bg-white"
+                      />
+
+                      {p.items.length > 0 && (
+                        <div className="space-y-2 mb-3">
+                          {p.items.map((item) => (
+                            <div key={item.id} className="rounded-xl border border-gray-200 bg-white p-2.5">
+                              {item.text && <p className="text-[13px] whitespace-pre-wrap">{item.text}</p>}
+                              {item.images && item.images.length > 0 && (
+                                <div className="flex gap-1.5 overflow-x-auto mt-1.5">
+                                  {item.images.map((src, i) => (
+                                    <img key={i} src={src} alt="" className="w-12 h-12 object-cover rounded-lg border flex-shrink-0" />
+                                  ))}
+                                </div>
+                              )}
+                              {item.files && item.files.length > 0 && (
+                                <div className="space-y-1 mt-1.5">
+                                  {item.files.map((f, i) => (
+                                    <div key={i} className="text-[11px] truncate">📄 {f.name}</div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        <button className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-semibold bg-white">
+                          🔄 転送ボタン
+                        </button>
+                        <button onClick={() => setTab("calendar")} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-semibold bg-white">
+                          📅 カレンダー連携
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -48,16 +97,16 @@ export default function ProjectsPage({ setTab }) {
           })}
         </div>
 
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
-          placeholder="New project name..."
-          className="w-full rounded-2xl border p-4 mb-2"
-        />
-        <button onClick={handleAdd} className="rounded-xl border px-4 py-2">
-          Add
-        </button>
+        <div className="pb-10">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
+            placeholder="New project name..."
+            className="w-full rounded-2xl border p-4 mb-2"
+          />
+          <button onClick={handleAdd} className="rounded-xl border px-4 py-2">Add</button>
+        </div>
       </div>
     </Layout>
   );

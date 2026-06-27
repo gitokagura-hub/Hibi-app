@@ -13,7 +13,8 @@ export default function SearchPage({ setTab }) {
     const taskHits = data.tasks.filter((t) => t.title.toLowerCase().includes(ql)).map((t) => ({ type: "Calendar", label: t.title }));
     const noteHits = data.notes.filter((n) => n.text.toLowerCase().includes(ql)).map((n) => ({ type: "Note", label: n.text }));
     const projectHits = data.projects.filter((p) => p.name.toLowerCase().includes(ql)).map((p) => ({ type: "Project", label: p.name }));
-    return [...eventHits, ...taskHits, ...noteHits, ...projectHits];
+    const roomItemHits = data.projects.flatMap((p) => p.items.filter((it) => it.text.toLowerCase().includes(ql)).map((it) => ({ type: `Project: ${p.name}`, label: it.text })));
+    return [...eventHits, ...taskHits, ...noteHits, ...projectHits, ...roomItemHits];
   }, [q, data]);
 
   return (
