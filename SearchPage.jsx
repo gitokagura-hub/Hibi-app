@@ -1,0 +1,43 @@
+import { useState, useMemo } from "react";
+import { Layout } from "../components";
+import { useData } from "../dataStore";
+
+export default function SearchPage({ setTab }) {
+  const { data } = useData();
+  const [q, setQ] = useState("");
+
+  const results = useMemo(() => {
+    if (!q.trim()) return null;
+    const ql = q.trim().toLowerCase();
+    const taskHits = data.tasks.filter((t) => t.title.toLowerCase().includes(ql)).map((t) => ({ type: "Calendar", label: t.title }));
+    const noteHits = data.notes.filter((n) => n.text.toLowerCase().includes(ql)).map((n) => ({ type: "Note", label: n.text }));
+    const projectHits = data.projects.filter((p) => p.name.toLowerCase().includes(ql)).map((p) => ({ type: "Project", label: p.name }));
+    return [...taskHits, ...noteHits, ...projectHits];
+  }, [q, data]);
+
+  return (
+    <Layout title="Search" current="search" setTab={setTab}>
+      <div className="px-5">
+        <input
+          type="text"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search..."
+          className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none"
+        />
+
+        <div className="mt-6 space-y-3">
+          {results && results.length === 0 && (
+            <p className="text-gray-400">No results</p>
+          )}
+          {results && results.map((r, i) => (
+            <button key={i} className="w-full rounded-2xl border border-gray-200 p-4 text-left">
+              <span className="text-xs text-gray-400 block mb-1">{r.type}</span>
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </Layout>
+  );
+}
