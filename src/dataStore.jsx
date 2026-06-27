@@ -173,6 +173,14 @@ export function DataProvider({ children }) {
   function setProjectDriveFolder(projectId, folderName) {
     setData(prev => ({ ...prev, projects: prev.projects.map(p => p.id === projectId ? { ...p, driveFolder: folderName } : p) }));
   }
+  function updateProjectItem(projectId, itemId, text) {
+    setData(prev => ({
+      ...prev,
+      projects: prev.projects.map(p => p.id === projectId
+        ? { ...p, items: p.items.map(it => it.id === itemId ? { ...it, text } : it) }
+        : p),
+    }));
+  }
   function pasteNoteToCalendar(note, date) {
     addTask(date, note.text);
     if (note.images && note.images.length > 0) addMemoImages(date, note.images);
@@ -199,7 +207,7 @@ export function DataProvider({ children }) {
     addEvent, deleteEvent,
     getMemo, setMemo, addMemoImages, removeMemoImage, addMemoFiles, removeMemoFile,
     addNote, deleteNote,
-    addProject, setProjectDriveFolder,
+    addProject, setProjectDriveFolder, updateProjectItem,
     pasteNoteToCalendar, pasteNoteToProject,
     setSettings,
   };

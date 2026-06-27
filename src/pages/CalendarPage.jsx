@@ -29,7 +29,6 @@ export default function CalendarPage({ setTab }) {
   const [eventTitle, setEventTitle] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
-  const page2Ref = useRef(null);
   const photoInputRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -56,7 +55,6 @@ export default function CalendarPage({ setTab }) {
 
   function selectDate(ds) {
     setSelectedDate(ds);
-    page2Ref.current?.scrollIntoView({ behavior: "smooth" });
   }
 
   function handleAddTask(e) {
@@ -127,7 +125,7 @@ export default function CalendarPage({ setTab }) {
           </div>
 
           {/* Calendar */}
-          <div className="flex-1 min-h-0 grid grid-cols-7 grid-rows-6">
+          <div className="grid grid-cols-7" style={{ gridAutoRows: "68px" }}>
             {grid.map((d, index) => {
               if (!d) return <div key={index} className="border border-gray-100" />;
               const ds = dateOf(d);
@@ -138,14 +136,14 @@ export default function CalendarPage({ setTab }) {
                 <button
                   key={index}
                   onClick={() => selectDate(ds)}
-                  className={`border border-gray-100 flex flex-col items-start justify-start p-1.5 text-left ${isSelected ? "bg-gray-100" : ""}`}
+                  className={`border border-gray-100 flex flex-col items-start justify-start p-1 text-left ${isSelected ? "bg-gray-100" : ""}`}
                 >
-                  <span className={`text-sm leading-none mb-1 ${isToday ? "font-bold" : ""}`}>{d}</span>
+                  <span className={`text-xs leading-none mb-0.5 ${isToday ? "font-bold" : ""}`}>{d}</span>
                   <div className="flex flex-col gap-0.5 w-full">
                     {items.map((it, i) => (
                       <span
                         key={i}
-                        className={`text-[9px] leading-tight px-1 rounded truncate w-full ${it.kind === "event" ? "bg-gray-200" : "bg-gray-100 text-gray-500"}`}
+                        className={`text-[8px] leading-tight px-1 rounded truncate w-full ${it.kind === "event" ? "bg-gray-200" : "bg-gray-100 text-gray-500"}`}
                       >
                         {it.kind === "event" ? `${it.time} ${it.title}` : `${it.completed ? "☑" : "☐"} ${it.title}`}
                       </span>
@@ -158,7 +156,7 @@ export default function CalendarPage({ setTab }) {
         </section>
 
         {/* ========= PAGE 2 ========= */}
-        <section ref={page2Ref} className="snap-start min-h-screen px-5 py-8">
+        <section className="snap-start min-h-screen px-5 py-8 pb-32">
           <h2 className="text-2xl font-semibold mb-6">
             {MONTH_NAMES[calMonth.m]} {Number(selectedDate.split("-")[2])}'s Schedule
           </h2>

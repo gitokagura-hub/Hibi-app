@@ -1,16 +1,29 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Layout } from "../components";
 import { useData, formatDateTime } from "../dataStore";
 
 export default function ProjectsPage({ setTab }) {
-  const { data, addProject, setProjectDriveFolder } = useData();
+  const { data, addProject, setProjectDriveFolder, updateProjectItem } = useData();
   const [name, setName] = useState("");
   const [openId, setOpenId] = useState(null);
+  const rowRefs = useRef({});
 
   function handleAdd() {
     if (!name.trim()) return;
     addProject(name.trim());
     setName("");
+  }
+
+  function handleToggle(p) {
+    const willOpen = openId !== p.id;
+    setOpenId(willOpen ? p.id : null);
+    if (willOpen) {
+      // jump so this project's row sits at the top of the view, since opening
+      // its room content can otherwise push it out of sight below the fold.
+      requestAnimationFrame(() => {
+        rowRefs.current[p.id]?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
   }
 
   return (
@@ -29,8 +42,8 @@ export default function ProjectsPage({ setTab }) {
           {data.projects.map((p) => {
             const isOpen = openId === p.id;
             return (
-              <div key={p.id} className="border-b border-gray-200 last:border-b-0">
-                <button onClick={() => setOpenId(isOpen ? null : p.id)} className="w-full text-left px-4 py-5">
+              <div key={p.id} ref={(el) => (rowRefs.current[p.id] = el)} className="border-b border-gray-200 last:border-b-0 scroll-mt-2">
+                <button onClick={() => handleToggle(p)} className="w-full text-left px-4 py-5">
                   <div className="flex items-center justify-between">
                     <span className="font-bold">{p.name}</span>
                     <span className="text-xs text-gray-400">{formatDateTime(p.createdAt).split(" ")[0]}</span>
@@ -61,7 +74,12 @@ export default function ProjectsPage({ setTab }) {
                         <div className="space-y-2 mb-3">
                           {p.items.map((item) => (
                             <div key={item.id} className="rounded-xl border border-gray-200 bg-white p-2.5">
-                              {item.text && <p className="text-[13px] whitespace-pre-wrap">{item.text}</p>}
+                              <textarea
+                                value={item.text}
+                                onChange={(e) => updateProjectItem(p.id, item.id, e.target.value)}
+                                className="w-full text-[13px] whitespace-pre-wrap resize-none outline-none"
+                                rows={Math.max(1, item.text.split("\n").length)}
+                              />
                               {item.images && item.images.length > 0 && (
                                 <div className="flex gap-1.5 overflow-x-auto mt-1.5">
                                   {item.images.map((src, i) => (
@@ -97,7 +115,7 @@ export default function ProjectsPage({ setTab }) {
           })}
         </div>
 
-        <div className="pb-10">
+        <div className="pb-32">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
