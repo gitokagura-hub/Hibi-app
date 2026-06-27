@@ -9,10 +9,11 @@ export default function SearchPage({ setTab }) {
   const results = useMemo(() => {
     if (!q.trim()) return null;
     const ql = q.trim().toLowerCase();
+    const eventHits = data.events.filter((e) => e.title.toLowerCase().includes(ql)).map((e) => ({ type: "Calendar", label: `${e.time}　${e.title}` }));
     const taskHits = data.tasks.filter((t) => t.title.toLowerCase().includes(ql)).map((t) => ({ type: "Calendar", label: t.title }));
     const noteHits = data.notes.filter((n) => n.text.toLowerCase().includes(ql)).map((n) => ({ type: "Note", label: n.text }));
     const projectHits = data.projects.filter((p) => p.name.toLowerCase().includes(ql)).map((p) => ({ type: "Project", label: p.name }));
-    return [...taskHits, ...noteHits, ...projectHits];
+    return [...eventHits, ...taskHits, ...noteHits, ...projectHits];
   }, [q, data]);
 
   return (

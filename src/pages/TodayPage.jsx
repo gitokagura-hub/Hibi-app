@@ -1,5 +1,6 @@
+import { useState, useRef } from "react";
 import { Layout } from "../components";
-import { useData, todayStr } from "../dataStore";
+import { useData, todayStr, fileToCompressedDataUrl } from "../dataStore";
 
 const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -10,13 +11,45 @@ function formatToday() {
 }
 
 export default function TodayPage({ setTab }) {
-  const { data, toggleTask, setMemo } = useData();
+  const { data, toggleTask, getMemo, setMemo, addMemoImages, removeMemoImage } = useData();
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
   const today = todayStr();
   const tasks = data.tasks.filter((t) => t.date === today);
-  const memoText = data.memos[today] || "";
+  const events = data.events.filter((e) => e.date === today).sort((a, b) => a.time.localeCompare(b.time));
+  const memo = getMemo(today);
+
+  async function handlePickPhoto(e) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      const dataUrls = await Promise.all(files.map((f) => fileToCompressedDataUrl(f)));
+      addMemoImages(today, dataUrls);
+    } catch {
+      // ignore unreadable files
+    } finally {
+      setUploading(false);
+    }
+  }
 
   return (
     <Layout title="Today" subtitle={formatToday()} current="today" setTab={setTab}>
+      {/* Today's Schedule */}
+      {events.length > 0 && (
+        <section className="px-5 mb-8">
+          <h2 className="text-lg font-semibold mb-4">Schedule</h2>
+          <div className="space-y-3">
+            {events.map((e) => (
+              <div key={e.id} className="rounded-2xl border p-4">
+                {e.time}　{e.title}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Today's Tasks */}
       <section className="px-5 mb-8">
         <h2 className="text-lg font-semibold mb-4">Today's Tasks</h2>
@@ -40,15 +73,34 @@ export default function TodayPage({ setTab }) {
       </section>
 
       {/* Today's Memo */}
-      <section className="px-5">
+      <section className="px-5 pb-32">
         <h2 className="text-lg font-semibold mb-4">Memo</h2>
 
         <textarea
-          value={memoText}
+          value={memo.text}
           onChange={(e) => setMemo(today, e.target.value)}
           placeholder="Add Memo..."
-          className="rounded-2xl border p-4 h-40 w-full"
+          className="rounded-2xl border p-4 h-40 w-full mb-3"
         />
+        {memo.images.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto mb-3">
+            {memo.images.map((src, i) => (
+              <div key={i} className="relative flex-shrink-0">
+                <img src={src} alt="" className="w-16 h-16 object-cover rounded-xl border" />
+                <button
+                  onClick={() => removeMemoImage(today, i)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black text-white text-xs flex items-center justify-center"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="rounded-2xl border px-4 py-2 text-sm">
+          {uploading ? "Adding…" : "📷 Add Photo"}
+        </button>
+        <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handlePickPhoto} className="hidden" />
       </section>
     </Layout>
   );

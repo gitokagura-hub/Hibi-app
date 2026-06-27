@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from "react";
-import { useData, todayStr } from "../dataStore";
+import { useData, todayStr, fileToCompressedDataUrl } from "../dataStore";
 import BottomNavigation from "../components/BottomNavigation";
 
 function pad(n) { return String(n).padStart(2, "0"); }
@@ -18,21 +18,30 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 export default function CalendarPage({ setTab }) {
-  const { data, addTask, toggleTask, addEvent, deleteEvent, setMemo } = useData();
+  const { data, addTask, toggleTask, addEvent, deleteEvent, getMemo, setMemo, addMemoImages, removeMemoImage } = useData();
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [taskInput, setTaskInput] = useState("");
   const [eventTime, setEventTime] = useState("09:00");
   const [eventTitle, setEventTitle] = useState("");
+  const [uploading, setUploading] = useState(false);
   const page2Ref = useRef(null);
+  const fileInputRef = useRef(null);
 
   const grid = useMemo(() => getMonthGrid(calMonth.y, calMonth.m), [calMonth]);
   const todayS = todayStr();
   const dateOf = (d) => fmt(calMonth.y, calMonth.m, d);
 
+  const dayHasItems = useMemo(() => {
+    const set = new Set();
+    data.events.forEach((e) => set.add(e.date));
+    data.tasks.forEach((t) => set.add(t.date));
+    return set;
+  }, [data.events, data.tasks]);
+
   const dayEvents = data.events.filter((e) => e.date === selectedDate).sort((a, b) => a.time.localeCompare(b.time));
   const dayTasks = data.tasks.filter((t) => t.date === selectedDate);
-  const memoText = data.memos[selectedDate] || "";
+  const memo = getMemo(selectedDate);
 
   function selectDate(ds) {
     setSelectedDate(ds);
@@ -52,6 +61,21 @@ export default function CalendarPage({ setTab }) {
     setEventTitle("");
   }
 
+  async function handlePickMemoPhoto(e) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      const dataUrls = await Promise.all(files.map((f) => fileToCompressedDataUrl(f)));
+      addMemoImages(selectedDate, dataUrls);
+    } catch {
+      // ignore unreadable files
+    } finally {
+      setUploading(false);
+    }
+  }
+
   return (
     <div className="h-screen bg-white flex flex-col">
       {/* Header */}
@@ -59,14 +83,14 @@ export default function CalendarPage({ setTab }) {
         <div className="flex items-center justify-between">
           <button>☰</button>
           <h1 className="text-[10px] font-semibold">Dayliy Brains</h1>
-          <button onClick={() => setTab("search")}>🔍</button>
+          <div className="w-5" />
         </div>
       </header>
 
       {/* Full Screen Scroll */}
       <main className="flex-1 overflow-y-auto snap-y snap-mandatory">
         {/* ========= PAGE 1 ========= */}
-        <section className="snap-start h-screen flex flex-col">
+        <section className="snap-start h-screen flex flex-col pb-20">
           {/* Month */}
           <div className="px-5 py-1">
             <div className="flex items-center justify-between">
@@ -85,19 +109,21 @@ export default function CalendarPage({ setTab }) {
           </div>
 
           {/* Calendar */}
-          <div className="flex-1 grid grid-cols-7 grid-rows-6">
+          <div className="flex-1 min-h-0 grid grid-cols-7 grid-rows-6">
             {grid.map((d, index) => {
               if (!d) return <div key={index} className="border border-gray-100" />;
               const ds = dateOf(d);
               const isToday = ds === todayS;
               const isSelected = ds === selectedDate;
+              const hasItems = dayHasItems.has(ds);
               return (
                 <button
                   key={index}
                   onClick={() => selectDate(ds)}
-                  className={`border border-gray-100 flex items-start justify-start p-2 text-lg ${isSelected ? "bg-gray-100" : ""} ${isToday ? "font-bold" : ""}`}
+                  className={`border border-gray-100 flex flex-col items-start justify-start p-2 text-lg relative ${isSelected ? "bg-gray-100" : ""} ${isToday ? "font-bold" : ""}`}
                 >
                   {d}
+                  {hasItems && <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-black" />}
                 </button>
               );
             })}
@@ -156,11 +182,34 @@ export default function CalendarPage({ setTab }) {
 
           <h2 className="text-2xl font-semibold mb-4">📝 Memo</h2>
           <textarea
-            value={memoText}
+            value={memo.text}
             onChange={(e) => setMemo(selectedDate, e.target.value)}
             placeholder="Add Memo..."
-            className="w-full h-64 rounded-2xl border p-4"
+            className="w-full h-64 rounded-2xl border p-4 mb-3"
           />
+          {memo.images.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto mb-3">
+              {memo.images.map((src, i) => (
+                <div key={i} className="relative flex-shrink-0">
+                  <img src={src} alt="" className="w-20 h-20 object-cover rounded-xl border" />
+                  <button
+                    onClick={() => removeMemoImage(selectedDate, i)}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black text-white text-xs flex items-center justify-center"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="rounded-2xl border px-4 py-2 text-sm"
+          >
+            {uploading ? "Adding…" : "📷 Add Photo"}
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handlePickMemoPhoto} className="hidden" />
         </section>
       </main>
 

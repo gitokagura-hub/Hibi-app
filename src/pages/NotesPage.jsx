@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Layout, AIConnections } from "../components";
-import { useData, todayStr } from "../dataStore";
+import { useData, todayStr, fileToCompressedDataUrl } from "../dataStore";
 
 function deriveTitle(text) {
   const firstLine = text.split("\n")[0];
@@ -103,6 +103,9 @@ function PasteChooser({ note, projects, onClose, onPasteToCalendar, onPasteToPro
             <button onClick={() => onPasteToCalendar(date)} className="w-full rounded-2xl bg-black text-white p-4">
               Add as Task
             </button>
+            {note.images && note.images.length > 0 && (
+              <p className="text-xs text-gray-400 mt-2">Photos will be added to that day's Memo.</p>
+            )}
           </>
         )}
         {mode === "projects" && (
@@ -126,15 +129,34 @@ function PasteChooser({ note, projects, onClose, onPasteToCalendar, onPasteToPro
 export default function NotesPage({ setTab }) {
   const { data, addNote, deleteNote, pasteNoteToCalendar, pasteNoteToProject } = useData();
   const [text, setText] = useState("");
+  const [pendingImages, setPendingImages] = useState([]);
+  const [uploading, setUploading] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [pasteTarget, setPasteTarget] = useState(null);
   const [selectedAI, setSelectedAI] = useState("ChatGPT");
+  const fileInputRef = useRef(null);
   const sorted = [...data.notes].sort((a, b) => b.createdAt - a.createdAt);
 
   function handleAdd() {
-    if (!text.trim()) return;
-    addNote(text.trim(), "text");
+    if (!text.trim() && pendingImages.length === 0) return;
+    addNote(text.trim(), "text", pendingImages);
     setText("");
+    setPendingImages([]);
+  }
+
+  async function handlePickPhoto(e) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      const dataUrls = await Promise.all(files.map((f) => fileToCompressedDataUrl(f)));
+      setPendingImages((prev) => [...prev, ...dataUrls]);
+    } catch {
+      // ignore unreadable files
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (
@@ -151,9 +173,30 @@ export default function NotesPage({ setTab }) {
           rows={2}
           className="w-full rounded-2xl border p-4 mb-2"
         />
-        <button onClick={handleAdd} className="rounded-xl border px-4 py-2 mb-6">
-          Add
-        </button>
+        {pendingImages.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto mb-2">
+            {pendingImages.map((src, i) => (
+              <div key={i} className="relative flex-shrink-0">
+                <img src={src} alt="" className="w-16 h-16 object-cover rounded-xl border" />
+                <button
+                  onClick={() => setPendingImages((prev) => prev.filter((_, idx) => idx !== i))}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black text-white text-xs flex items-center justify-center"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-2 mb-6">
+          <button onClick={handleAdd} className="rounded-xl border px-4 py-2">
+            Add
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="rounded-xl border px-4 py-2">
+            {uploading ? "Adding…" : "📷 Photo"}
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handlePickPhoto} className="hidden" />
+        </div>
 
         <div className="space-y-4">
           {sorted.length === 0 && <p className="text-gray-400">No notes yet</p>}
@@ -162,7 +205,14 @@ export default function NotesPage({ setTab }) {
               <h2 className="font-medium mb-2">
                 {n.source === "voice" ? "🎤 " : ""}{deriveTitle(n.text)}
               </h2>
-              <p className="text-sm text-gray-500 mb-4 whitespace-pre-wrap">{n.text}</p>
+              {n.text && <p className="text-sm text-gray-500 mb-3 whitespace-pre-wrap">{n.text}</p>}
+              {n.images && n.images.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto mb-3">
+                  {n.images.map((src, i) => (
+                    <img key={i} src={src} alt="" className="w-16 h-16 object-cover rounded-xl border flex-shrink-0" />
+                  ))}
+                </div>
+              )}
               <div className="flex items-center gap-3">
                 <button onClick={() => setPasteTarget(n)} className="rounded-xl border px-4 py-2">
                   Paste
