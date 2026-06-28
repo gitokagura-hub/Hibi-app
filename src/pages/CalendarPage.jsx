@@ -104,9 +104,9 @@ export default function CalendarPage({ setTab }) {
       </header>
 
       {/* Full Screen Scroll */}
-      <main className="flex-1 overflow-y-auto snap-y snap-proximity">
+      <main className="flex-1 overflow-y-auto">
         {/* ========= PAGE 1 ========= */}
-        <section className="snap-start h-screen flex flex-col" style={{ paddingBottom: "calc(5rem + env(safe-area-inset-bottom))" }}>
+        <section className="h-screen flex flex-col" style={{ paddingBottom: "calc(5rem + env(safe-area-inset-bottom))" }}>
           {/* Month */}
           <div className="px-5 py-1">
             <div className="flex items-center justify-between">
@@ -156,7 +156,7 @@ export default function CalendarPage({ setTab }) {
         </section>
 
         {/* ========= PAGE 2 ========= */}
-        <section className="snap-start min-h-screen px-5 py-8" style={{ paddingBottom: "calc(8rem + env(safe-area-inset-bottom))" }}>
+        <section className="min-h-screen px-5 py-8" style={{ paddingBottom: "calc(8rem + env(safe-area-inset-bottom))" }}>
           <h2 className="text-2xl font-semibold mb-6">
             {MONTH_NAMES[calMonth.m]} {Number(selectedDate.split("-")[2])}'s Schedule
           </h2>
