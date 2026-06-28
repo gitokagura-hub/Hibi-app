@@ -40,11 +40,19 @@ function FullScreenItemEditor({ item, onChange, onClose }) {
 }
 
 export default function ProjectsPage({ setTab }) {
-  const { data, addProject, setProjectDriveFolder, updateProjectItem, deleteProject, deleteProjectItem } = useData();
+  const { data, addProject, setProjectDriveFolder, updateProjectItem, addProjectItem, deleteProject, deleteProjectItem } = useData();
   const [name, setName] = useState("");
   const [openId, setOpenId] = useState(null);
   const [editing, setEditing] = useState(null); // { projectId, itemId }
+  const [newMemoText, setNewMemoText] = useState({}); // { [projectId]: text }
   const rowRefs = useRef({});
+
+  function handleAddMemo(projectId) {
+    const text = (newMemoText[projectId] || "").trim();
+    if (!text) return;
+    addProjectItem(projectId, text);
+    setNewMemoText((prev) => ({ ...prev, [projectId]: "" }));
+  }
 
   function handleAdd() {
     if (!name.trim()) return;
@@ -122,6 +130,28 @@ export default function ProjectsPage({ setTab }) {
                         placeholder="連携するDriveフォルダ名を入力..."
                         className="w-full rounded-lg border p-2 text-xs mb-3 bg-white"
                       />
+
+                      <div className="mb-3">
+                        <textarea
+                          value={newMemoText[p.id] || ""}
+                          onChange={(e) => setNewMemoText((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              handleAddMemo(p.id);
+                            }
+                          }}
+                          placeholder="このプロジェクトに新しいメモを書く..."
+                          className="w-full rounded-lg border p-2 text-xs bg-white resize-none mb-1.5"
+                          rows={2}
+                        />
+                        <button
+                          onClick={() => handleAddMemo(p.id)}
+                          className="w-full rounded-lg bg-black text-white text-xs font-semibold py-1.5"
+                        >
+                          ＋ メモを追加
+                        </button>
+                      </div>
 
                       {p.items.length > 0 && (
                         <div className="space-y-2 mb-3">
