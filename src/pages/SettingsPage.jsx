@@ -224,13 +224,24 @@ export default function SettingsPage({ setTab }) {
         <div className="mb-7">
           <GroupHeader>AI 連携コアマトリクス</GroupHeader>
           <div className="rounded-2xl border border-gray-200 overflow-hidden">
-            <div className="p-4 flex items-center justify-between border-b border-gray-100">
-              <span>Claude（実装コア）</span>
-              <span className="text-gray-400 text-sm">このアプリ自体（接続不要）</span>
+            <div className="p-4 border-b border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <span>Claude（Notes画面のAI処理に使用）</span>
+                <span className={data.settings.claudeKey ? "text-blue-600 font-semibold text-sm" : "text-gray-400 text-sm"}>
+                  {data.settings.claudeKey ? "設定済" : "未設定"}
+                </span>
+              </div>
+              <input
+                type="password"
+                value={data.settings.claudeKey}
+                onChange={(e) => setSettings({ claudeKey: e.target.value })}
+                placeholder="API キーを入力（console.anthropic.com）"
+                className="w-full rounded-xl border p-2.5 text-sm"
+              />
             </div>
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center justify-between mb-2">
-                <span>Gemini（UI・設計コア）</span>
+                <span>Gemini（Notes画面のAI処理に使用）</span>
                 <span className={data.settings.geminiKey ? "text-blue-600 font-semibold text-sm" : "text-gray-400 text-sm"}>
                   {data.settings.geminiKey ? "設定済" : "未設定"}
                 </span>
@@ -239,7 +250,7 @@ export default function SettingsPage({ setTab }) {
                 type="password"
                 value={data.settings.geminiKey}
                 onChange={(e) => setSettings({ geminiKey: e.target.value })}
-                placeholder="API キーを入力"
+                placeholder="API キーを入力（aistudio.google.com）"
                 className="w-full rounded-xl border p-2.5 text-sm"
               />
             </div>
@@ -257,10 +268,11 @@ export default function SettingsPage({ setTab }) {
                 placeholder="API キーを入力"
                 className="w-full rounded-xl border p-2.5 text-sm"
               />
+              <p className="text-[11px] text-gray-400 mt-1.5">ChatGPTはまだNotes画面のAI処理には接続されていません。</p>
             </div>
           </div>
           <p className="text-xs text-gray-400 mt-2 px-2">
-            ここで保存したキーは端末内にのみ保存されます。現時点ではキーを使った実際の呼び出しはまだ接続していません。
+            ここで保存したキーは端末内にのみ保存され、各プロバイダのAPIへの直接通信にのみ使われます。
           </p>
         </div>
 

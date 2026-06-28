@@ -71,7 +71,7 @@ function emptyData() {
     memos: {},     // { [date]: { text, images: [], files: [] } }
     notes: [],     // { id, text, images: [], files: [], source: 'text'|'voice', createdAt }
     projects: [],  // { id, name, items: [{id, text, images, files, createdAt}], driveFolderId: '', driveFiles: [], createdAt }
-    settings: { geminiKey: '', chatgptKey: '' },
+    settings: { geminiKey: '', chatgptKey: '', claudeKey: '' },
   };
 }
 

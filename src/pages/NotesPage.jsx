@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Layout, AIConnections } from "../components";
 import { useData, todayStr, fileToCompressedDataUrl, fileToDataUrl, formatDateTime } from "../dataStore";
+import { runAIOnNote } from "../aiAssist";
 
 function deriveTitle(text) {
   const firstLine = text.split("\n")[0];
@@ -108,9 +109,82 @@ function ProjectPickerSheet({ projects, onClose, onPick }) {
   );
 }
 
+function AIAssistSheet({ provider, apiKeyMissing, onClose, onRun, onApply }) {
+  const [instruction, setInstruction] = useState("");
+  const [result, setResult] = useState("");
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleRun() {
+    if (!instruction.trim()) return;
+    setRunning(true);
+    setError("");
+    setResult("");
+    try {
+      const output = await onRun(instruction);
+      setResult(output);
+    } catch (err) {
+      setError(err.message === "NO_API_KEY" ? "APIキーが未設定です。Settingsで設定してください。" : "AI呼び出しに失敗しました: " + err.message);
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-end bg-black/40" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full bg-white rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
+        <h2 className="text-lg font-semibold mb-1">✨ {provider}に頼む</h2>
+        <p className="text-xs text-gray-400 mb-4">このノートの内容について、やってほしいことを書いてください</p>
+
+        {apiKeyMissing ? (
+          <p className="text-sm text-red-500 mb-3">
+            {provider === "ChatGPT"
+              ? "ChatGPTはまだ接続されていません。上のピルでClaudeかGeminiを選んでください。"
+              : `${provider}のAPIキーが未設定です。Settings画面で設定してください。`}
+          </p>
+        ) : (
+          <>
+            <textarea
+              autoFocus
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+              placeholder="例：要約して／タスクに分解して／英語に訳して"
+              className="w-full rounded-2xl border p-4 h-24 mb-3 text-sm"
+            />
+            <button
+              onClick={handleRun}
+              disabled={running || !instruction.trim()}
+              className="w-full rounded-2xl bg-black text-white p-3.5 font-semibold mb-3 disabled:opacity-40"
+            >
+              {running ? "処理中…" : "実行する"}
+            </button>
+
+            {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
+
+            {result && (
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 mb-3">
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{result}</p>
+              </div>
+            )}
+
+            {result && (
+              <div className="flex gap-2">
+                <button onClick={() => onApply(result, "replace")} className="flex-1 rounded-xl border px-4 py-2.5 text-sm font-semibold">置き換える</button>
+                <button onClick={() => onApply(result, "append")} className="flex-1 rounded-xl border px-4 py-2.5 text-sm font-semibold">下に追記</button>
+              </div>
+            )}
+          </>
+        )}
+
+        <button onClick={onClose} className="w-full text-center text-gray-400 text-sm mt-4">閉じる</button>
+      </div>
+    </div>
+  );
+}
+
 function FullScreenComposer({
   text, setText, pendingImages, setPendingImages, pendingFiles, setPendingFiles,
-  uploading, onPickPhoto, onPickFile, onVoice, onSave, onSend, onClose, isEditing,
+  uploading, onPickPhoto, onPickFile, onVoice, onSave, onSend, onClose, isEditing, onAIAssist,
 }) {
   const photoInputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -156,6 +230,7 @@ function FullScreenComposer({
 
       <div className="px-5 pb-8" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
         <div className="flex items-center gap-2 border-t border-gray-100 pt-3 mb-3">
+          <button onClick={onAIAssist} className="rounded-xl border px-2.5 py-1.5 text-xs bg-white whitespace-nowrap">✨ AIに頼む</button>
           <button onClick={onVoice} className="rounded-xl border px-2.5 py-1.5 text-xs bg-white whitespace-nowrap">🎤 ボイチャ</button>
           <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="rounded-xl border px-2.5 py-1.5 text-xs bg-white whitespace-nowrap">📎 ファイル</button>
           <button onClick={() => photoInputRef.current?.click()} disabled={uploading} className="rounded-xl border px-2.5 py-1.5 text-xs bg-white whitespace-nowrap">📷 写真</button>
@@ -188,6 +263,7 @@ export default function NotesPage({ setTab }) {
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [projectPickerOpen, setProjectPickerOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
+  const [aiAssistOpen, setAiAssistOpen] = useState(false);
   const [pasteTarget, setPasteTarget] = useState(null);
   const [pasteMode, setPasteMode] = useState(null);
   const [selectedAI, setSelectedAI] = useState("ChatGPT");
@@ -279,6 +355,24 @@ export default function NotesPage({ setTab }) {
     } catch {} finally { setUploading(false); }
   }
 
+  // Maps the AIConnections pill selection to an aiAssist provider + the
+  // matching key from Settings. ChatGPT isn't wired up to aiAssist yet.
+  const aiProviderMap = { Claude: "claude", Gemini: "gemini" };
+  const aiProvider = aiProviderMap[selectedAI] || null;
+  const aiApiKey = aiProvider === "claude" ? data.settings.claudeKey : aiProvider === "gemini" ? data.settings.geminiKey : "";
+  const aiKeyMissing = !aiProvider || !aiApiKey;
+
+  async function handleAIRun(instruction) {
+    if (!aiProvider) throw new Error("UNSUPPORTED_PROVIDER");
+    return runAIOnNote({ provider: aiProvider, apiKey: aiApiKey, noteText: text, instruction });
+  }
+
+  function handleAIApply(result, mode) {
+    if (mode === "replace") setText(result);
+    else setText((prev) => (prev ? prev + "\n\n" + result : result));
+    setAiAssistOpen(false);
+  }
+
   return (
     <Layout title="Notes" subtitle="Ideas & Conversations" current="notes" setTab={setTab}>
       <div className="px-5">
@@ -354,6 +448,16 @@ export default function NotesPage({ setTab }) {
           onSend={() => setProjectPickerOpen(true)}
           onClose={handleCloseComposer}
           isEditing={!!editingNoteId}
+          onAIAssist={() => setAiAssistOpen(true)}
+        />
+      )}
+      {aiAssistOpen && (
+        <AIAssistSheet
+          provider={selectedAI}
+          apiKeyMissing={aiKeyMissing}
+          onClose={() => setAiAssistOpen(false)}
+          onRun={handleAIRun}
+          onApply={handleAIApply}
         />
       )}
       {projectPickerOpen && (
