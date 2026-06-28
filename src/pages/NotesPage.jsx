@@ -30,7 +30,7 @@ function VoiceCapture({ onClose, onSave }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/40" onClick={stage === "review" ? onClose : undefined}>
+    <div className="fixed inset-0 z-[60] flex items-end bg-black/40" onClick={stage === "review" ? onClose : undefined}>
       <div onClick={(e) => e.stopPropagation()} className="w-full bg-white rounded-t-3xl p-6">
         {stage === "listening" ? (
           <div className="flex flex-col items-center py-6">
@@ -67,7 +67,7 @@ function PasteChooser({ note, mode: initialMode, projects, onClose, onPasteToCal
   const [date, setDate] = useState(todayStr());
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-end bg-black/40" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="w-full bg-white rounded-t-3xl p-6">
         {mode === "calendar" && (
           <>
@@ -92,19 +92,98 @@ function PasteChooser({ note, mode: initialMode, projects, onClose, onPasteToCal
   );
 }
 
+function ProjectPickerSheet({ projects, onClose, onPick }) {
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end bg-black/40" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full bg-white rounded-t-3xl p-6">
+        <h2 className="text-lg font-semibold mb-4">送信先のプロジェクトを選択</h2>
+        <div className="space-y-2 max-h-72 overflow-y-auto">
+          {projects.length === 0 && <p className="text-gray-400">プロジェクトがまだありません</p>}
+          {projects.map((p) => (
+            <button key={p.id} onClick={() => onPick(p.id)} className="w-full text-left rounded-2xl border p-4">📁 {p.name}</button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FullScreenComposer({
+  text, setText, pendingImages, setPendingImages, pendingFiles, setPendingFiles,
+  uploading, onPickPhoto, onPickFile, onVoice, onSave, onSend, onClose,
+}) {
+  const photoInputRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-white flex flex-col">
+      <div className="flex items-center justify-between px-5 pt-14 pb-3 border-b border-gray-100">
+        <button onClick={onClose} className="text-gray-500">閉じる</button>
+        <span className="font-semibold">New Note</span>
+        <div className="w-10" />
+      </div>
+
+      <textarea
+        autoFocus
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="思いつきやアイデアを書き出す（壁打ち）..."
+        className="flex-1 w-full px-5 py-4 text-[16px] outline-none resize-none"
+      />
+
+      <div className="px-5">
+        {pendingImages.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto mb-2">
+            {pendingImages.map((src, i) => (
+              <div key={i} className="relative flex-shrink-0">
+                <img src={src} alt="" className="w-16 h-16 object-cover rounded-xl border" />
+                <button onClick={() => setPendingImages((p) => p.filter((_, idx) => idx !== i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black text-white text-xs flex items-center justify-center">×</button>
+              </div>
+            ))}
+          </div>
+        )}
+        {pendingFiles.length > 0 && (
+          <div className="space-y-1.5 mb-2">
+            {pendingFiles.map((f, i) => (
+              <div key={i} className="flex items-center justify-between rounded-lg border p-2 text-xs">
+                <span className="truncate">📄 {f.name}</span>
+                <button onClick={() => setPendingFiles((p) => p.filter((_, idx) => idx !== i))} className="text-gray-400 ml-2">×</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="px-5 pb-8" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
+        <div className="flex items-center gap-2 border-t border-gray-100 pt-3 mb-3">
+          <button onClick={onVoice} className="rounded-xl border px-2.5 py-1.5 text-xs bg-white whitespace-nowrap">🎤 ボイチャ</button>
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="rounded-xl border px-2.5 py-1.5 text-xs bg-white whitespace-nowrap">📎 ファイル</button>
+          <button onClick={() => photoInputRef.current?.click()} disabled={uploading} className="rounded-xl border px-2.5 py-1.5 text-xs bg-white whitespace-nowrap">📷 写真</button>
+        </div>
+        <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={onPickPhoto} className="hidden" />
+        <input ref={fileInputRef} type="file" multiple onChange={onPickFile} className="hidden" />
+        <div className="flex gap-2">
+          <button onClick={onSave} className="flex-1 rounded-xl border px-4 py-3 text-sm font-semibold">保存</button>
+          <button onClick={onSend} className="flex-1 rounded-xl bg-black text-white px-4 py-3 text-sm font-semibold">📤 Send</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function NotesPage({ setTab }) {
-  const { data, addNote, deleteNote, pasteNoteToCalendar, pasteNoteToProject } = useData();
+  const { data, addNote, deleteNote, pasteNoteToCalendar, pasteNoteToProject, sendToProject } = useData();
   const [text, setText] = useState("");
   const [pendingImages, setPendingImages] = useState([]);
   const [pendingFiles, setPendingFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [projectPickerOpen, setProjectPickerOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [pasteTarget, setPasteTarget] = useState(null);
   const [pasteMode, setPasteMode] = useState(null);
   const [selectedAI, setSelectedAI] = useState("ChatGPT");
   const [now, setNow] = useState(Date.now());
-  const photoInputRef = useRef(null);
-  const fileInputRef = useRef(null);
   const sorted = [...data.notes].sort((a, b) => b.createdAt - a.createdAt);
 
   useEffect(() => {
@@ -112,12 +191,25 @@ export default function NotesPage({ setTab }) {
     return () => clearInterval(t);
   }, []);
 
-  function handleAdd() {
-    if (!text.trim() && pendingImages.length === 0 && pendingFiles.length === 0) return;
-    addNote(text.trim(), "text", pendingImages, pendingFiles);
+  function resetComposer() {
     setText("");
     setPendingImages([]);
     setPendingFiles([]);
+  }
+
+  function handleSaveNote() {
+    if (!text.trim() && pendingImages.length === 0 && pendingFiles.length === 0) return;
+    addNote(text.trim(), "text", pendingImages, pendingFiles);
+    resetComposer();
+    setComposerOpen(false);
+  }
+
+  function handleSendPick(projectId) {
+    if (!text.trim() && pendingImages.length === 0 && pendingFiles.length === 0) return;
+    sendToProject(projectId, text.trim(), pendingImages, pendingFiles);
+    resetComposer();
+    setProjectPickerOpen(false);
+    setComposerOpen(false);
   }
 
   async function handlePickPhoto(e) {
@@ -149,46 +241,12 @@ export default function NotesPage({ setTab }) {
           <AIConnections selected={selectedAI} onSelect={setSelectedAI} />
         </div>
 
-        <div className="rounded-3xl border p-4 mb-6">
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="思いつきやアイデアを書き出す（壁打ち）..."
-            rows={3}
-            className="w-full border-none outline-none resize-none text-[15px] mb-2"
-          />
-          {pendingImages.length > 0 && (
-            <div className="flex gap-2 overflow-x-auto mb-2">
-              {pendingImages.map((src, i) => (
-                <div key={i} className="relative flex-shrink-0">
-                  <img src={src} alt="" className="w-16 h-16 object-cover rounded-xl border" />
-                  <button onClick={() => setPendingImages((p) => p.filter((_, idx) => idx !== i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black text-white text-xs flex items-center justify-center">×</button>
-                </div>
-              ))}
-            </div>
-          )}
-          {pendingFiles.length > 0 && (
-            <div className="space-y-1.5 mb-2">
-              {pendingFiles.map((f, i) => (
-                <div key={i} className="flex items-center justify-between rounded-lg border p-2 text-xs">
-                  <span className="truncate">📄 {f.name}</span>
-                  <button onClick={() => setPendingFiles((p) => p.filter((_, idx) => idx !== i))} className="text-gray-400 ml-2">×</button>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="flex items-center gap-2 border-t border-gray-100 pt-3">
-            <button onClick={() => setVoiceOpen(true)} className="rounded-xl border px-2.5 py-1.5 text-xs bg-white whitespace-nowrap">🎤 ボイチャ</button>
-            <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="rounded-xl border px-2.5 py-1.5 text-xs bg-white whitespace-nowrap">📎 ファイル</button>
-            <button onClick={() => photoInputRef.current?.click()} disabled={uploading} className="rounded-xl border px-2.5 py-1.5 text-xs bg-white whitespace-nowrap">📷 写真</button>
-          </div>
-          <div className="text-right mt-2">
-            <span className="text-xs text-gray-400">{formatDateTime(now)}</span>
-          </div>
-          <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={handlePickPhoto} className="hidden" />
-          <input ref={fileInputRef} type="file" multiple onChange={handlePickFile} className="hidden" />
-          <button onClick={handleAdd} className="mt-3 rounded-xl bg-black text-white px-4 py-2 text-sm">Add</button>
-        </div>
+        <button
+          onClick={() => setComposerOpen(true)}
+          className="w-full text-left rounded-3xl border p-4 mb-6 text-gray-400 text-[15px]"
+        >
+          思いつきやアイデアを書き出す（壁打ち）...
+        </button>
 
         <div className="space-y-4 pb-10">
           {sorted.length === 0 && <p className="text-gray-400">No notes yet</p>}
@@ -222,6 +280,27 @@ export default function NotesPage({ setTab }) {
         </div>
       </div>
 
+      {composerOpen && (
+        <FullScreenComposer
+          text={text} setText={setText}
+          pendingImages={pendingImages} setPendingImages={setPendingImages}
+          pendingFiles={pendingFiles} setPendingFiles={setPendingFiles}
+          uploading={uploading}
+          onPickPhoto={handlePickPhoto}
+          onPickFile={handlePickFile}
+          onVoice={() => setVoiceOpen(true)}
+          onSave={handleSaveNote}
+          onSend={() => setProjectPickerOpen(true)}
+          onClose={() => setComposerOpen(false)}
+        />
+      )}
+      {projectPickerOpen && (
+        <ProjectPickerSheet
+          projects={data.projects}
+          onClose={() => setProjectPickerOpen(false)}
+          onPick={handleSendPick}
+        />
+      )}
       {voiceOpen && (
         <VoiceCapture onClose={() => setVoiceOpen(false)} onSave={(t) => { addNote(t, "voice"); setVoiceOpen(false); }} />
       )}

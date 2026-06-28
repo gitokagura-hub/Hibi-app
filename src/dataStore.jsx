@@ -192,6 +192,14 @@ export function DataProvider({ children }) {
         : p),
     }));
   }
+  function sendToProject(projectId, text, images, files) {
+    setData(prev => ({
+      ...prev,
+      projects: prev.projects.map(p => p.id === projectId
+        ? { ...p, items: [...p.items, { id: uid(), text, images: images || [], files: files || [], createdAt: Date.now() }] }
+        : p),
+    }));
+  }
   function pasteNoteToCalendar(note, date) {
     addTask(date, note.text);
     if (note.images && note.images.length > 0) addMemoImages(date, note.images);
@@ -218,7 +226,7 @@ export function DataProvider({ children }) {
     addEvent, deleteEvent,
     getMemo, setMemo, addMemoImages, removeMemoImage, addMemoFiles, removeMemoFile,
     addNote, deleteNote,
-    addProject, setProjectDriveFolder, updateProjectItem, deleteProject, deleteProjectItem,
+    addProject, setProjectDriveFolder, updateProjectItem, deleteProject, deleteProjectItem, sendToProject,
     pasteNoteToCalendar, pasteNoteToProject,
     setSettings,
   };
