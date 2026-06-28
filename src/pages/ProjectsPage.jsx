@@ -2,10 +2,48 @@ import { useState, useRef } from "react";
 import { Layout } from "../components";
 import { useData, formatDateTime } from "../dataStore";
 
+function FullScreenItemEditor({ item, onChange, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 bg-white flex flex-col">
+      <div className="flex items-center justify-between px-5 pt-14 pb-3 border-b border-gray-100">
+        <button onClick={onClose} className="text-gray-500">← 戻る</button>
+        <span className="font-semibold">編集</span>
+        <div className="w-10" />
+      </div>
+
+      <textarea
+        autoFocus
+        value={item.text}
+        onChange={(e) => onChange(e.target.value)}
+        className="flex-1 w-full px-5 py-4 text-[16px] outline-none resize-none"
+      />
+
+      <div className="px-5" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
+        {item.images && item.images.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto mb-2">
+            {item.images.map((src, i) => (
+              <img key={i} src={src} alt="" className="w-16 h-16 object-cover rounded-xl border flex-shrink-0" />
+            ))}
+          </div>
+        )}
+        {item.files && item.files.length > 0 && (
+          <div className="space-y-1.5 mb-2">
+            {item.files.map((f, i) => (
+              <div key={i} className="text-xs rounded-lg border p-2 truncate">📄 {f.name}</div>
+            ))}
+          </div>
+        )}
+        <button onClick={onClose} className="w-full rounded-xl bg-black text-white px-4 py-3 text-sm font-semibold">← 戻る</button>
+      </div>
+    </div>
+  );
+}
+
 export default function ProjectsPage({ setTab }) {
   const { data, addProject, setProjectDriveFolder, updateProjectItem, deleteProject, deleteProjectItem } = useData();
   const [name, setName] = useState("");
   const [openId, setOpenId] = useState(null);
+  const [editing, setEditing] = useState(null); // { projectId, itemId }
   const rowRefs = useRef({});
 
   function handleAdd() {
@@ -33,6 +71,10 @@ export default function ProjectsPage({ setTab }) {
       if (openId === p.id) setOpenId(null);
     }
   }
+
+  const editingItem = editing
+    ? data.projects.find((p) => p.id === editing.projectId)?.items.find((it) => it.id === editing.itemId)
+    : null;
 
   return (
     <Layout title="Projects" current="projects" setTab={setTab}>
@@ -86,12 +128,12 @@ export default function ProjectsPage({ setTab }) {
                           {p.items.map((item) => (
                             <div key={item.id} className="rounded-xl border border-gray-200 bg-white p-2.5">
                               <div className="flex items-start gap-2">
-                                <textarea
-                                  value={item.text}
-                                  onChange={(e) => updateProjectItem(p.id, item.id, e.target.value)}
-                                  className="flex-1 text-[13px] whitespace-pre-wrap resize-none outline-none"
-                                  rows={Math.max(1, item.text.split("\n").length)}
-                                />
+                                <button
+                                  onClick={() => setEditing({ projectId: p.id, itemId: item.id })}
+                                  className="flex-1 text-left text-[13px] whitespace-pre-wrap"
+                                >
+                                  {item.text || <span className="text-gray-400">（空のメモ）</span>}
+                                </button>
                                 <button onClick={() => deleteProjectItem(p.id, item.id)} className="text-gray-400 text-sm flex-shrink-0">🗑</button>
                               </div>
                               {item.images && item.images.length > 0 && (
@@ -140,6 +182,14 @@ export default function ProjectsPage({ setTab }) {
           <button onClick={handleAdd} className="rounded-xl border px-4 py-2">Add</button>
         </div>
       </div>
+
+      {editing && editingItem && (
+        <FullScreenItemEditor
+          item={editingItem}
+          onChange={(text) => updateProjectItem(editing.projectId, editing.itemId, text)}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </Layout>
   );
 }
