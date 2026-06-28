@@ -41,7 +41,13 @@ export default function SettingsPage({ setTab }) {
       await connectDrive();
       setDriveConnected(true);
     } catch (err) {
-      setDriveError("接続に失敗しました。もう一度お試しください。");
+      if (err.message === "GOOGLE_SCRIPT_NOT_LOADED") {
+        setDriveError("読み込み中です。数秒待ってからもう一度お試しください。");
+      } else if (err.error === "origin_mismatch" || err.type === "popup_failed_to_open") {
+        setDriveError("このアプリのURLがGoogle側に未登録です（origin_mismatch）。Claudeに伝えてください。");
+      } else {
+        setDriveError("接続に失敗しました。もう一度お試しください。");
+      }
     } finally {
       setDriveBusy(false);
     }
@@ -60,7 +66,13 @@ export default function SettingsPage({ setTab }) {
       setTeamConnected(true);
       refreshTeamData();
     } catch (err) {
-      setTeamConnError("接続に失敗しました。もう一度お試しください。");
+      if (err.message === "GOOGLE_SCRIPT_NOT_LOADED") {
+        setTeamConnError("読み込み中です。数秒待ってからもう一度お試しください。");
+      } else if (err.error === "origin_mismatch" || err.type === "popup_failed_to_open") {
+        setTeamConnError("このアプリのURLがGoogle側に未登録です（origin_mismatch）。Claudeに伝えてください。");
+      } else {
+        setTeamConnError("接続に失敗しました。もう一度お試しください。");
+      }
     } finally {
       setTeamBusy(false);
     }

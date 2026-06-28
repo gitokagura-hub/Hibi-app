@@ -40,11 +40,34 @@ function getClient() {
   return tokenClient;
 }
 
+// Waits briefly for the Google Identity Services script to finish loading,
+// since it's loaded with async/defer and may not be ready the instant the
+// person taps "connect" right after opening the app.
+function waitForGoogleScript(timeoutMs = 4000) {
+  return new Promise((resolve, reject) => {
+    if (window.google && window.google.accounts && window.google.accounts.oauth2) {
+      resolve();
+      return;
+    }
+    const start = Date.now();
+    const interval = setInterval(() => {
+      if (window.google && window.google.accounts && window.google.accounts.oauth2) {
+        clearInterval(interval);
+        resolve();
+      } else if (Date.now() - start > timeoutMs) {
+        clearInterval(interval);
+        reject(new Error('GOOGLE_SCRIPT_NOT_LOADED'));
+      }
+    }, 150);
+  });
+}
+
 // Must be called from inside a direct user gesture (click handler) the first time.
-export function connectDrive() {
+export async function connectDrive() {
+  await waitForGoogleScript();
   return new Promise((resolve, reject) => {
     const client = getClient();
-    if (!client) { reject(new Error('Google Identity Services がまだ読み込まれていません')); return; }
+    if (!client) { reject(new Error('GOOGLE_SCRIPT_NOT_LOADED')); return; }
     client.callback = (resp) => {
       if (resp.error) { reject(resp); return; }
       accessToken = resp.access_token;
