@@ -320,20 +320,6 @@ export default function CalendarPage({ setTab }) {
               <input ref={fileInputRef} type="file" multiple onChange={handlePickFile} className="hidden" />
             </>
           )}
-
-          {/* 4. Project Links */}
-          {!isTeam && data.projects.length > 0 && (
-            <div className="mt-10">
-              <h2 className="text-2xl font-semibold mb-4">Project Links</h2>
-              <div className="space-y-2">
-                {data.projects.map((p) => (
-                  <button key={p.id} onClick={() => setTab("projects")} className="w-full text-left rounded-2xl border p-4">
-                    📁 {p.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </section>
       </main>
 
