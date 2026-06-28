@@ -300,7 +300,7 @@ export default function ProjectsPage({ setTab }) {
                                   {item.text || <span className="text-gray-400">（空のメモ）</span>}
                                   {isTeam && <span className="block text-[10px] text-blue-500 mt-1">● {item.author || "名無し"}</span>}
                                 </button>
-                                <button onClick={() => (isTeam ? deleteTeamProjectItemAction(item.id) : deleteProjectItem(p.id, item.id))} className="text-gray-400 text-sm flex-shrink-0">🗑</button>
+                                <button onClick={() => { if (window.confirm("このメモを削除しますか？")) (isTeam ? deleteTeamProjectItemAction(item.id) : deleteProjectItem(p.id, item.id)); }} className="text-gray-400 text-sm flex-shrink-0">🗑</button>
                               </div>
                               {item.images && item.images.length > 0 && (
                                 <div className="flex gap-1.5 overflow-x-auto mt-1.5">

@@ -110,11 +110,13 @@ export default function CalendarPage({ setTab }) {
   }
 
   function handleDeleteTask(id) {
+    if (!window.confirm("このタスクを削除しますか？")) return;
     if (isTeam) deleteTeamTaskAction(id);
     else deleteTask(id);
   }
 
   function handleDeleteEvent(id) {
+    if (!window.confirm("この予定を削除しますか？")) return;
     if (isTeam) deleteTeamEventAction(id);
     else deleteEvent(id);
   }

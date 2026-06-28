@@ -427,7 +427,7 @@ export default function NotesPage({ setTab }) {
                       <button onClick={() => { setPasteTarget(n); setPasteMode("projects"); }} className="bg-white border border-gray-300 text-gray-700 rounded-lg px-2.5 py-1 text-xs font-medium">To Project</button>
                     </>
                   )}
-                  <button onClick={() => (isTeam ? deleteTeamNoteAction(n.id) : deleteNote(n.id))} className="text-gray-400 text-xs px-1">Delete</button>
+                  <button onClick={() => { if (window.confirm("このノートを削除しますか？")) (isTeam ? deleteTeamNoteAction(n.id) : deleteNote(n.id)); }} className="text-gray-400 text-xs px-1">Delete</button>
                 </div>
               </div>
             </div>
