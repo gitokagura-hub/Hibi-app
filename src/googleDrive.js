@@ -6,8 +6,12 @@
 export const CLIENT_ID = '720962400807-7a9kq0ggvtmv803nlqoasm13cj16o2n3.apps.googleusercontent.com';
 // -------------------------------------------------------------------------------------
 
-const SCOPE = 'https://www.googleapis.com/auth/drive.file';
-const APP_FOLDER_NAME = 'Hibiアプリの画像';
+const SCOPE = 'https://www.googleapis.com/auth/drive';
+// Fixed root folder the person created by hand in their own Drive. Using a
+// fixed ID instead of searching by name means uploads always land here,
+// and it works even though the folder wasn't created by this app (which is
+// why the scope above had to widen from drive.file to full drive access).
+const ROOT_FOLDER_ID = '16e2sc1xBJgfCFBeYyvQXMvhtq0e05m77';
 const CONNECTED_FLAG = 'hibi-drive-connected';
 const FOLDER_ID_KEY = 'hibi-drive-folder-id';
 const TOKEN_KEY = 'hibi-drive-token';
@@ -91,36 +95,7 @@ function requireToken() {
 }
 
 async function getOrCreateFolder() {
-  const token = requireToken();
-  let folderId = localStorage.getItem(FOLDER_ID_KEY);
-  if (folderId) {
-    const check = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,trashed`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (check.ok) {
-      const data = await check.json();
-      if (!data.trashed) return folderId;
-    }
-  }
-  const q = encodeURIComponent(`name='${APP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
-  const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const searchData = await searchRes.json();
-  if (searchData.files && searchData.files.length > 0) {
-    folderId = searchData.files[0].id;
-    localStorage.setItem(FOLDER_ID_KEY, folderId);
-    return folderId;
-  }
-  const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: APP_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' }),
-  });
-  const createData = await createRes.json();
-  folderId = createData.id;
-  localStorage.setItem(FOLDER_ID_KEY, folderId);
-  return folderId;
+  return ROOT_FOLDER_ID;
 }
 
 export async function uploadImage(file) {
