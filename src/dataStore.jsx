@@ -136,7 +136,8 @@ export function DataProvider({ children }) {
       ]);
       setTeamData({ notes, tasks, events, projects, projectItems });
     } catch (err) {
-      setTeamError('チームデータの読み込みに失敗しました');
+      console.error('refreshTeamData failed:', err);
+      setTeamError('チームデータの読み込みに失敗しました（' + (err?.message || '不明なエラー') + '）');
     } finally {
       setTeamLoading(false);
     }
