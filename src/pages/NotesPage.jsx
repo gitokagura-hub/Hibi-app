@@ -299,14 +299,14 @@ export default function NotesPage({ setTab }) {
                   </div>
                 )}
               </button>
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-gray-400 font-semibold">作成日: {formatDateTime(n.createdAt)}</span>
-                <div className="flex gap-1.5">
-                  <button onClick={() => { setPasteTarget(n); setPasteMode("calendar"); }} className="bg-black text-white rounded-lg px-3 py-1.5 text-xs font-semibold">📅 カレンダーへ貼付</button>
-                  <button onClick={() => { setPasteTarget(n); setPasteMode("projects"); }} className="bg-black text-white rounded-lg px-3 py-1.5 text-xs font-semibold">📁 プロジェクトへ貼付</button>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-[11px] text-gray-400 font-semibold">{formatDateTime(n.createdAt)}</span>
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => { setPasteTarget(n); setPasteMode("calendar"); }} className="bg-white border border-gray-300 text-gray-700 rounded-lg px-2.5 py-1 text-xs font-medium">To Calendar</button>
+                  <button onClick={() => { setPasteTarget(n); setPasteMode("projects"); }} className="bg-white border border-gray-300 text-gray-700 rounded-lg px-2.5 py-1 text-xs font-medium">To Project</button>
+                  <button onClick={() => deleteNote(n.id)} className="text-gray-400 text-xs px-1">Delete</button>
                 </div>
               </div>
-              <button onClick={() => deleteNote(n.id)} className="text-gray-400 text-xs mt-2">Delete</button>
             </div>
           ))}
         </div>
