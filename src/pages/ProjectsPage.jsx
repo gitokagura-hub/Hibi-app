@@ -3,7 +3,7 @@ import { Layout } from "../components";
 import { useData, formatDateTime } from "../dataStore";
 
 export default function ProjectsPage({ setTab }) {
-  const { data, addProject, setProjectDriveFolder, updateProjectItem } = useData();
+  const { data, addProject, setProjectDriveFolder, updateProjectItem, deleteProject, deleteProjectItem } = useData();
   const [name, setName] = useState("");
   const [openId, setOpenId] = useState(null);
   const rowRefs = useRef({});
@@ -23,6 +23,14 @@ export default function ProjectsPage({ setTab }) {
       requestAnimationFrame(() => {
         rowRefs.current[p.id]?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
+    }
+  }
+
+  function handleDeleteProject(e, p) {
+    e.stopPropagation();
+    if (window.confirm(`「${p.name}」を削除しますか？中の項目もすべて削除されます。`)) {
+      deleteProject(p.id);
+      if (openId === p.id) setOpenId(null);
     }
   }
 
@@ -46,7 +54,10 @@ export default function ProjectsPage({ setTab }) {
                 <button onClick={() => handleToggle(p)} className="w-full text-left px-4 py-5">
                   <div className="flex items-center justify-between">
                     <span className="font-bold">{p.name}</span>
-                    <span className="text-xs text-gray-400">{formatDateTime(p.createdAt).split(" ")[0]}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-gray-400">{formatDateTime(p.createdAt).split(" ")[0]}</span>
+                      <span onClick={(e) => handleDeleteProject(e, p)} className="text-gray-400 text-sm px-1">🗑</span>
+                    </div>
                   </div>
                 </button>
 
@@ -74,12 +85,15 @@ export default function ProjectsPage({ setTab }) {
                         <div className="space-y-2 mb-3">
                           {p.items.map((item) => (
                             <div key={item.id} className="rounded-xl border border-gray-200 bg-white p-2.5">
-                              <textarea
-                                value={item.text}
-                                onChange={(e) => updateProjectItem(p.id, item.id, e.target.value)}
-                                className="w-full text-[13px] whitespace-pre-wrap resize-none outline-none"
-                                rows={Math.max(1, item.text.split("\n").length)}
-                              />
+                              <div className="flex items-start gap-2">
+                                <textarea
+                                  value={item.text}
+                                  onChange={(e) => updateProjectItem(p.id, item.id, e.target.value)}
+                                  className="flex-1 text-[13px] whitespace-pre-wrap resize-none outline-none"
+                                  rows={Math.max(1, item.text.split("\n").length)}
+                                />
+                                <button onClick={() => deleteProjectItem(p.id, item.id)} className="text-gray-400 text-sm flex-shrink-0">🗑</button>
+                              </div>
                               {item.images && item.images.length > 0 && (
                                 <div className="flex gap-1.5 overflow-x-auto mt-1.5">
                                   {item.images.map((src, i) => (
