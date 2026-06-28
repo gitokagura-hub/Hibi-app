@@ -40,23 +40,40 @@ function FullScreenItemEditor({ item, onChange, onClose }) {
 }
 
 export default function ProjectsPage({ setTab }) {
-  const { data, addProject, setProjectDriveFolder, updateProjectItem, addProjectItem, deleteProject, deleteProjectItem } = useData();
+  const {
+    data, addProject, setProjectDriveFolder, updateProjectItem, addProjectItem, deleteProject, deleteProjectItem,
+    space, teamData, teamLoading, teamError,
+    addTeamProjectAction, deleteTeamProjectAction, addTeamProjectItemAction, updateTeamProjectItemAction, deleteTeamProjectItemAction,
+  } = useData();
+  const isTeam = space === "team";
   const [name, setName] = useState("");
   const [openId, setOpenId] = useState(null);
   const [editing, setEditing] = useState(null); // { projectId, itemId }
   const [newMemoText, setNewMemoText] = useState({}); // { [projectId]: text }
   const rowRefs = useRef({});
 
+  // Team projects/items come back as two flat lists from the sheet; stitch
+  // them into the same { ...project, items: [...] } shape the UI expects.
+  const projects = isTeam
+    ? teamData.projects.map((p) => ({
+        ...p,
+        name: p.text,
+        items: teamData.projectItems.filter((it) => it.projectId === p.id),
+      }))
+    : data.projects;
+
   function handleAddMemo(projectId) {
     const text = (newMemoText[projectId] || "").trim();
     if (!text) return;
-    addProjectItem(projectId, text);
+    if (isTeam) addTeamProjectItemAction(projectId, text);
+    else addProjectItem(projectId, text);
     setNewMemoText((prev) => ({ ...prev, [projectId]: "" }));
   }
 
   function handleAdd() {
     if (!name.trim()) return;
-    addProject(name.trim());
+    if (isTeam) addTeamProjectAction(name.trim());
+    else addProject(name.trim());
     setName("");
   }
 
@@ -75,13 +92,14 @@ export default function ProjectsPage({ setTab }) {
   function handleDeleteProject(e, p) {
     e.stopPropagation();
     if (window.confirm(`「${p.name}」を削除しますか？中の項目もすべて削除されます。`)) {
-      deleteProject(p.id);
+      if (isTeam) deleteTeamProjectAction(p.id);
+      else deleteProject(p.id);
       if (openId === p.id) setOpenId(null);
     }
   }
 
   const editingItem = editing
-    ? data.projects.find((p) => p.id === editing.projectId)?.items.find((it) => it.id === editing.itemId)
+    ? projects.find((p) => p.id === editing.projectId)?.items.find((it) => it.id === editing.itemId)
     : null;
 
   return (
@@ -93,11 +111,14 @@ export default function ProjectsPage({ setTab }) {
             <span className="text-xs text-gray-500 font-semibold">作成日</span>
           </div>
 
-          {data.projects.length === 0 && (
+          {projects.length === 0 && (
             <div className="p-5 text-gray-400 text-sm">プロジェクトはまだありません</div>
           )}
 
-          {data.projects.map((p) => {
+          {isTeam && teamError && <div className="px-4 pt-2 text-xs text-red-500">{teamError}</div>}
+          {isTeam && teamLoading && <div className="px-4 pt-2 text-xs text-gray-400">同期中…</div>}
+
+          {projects.map((p) => {
             const isOpen = openId === p.id;
             return (
               <div key={p.id} ref={(el) => (rowRefs.current[p.id] = el)} className="border-b border-gray-200 last:border-b-0 scroll-mt-2">
@@ -118,18 +139,25 @@ export default function ProjectsPage({ setTab }) {
 
                       <div className="text-[13px] text-gray-800 mb-3 space-y-1">
                         <div>• [ノート連携] ノートから転送されたアイデアを{p.items.length}件格納</div>
-                        <div>
-                          • [Google Drive]{" "}
-                          {p.driveFolder ? `「${p.driveFolder}」フォルダに連携中` : "未連携"}
-                        </div>
+                        {!isTeam && (
+                          <div>
+                            • [Google Drive]{" "}
+                            {p.driveFolder ? `「${p.driveFolder}」フォルダに連携中` : "未連携"}
+                          </div>
+                        )}
+                        {isTeam && (
+                          <div>• [作成者] {p.author || "名無し"}</div>
+                        )}
                       </div>
 
-                      <input
-                        value={p.driveFolder}
-                        onChange={(e) => setProjectDriveFolder(p.id, e.target.value)}
-                        placeholder="連携するDriveフォルダ名を入力..."
-                        className="w-full rounded-lg border p-2 text-xs mb-3 bg-white"
-                      />
+                      {!isTeam && (
+                        <input
+                          value={p.driveFolder}
+                          onChange={(e) => setProjectDriveFolder(p.id, e.target.value)}
+                          placeholder="連携するDriveフォルダ名を入力..."
+                          className="w-full rounded-lg border p-2 text-xs mb-3 bg-white"
+                        />
+                      )}
 
                       <div className="mb-3">
                         <textarea
@@ -163,8 +191,9 @@ export default function ProjectsPage({ setTab }) {
                                   className="flex-1 text-left text-[13px] whitespace-pre-wrap"
                                 >
                                   {item.text || <span className="text-gray-400">（空のメモ）</span>}
+                                  {isTeam && <span className="block text-[10px] text-blue-500 mt-1">● {item.author || "名無し"}</span>}
                                 </button>
-                                <button onClick={() => deleteProjectItem(p.id, item.id)} className="text-gray-400 text-sm flex-shrink-0">🗑</button>
+                                <button onClick={() => (isTeam ? deleteTeamProjectItemAction(item.id) : deleteProjectItem(p.id, item.id))} className="text-gray-400 text-sm flex-shrink-0">🗑</button>
                               </div>
                               {item.images && item.images.length > 0 && (
                                 <div className="flex gap-1.5 overflow-x-auto mt-1.5">
@@ -186,12 +215,16 @@ export default function ProjectsPage({ setTab }) {
                       )}
 
                       <div className="flex gap-2">
-                        <button className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-semibold bg-white">
-                          🔄 転送ボタン
-                        </button>
-                        <button onClick={() => setTab("calendar")} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-semibold bg-white">
-                          📅 カレンダー連携
-                        </button>
+                        {!isTeam && (
+                          <>
+                            <button className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-semibold bg-white">
+                              🔄 転送ボタン
+                            </button>
+                            <button onClick={() => setTab("calendar")} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-semibold bg-white">
+                              📅 カレンダー連携
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -216,7 +249,7 @@ export default function ProjectsPage({ setTab }) {
       {editing && editingItem && (
         <FullScreenItemEditor
           item={editingItem}
-          onChange={(text) => updateProjectItem(editing.projectId, editing.itemId, text)}
+          onChange={(text) => (isTeam ? updateTeamProjectItemAction(editing.itemId, text, editing.projectId) : updateProjectItem(editing.projectId, editing.itemId, text))}
           onClose={() => setEditing(null)}
         />
       )}

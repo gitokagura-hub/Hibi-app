@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef } from "react";
 import { useData, todayStr, fileToCompressedDataUrl, fileToDataUrl } from "../dataStore";
 import BottomNavigation from "../components/BottomNavigation";
+import SpaceSwitcher from "../components/SpaceSwitcher";
 
 function pad(n) { return String(n).padStart(2, "0"); }
 function fmt(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
@@ -21,7 +22,11 @@ export default function CalendarPage({ setTab }) {
   const {
     data, addTask, toggleTask, deleteTask, updateTask, addEvent, deleteEvent,
     getMemo, setMemo, addMemoImages, removeMemoImage, addMemoFiles, removeMemoFile,
+    space, teamData, teamLoading, teamError,
+    addTeamTaskAction, toggleTeamTaskAction, updateTeamTaskAction, deleteTeamTaskAction,
+    addTeamEventAction, deleteTeamEventAction,
   } = useData();
+  const isTeam = space === "team";
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [taskInput, setTaskInput] = useState("");
@@ -40,19 +45,23 @@ export default function CalendarPage({ setTab }) {
 
   const cellPreview = useMemo(() => {
     const map = {};
-    data.events.forEach((e) => {
+    const events = isTeam ? teamData.events : data.events;
+    const tasks = isTeam ? teamData.tasks : data.tasks;
+    events.forEach((e) => {
       if (!map[e.date]) map[e.date] = [];
-      map[e.date].push({ kind: "event", time: e.time, title: e.title });
+      map[e.date].push({ kind: "event", time: e.time, title: e.text || e.title });
     });
-    data.tasks.forEach((t) => {
+    tasks.forEach((t) => {
       if (!map[t.date]) map[t.date] = [];
-      map[t.date].push({ kind: "task", title: t.title, completed: t.completed });
+      map[t.date].push({ kind: "task", title: t.text || t.title, completed: t.completed });
     });
     return map;
-  }, [data.events, data.tasks]);
+  }, [isTeam, data.events, data.tasks, teamData.events, teamData.tasks]);
 
-  const dayEvents = data.events.filter((e) => e.date === selectedDate).sort((a, b) => a.time.localeCompare(b.time));
-  const dayTasks = data.tasks.filter((t) => t.date === selectedDate);
+  const dayEvents = (isTeam ? teamData.events : data.events)
+    .filter((e) => e.date === selectedDate)
+    .sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+  const dayTasks = (isTeam ? teamData.tasks : data.tasks).filter((t) => t.date === selectedDate);
   const memo = getMemo(selectedDate);
 
   function selectDate(ds) {
@@ -61,25 +70,31 @@ export default function CalendarPage({ setTab }) {
 
   function handleAddTask(e) {
     if (e.key === "Enter" && taskInput.trim()) {
-      addTask(selectedDate, taskInput.trim());
+      if (isTeam) addTeamTaskAction(selectedDate, taskInput.trim());
+      else addTask(selectedDate, taskInput.trim());
       setTaskInput("");
     }
   }
 
   function handleAddEvent() {
     if (!eventTitle.trim()) return;
-    addEvent(selectedDate, eventTime, eventTitle.trim());
+    if (isTeam) addTeamEventAction(selectedDate, eventTime, eventTitle.trim());
+    else addEvent(selectedDate, eventTime, eventTitle.trim());
     setEventTitle("");
   }
 
   function startEditTask(t) {
     setEditingTaskId(t.id);
-    setEditingTaskText(t.title);
+    setEditingTaskText(t.title || t.text || "");
   }
 
   function saveEditTask() {
     const text = editingTaskText.trim();
-    if (text) updateTask(editingTaskId, text);
+    const task = dayTasks.find((t) => t.id === editingTaskId);
+    if (text && task) {
+      if (isTeam) updateTeamTaskAction(task, text);
+      else updateTask(editingTaskId, text);
+    }
     setEditingTaskId(null);
     setEditingTaskText("");
   }
@@ -87,6 +102,21 @@ export default function CalendarPage({ setTab }) {
   function cancelEditTask() {
     setEditingTaskId(null);
     setEditingTaskText("");
+  }
+
+  function handleToggleTask(t) {
+    if (isTeam) toggleTeamTaskAction(t);
+    else toggleTask(t.id);
+  }
+
+  function handleDeleteTask(id) {
+    if (isTeam) deleteTeamTaskAction(id);
+    else deleteTask(id);
+  }
+
+  function handleDeleteEvent(id) {
+    if (isTeam) deleteTeamEventAction(id);
+    else deleteEvent(id);
   }
 
   async function handlePickPhoto(e) {
@@ -115,11 +145,12 @@ export default function CalendarPage({ setTab }) {
     <div className="h-screen bg-white flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white px-5 pt-8 pb-1">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-2">
           <button>☰</button>
           <h1 className="text-[10px] font-semibold">Dayliy Brains</h1>
           <div className="w-5" />
         </div>
+        <SpaceSwitcher />
       </header>
 
       {/* Full Screen Scroll */}
@@ -180,11 +211,15 @@ export default function CalendarPage({ setTab }) {
             {MONTH_NAMES[calMonth.m]} {Number(selectedDate.split("-")[2])}'s Schedule
           </h2>
 
+          {isTeam && teamError && <p className="text-xs text-red-500 mb-3">{teamError}</p>}
+          {isTeam && teamLoading && <p className="text-xs text-gray-400 mb-3">同期中…</p>}
+
           {/* 1. Schedule */}
           <div className="space-y-3 mb-10">
             {dayEvents.map((e) => (
-              <button key={e.id} onClick={() => deleteEvent(e.id)} className="w-full text-left rounded-2xl border p-4">
-                {e.time}　{e.title}
+              <button key={e.id} onClick={() => handleDeleteEvent(e.id)} className={`w-full text-left rounded-2xl border p-4 ${isTeam ? "border-blue-100 bg-blue-50" : ""}`}>
+                {e.time}　{e.text || e.title}
+                {isTeam && <span className="block text-[10px] text-blue-500 mt-1">● {e.author || "名無し"}</span>}
               </button>
             ))}
             <div className="flex gap-2">
@@ -209,8 +244,8 @@ export default function CalendarPage({ setTab }) {
           <h2 className="text-2xl font-semibold mb-4">Task</h2>
           <div className="space-y-2 mb-3">
             {dayTasks.map((t) => (
-              <div key={t.id} className="flex items-center gap-2 rounded-2xl border p-4">
-                <button onClick={() => toggleTask(t.id)} className="flex-shrink-0 text-lg">
+              <div key={t.id} className={`flex items-center gap-2 rounded-2xl border p-4 ${isTeam ? "border-blue-100 bg-blue-50" : ""}`}>
+                <button onClick={() => handleToggleTask(t)} className="flex-shrink-0 text-lg">
                   {t.completed ? "☑" : "☐"}
                 </button>
                 {editingTaskId === t.id ? (
@@ -227,10 +262,11 @@ export default function CalendarPage({ setTab }) {
                     onClick={() => startEditTask(t)}
                     className={`flex-1 text-left ${t.completed ? "text-gray-400 line-through" : ""}`}
                   >
-                    {t.title}
+                    {t.title || t.text}
+                    {isTeam && <span className="block text-[10px] text-blue-500">● {t.author || "名無し"}</span>}
                   </button>
                 )}
-                <button onClick={() => deleteTask(t.id)} className="flex-shrink-0 text-gray-400 text-sm">🗑</button>
+                <button onClick={() => handleDeleteTask(t.id)} className="flex-shrink-0 text-gray-400 text-sm">🗑</button>
               </div>
             ))}
           </div>
@@ -242,49 +278,53 @@ export default function CalendarPage({ setTab }) {
             className="w-full h-40 rounded-2xl border p-4 mb-10"
           />
 
-          {/* 3. Memo */}
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-2xl font-semibold">📝 Memo</h2>
-            <div className="flex gap-2">
-              <button onClick={() => fileInputRef.current?.click()} disabled={uploadingFile} className="rounded-xl border px-3 py-1.5 text-sm bg-white">
-                {uploadingFile ? "…" : "📎 ファイル"}
-              </button>
-              <button onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto} className="rounded-xl border px-3 py-1.5 text-sm bg-white">
-                {uploadingPhoto ? "…" : "📷 写真"}
-              </button>
-            </div>
-          </div>
-          <textarea
-            value={memo.text}
-            onChange={(e) => setMemo(selectedDate, e.target.value)}
-            placeholder="Add Memo..."
-            className="w-full h-64 rounded-2xl border p-4 mb-3"
-          />
-          {memo.images.length > 0 && (
-            <div className="flex gap-2 overflow-x-auto mb-3">
-              {memo.images.map((src, i) => (
-                <div key={i} className="relative flex-shrink-0">
-                  <img src={src} alt="" className="w-20 h-20 object-cover rounded-xl border" />
-                  <button onClick={() => removeMemoImage(selectedDate, i)} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black text-white text-xs flex items-center justify-center">×</button>
+          {/* 3. Memo (personal only — team memo storage isn't supported yet) */}
+          {!isTeam && (
+            <>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-2xl font-semibold">📝 Memo</h2>
+                <div className="flex gap-2">
+                  <button onClick={() => fileInputRef.current?.click()} disabled={uploadingFile} className="rounded-xl border px-3 py-1.5 text-sm bg-white">
+                    {uploadingFile ? "…" : "📎 ファイル"}
+                  </button>
+                  <button onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto} className="rounded-xl border px-3 py-1.5 text-sm bg-white">
+                    {uploadingPhoto ? "…" : "📷 写真"}
+                  </button>
                 </div>
-              ))}
-            </div>
-          )}
-          {memo.files.length > 0 && (
-            <div className="space-y-2 mb-3">
-              {memo.files.map((f, i) => (
-                <div key={i} className="flex items-center justify-between rounded-xl border p-2.5 text-sm">
-                  <span className="truncate">📄 {f.name}</span>
-                  <button onClick={() => removeMemoFile(selectedDate, i)} className="text-gray-400 ml-2">×</button>
+              </div>
+              <textarea
+                value={memo.text}
+                onChange={(e) => setMemo(selectedDate, e.target.value)}
+                placeholder="Add Memo..."
+                className="w-full h-64 rounded-2xl border p-4 mb-3"
+              />
+              {memo.images.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto mb-3">
+                  {memo.images.map((src, i) => (
+                    <div key={i} className="relative flex-shrink-0">
+                      <img src={src} alt="" className="w-20 h-20 object-cover rounded-xl border" />
+                      <button onClick={() => removeMemoImage(selectedDate, i)} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black text-white text-xs flex items-center justify-center">×</button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+              {memo.files.length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {memo.files.map((f, i) => (
+                    <div key={i} className="flex items-center justify-between rounded-xl border p-2.5 text-sm">
+                      <span className="truncate">📄 {f.name}</span>
+                      <button onClick={() => removeMemoFile(selectedDate, i)} className="text-gray-400 ml-2">×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={handlePickPhoto} className="hidden" />
+              <input ref={fileInputRef} type="file" multiple onChange={handlePickFile} className="hidden" />
+            </>
           )}
-          <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={handlePickPhoto} className="hidden" />
-          <input ref={fileInputRef} type="file" multiple onChange={handlePickFile} className="hidden" />
 
           {/* 4. Project Links */}
-          {data.projects.length > 0 && (
+          {!isTeam && data.projects.length > 0 && (
             <div className="mt-10">
               <h2 className="text-2xl font-semibold mb-4">Project Links</h2>
               <div className="space-y-2">

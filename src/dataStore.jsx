@@ -1,4 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import {
+  isTeamConnected, getAuthorName, ensureTeamSheetReady,
+  fetchTeamNotes, addTeamNote, updateTeamNote, deleteTeamNote,
+  fetchTeamTasks, addTeamTask, updateTeamTask, deleteTeamTask,
+  fetchTeamEvents, addTeamEvent, deleteTeamEvent,
+  fetchTeamProjects, addTeamProject, deleteTeamProject,
+  fetchTeamProjectItems, addTeamProjectItem, updateTeamProjectItem, deleteTeamProjectItem,
+} from './googleSheets';
 
 const STORAGE_KEY = 'dayliybrains-data';
 
@@ -101,6 +109,44 @@ export function DataProvider({ children }) {
   const [storageError, setStorageError] = useState(false);
   const saveTimer = useRef(null);
   const initialLoad = useRef(true);
+
+  // ---- Space switching (Personal vs Team) ----
+  // "space" only controls which data the screens read/write to right now.
+  // Personal data lives in `data` above (localStorage, untouched by this).
+  // Team data lives in `teamData` below, synced with the shared Google Sheet.
+  const [space, setSpace] = useState(() => localStorage.getItem('hibi-current-space') || 'personal');
+  const [teamData, setTeamData] = useState({ notes: [], tasks: [], events: [], projects: [], projectItems: [] });
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [teamError, setTeamError] = useState('');
+
+  function switchSpace(next) {
+    setSpace(next);
+    localStorage.setItem('hibi-current-space', next);
+    if (next === 'team' && isTeamConnected()) refreshTeamData();
+  }
+
+  async function refreshTeamData() {
+    if (!isTeamConnected()) return;
+    setTeamLoading(true);
+    setTeamError('');
+    try {
+      await ensureTeamSheetReady();
+      const [notes, tasks, events, projects, projectItems] = await Promise.all([
+        fetchTeamNotes(), fetchTeamTasks(), fetchTeamEvents(), fetchTeamProjects(), fetchTeamProjectItems(),
+      ]);
+      setTeamData({ notes, tasks, events, projects, projectItems });
+    } catch (err) {
+      setTeamError('チームデータの読み込みに失敗しました');
+    } finally {
+      setTeamLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (space === 'team' && isTeamConnected()) refreshTeamData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   useEffect(() => {
     if (initialLoad.current) { initialLoad.current = false; return; }
@@ -232,6 +278,106 @@ export function DataProvider({ children }) {
   function setSettings(patch) {
     setData(prev => ({ ...prev, settings: { ...prev.settings, ...patch } }));
   }
+  // ---- Team space actions (mirror the personal ones above, but go through Sheets) ----
+  async function addTeamNoteAction(text) {
+    const author = getAuthorName() || '名無し';
+    setTeamLoading(true);
+    try { await addTeamNote(uid(), text, author); await refreshTeamData(); }
+    catch { setTeamError('保存に失敗しました'); }
+    finally { setTeamLoading(false); }
+  }
+  async function updateTeamNoteAction(id, text) {
+    const author = getAuthorName() || '名無し';
+    setTeamLoading(true);
+    try { await updateTeamNote(id, text, author); await refreshTeamData(); }
+    catch { setTeamError('更新に失敗しました'); }
+    finally { setTeamLoading(false); }
+  }
+  async function deleteTeamNoteAction(id) {
+    setTeamLoading(true);
+    try { await deleteTeamNote(id); await refreshTeamData(); }
+    catch { setTeamError('削除に失敗しました'); }
+    finally { setTeamLoading(false); }
+  }
+  async function addTeamTaskAction(date, title) {
+    const author = getAuthorName() || '名無し';
+    setTeamLoading(true);
+    try { await addTeamTask(uid(), title, author, date); await refreshTeamData(); }
+    catch { setTeamError('保存に失敗しました'); }
+    finally { setTeamLoading(false); }
+  }
+  async function toggleTeamTaskAction(task) {
+    const author = getAuthorName() || '名無し';
+    setTeamLoading(true);
+    try { await updateTeamTask(task.id, task.text, author, { date: task.date, completed: !task.completed }); await refreshTeamData(); }
+    catch { setTeamError('更新に失敗しました'); }
+    finally { setTeamLoading(false); }
+  }
+  async function updateTeamTaskAction(task, newTitle) {
+    const author = getAuthorName() || '名無し';
+    setTeamLoading(true);
+    try { await updateTeamTask(task.id, newTitle, author, { date: task.date, completed: task.completed }); await refreshTeamData(); }
+    catch { setTeamError('更新に失敗しました'); }
+    finally { setTeamLoading(false); }
+  }
+  async function deleteTeamTaskAction(id) {
+    setTeamLoading(true);
+    try { await deleteTeamTask(id); await refreshTeamData(); }
+    catch { setTeamError('削除に失敗しました'); }
+    finally { setTeamLoading(false); }
+  }
+  async function addTeamEventAction(date, time, title) {
+    const author = getAuthorName() || '名無し';
+    setTeamLoading(true);
+    try { await addTeamEvent(uid(), title, author, date, time); await refreshTeamData(); }
+    catch { setTeamError('保存に失敗しました'); }
+    finally { setTeamLoading(false); }
+  }
+  async function deleteTeamEventAction(id) {
+    setTeamLoading(true);
+    try { await deleteTeamEvent(id); await refreshTeamData(); }
+    catch { setTeamError('削除に失敗しました'); }
+    finally { setTeamLoading(false); }
+  }
+  async function addTeamProjectAction(name) {
+    const author = getAuthorName() || '名無し';
+    setTeamLoading(true);
+    try { await addTeamProject(uid(), name, author); await refreshTeamData(); }
+    catch { setTeamError('保存に失敗しました'); }
+    finally { setTeamLoading(false); }
+  }
+  async function deleteTeamProjectAction(id) {
+    setTeamLoading(true);
+    try {
+      await deleteTeamProject(id);
+      const items = teamData.projectItems.filter(it => it.projectId === id);
+      await Promise.all(items.map(it => deleteTeamProjectItem(it.id)));
+      await refreshTeamData();
+    }
+    catch { setTeamError('削除に失敗しました'); }
+    finally { setTeamLoading(false); }
+  }
+  async function addTeamProjectItemAction(projectId, text) {
+    const author = getAuthorName() || '名無し';
+    setTeamLoading(true);
+    try { await addTeamProjectItem(uid(), text, author, projectId); await refreshTeamData(); }
+    catch { setTeamError('保存に失敗しました'); }
+    finally { setTeamLoading(false); }
+  }
+  async function updateTeamProjectItemAction(id, text, projectId) {
+    const author = getAuthorName() || '名無し';
+    setTeamLoading(true);
+    try { await updateTeamProjectItem(id, text, author, projectId); await refreshTeamData(); }
+    catch { setTeamError('更新に失敗しました'); }
+    finally { setTeamLoading(false); }
+  }
+  async function deleteTeamProjectItemAction(id) {
+    setTeamLoading(true);
+    try { await deleteTeamProjectItem(id); await refreshTeamData(); }
+    catch { setTeamError('削除に失敗しました'); }
+    finally { setTeamLoading(false); }
+  }
+
   // Replaces the entire app data with a restored backup. Runs the same
   // migration/defaults logic as loadData so older or partial backups still work.
   function replaceAllData(restored) {
@@ -254,6 +400,13 @@ export function DataProvider({ children }) {
     addProject, setProjectDriveFolder, updateProjectItem, addProjectItem, deleteProject, deleteProjectItem, sendToProject,
     pasteNoteToCalendar, pasteNoteToProject,
     setSettings, replaceAllData,
+    // Space switching + Team data
+    space, switchSpace, teamData, teamLoading, teamError, refreshTeamData,
+    addTeamNoteAction, updateTeamNoteAction, deleteTeamNoteAction,
+    addTeamTaskAction, toggleTeamTaskAction, updateTeamTaskAction, deleteTeamTaskAction,
+    addTeamEventAction, deleteTeamEventAction,
+    addTeamProjectAction, deleteTeamProjectAction,
+    addTeamProjectItemAction, updateTeamProjectItemAction, deleteTeamProjectItemAction,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

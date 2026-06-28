@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Layout } from "../components";
 import { useData } from "../dataStore";
 import { isDriveConfigured, isDriveConnected, wasDriveConnectedBefore, connectDrive, disconnectDrive, backupDataToDrive, restoreDataFromDrive } from "../googleDrive";
+import { isTeamConfigured, isTeamConnected, connectTeam, disconnectTeam, getAuthorName, setAuthorName } from "../googleSheets";
 
 function GroupHeader({ children }) {
   return (
@@ -10,13 +11,19 @@ function GroupHeader({ children }) {
 }
 
 export default function SettingsPage({ setTab }) {
-  const { data, setSettings, replaceAllData } = useData();
+  const { data, setSettings, replaceAllData, refreshTeamData } = useData();
   const [driveConnected, setDriveConnected] = useState(isDriveConnected());
   const [driveBusy, setDriveBusy] = useState(false);
   const [driveError, setDriveError] = useState("");
   const [backupBusy, setBackupBusy] = useState(false);
   const [backupMessage, setBackupMessage] = useState("");
   const driveReady = isDriveConfigured();
+
+  const [teamConnected, setTeamConnected] = useState(isTeamConnected());
+  const [teamBusy, setTeamBusy] = useState(false);
+  const [teamConnError, setTeamConnError] = useState("");
+  const [authorName, setAuthorNameInput] = useState(getAuthorName());
+  const teamReady = isTeamConfigured();
 
   useEffect(() => {
     setDriveConnected(isDriveConnected());
@@ -38,6 +45,30 @@ export default function SettingsPage({ setTab }) {
     } finally {
       setDriveBusy(false);
     }
+  }
+
+  async function handleTeamToggle() {
+    setTeamConnError("");
+    if (teamConnected) {
+      disconnectTeam();
+      setTeamConnected(false);
+      return;
+    }
+    setTeamBusy(true);
+    try {
+      await connectTeam();
+      setTeamConnected(true);
+      refreshTeamData();
+    } catch (err) {
+      setTeamConnError("接続に失敗しました。もう一度お試しください。");
+    } finally {
+      setTeamBusy(false);
+    }
+  }
+
+  function handleAuthorNameChange(value) {
+    setAuthorNameInput(value);
+    setAuthorName(value);
   }
 
   async function handleBackup() {
@@ -105,6 +136,43 @@ export default function SettingsPage({ setTab }) {
               ) : (
                 <span className="text-gray-400 text-sm">利用不可</span>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Group 1.2: Team Space */}
+        <div className="mb-7">
+          <GroupHeader>ByMaeNikko Team 連携</GroupHeader>
+          <div className="rounded-2xl border border-gray-200 overflow-hidden">
+            <div className="p-4 flex items-center justify-between border-b border-gray-100">
+              <div>
+                <span>共有スペースへの接続</span>
+                {!teamReady && <p className="text-xs text-gray-400 mt-1">未設定（シートID未構成）</p>}
+                {teamConnError && <p className="text-xs text-red-500 mt-1">{teamConnError}</p>}
+              </div>
+              {teamReady ? (
+                <button
+                  onClick={handleTeamToggle}
+                  disabled={teamBusy}
+                  className={`text-sm font-semibold rounded-full px-4 py-1.5 ${teamConnected ? "bg-black text-white" : "border border-gray-300"}`}
+                >
+                  {teamBusy ? "…" : teamConnected ? "連携済" : "連携する"}
+                </button>
+              ) : (
+                <span className="text-gray-400 text-sm">利用不可</span>
+              )}
+            </div>
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span>表示する名前</span>
+              </div>
+              <input
+                value={authorName}
+                onChange={(e) => handleAuthorNameChange(e.target.value)}
+                placeholder="例：Gito"
+                className="w-full rounded-xl border p-2.5 text-sm"
+              />
+              <p className="text-xs text-gray-400 mt-1.5">Teamスペースに書いたノートやタスクに、この名前が表示されます。</p>
             </div>
           </div>
         </div>

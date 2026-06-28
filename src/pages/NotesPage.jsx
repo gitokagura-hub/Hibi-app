@@ -174,7 +174,12 @@ function FullScreenComposer({
 }
 
 export default function NotesPage({ setTab }) {
-  const { data, addNote, deleteNote, updateNote, pasteNoteToCalendar, pasteNoteToProject, sendToProject } = useData();
+  const {
+    data, addNote, deleteNote, updateNote, pasteNoteToCalendar, pasteNoteToProject, sendToProject,
+    space, teamData, teamLoading, teamError,
+    addTeamNoteAction, updateTeamNoteAction, deleteTeamNoteAction,
+  } = useData();
+  const isTeam = space === "team";
   const [text, setText] = useState("");
   const [pendingImages, setPendingImages] = useState([]);
   const [pendingFiles, setPendingFiles] = useState([]);
@@ -187,7 +192,9 @@ export default function NotesPage({ setTab }) {
   const [pasteMode, setPasteMode] = useState(null);
   const [selectedAI, setSelectedAI] = useState("ChatGPT");
   const [now, setNow] = useState(Date.now());
-  const sorted = [...data.notes].sort((a, b) => b.createdAt - a.createdAt);
+  const sorted = isTeam
+    ? [...teamData.notes].sort((a, b) => b.createdAt - a.createdAt)
+    : [...data.notes].sort((a, b) => b.createdAt - a.createdAt);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30000);
@@ -201,6 +208,14 @@ export default function NotesPage({ setTab }) {
   }
 
   function handleSaveNote() {
+    if (isTeam) {
+      if (editingNoteId) updateTeamNoteAction(editingNoteId, text.trim());
+      else if (text.trim()) addTeamNoteAction(text.trim());
+      resetComposer();
+      setEditingNoteId(null);
+      setComposerOpen(false);
+      return;
+    }
     if (editingNoteId) {
       updateNote(editingNoteId, text.trim());
       resetComposer();
@@ -275,13 +290,16 @@ export default function NotesPage({ setTab }) {
           onClick={handleOpenNewComposer}
           className="w-full text-left rounded-3xl border p-4 mb-6 text-gray-400 text-[15px]"
         >
-          思いつきやアイデアを書き出す（壁打ち）...
+          {isTeam ? "チームに共有するメモを書く..." : "思いつきやアイデアを書き出す（壁打ち）..."}
         </button>
+
+        {isTeam && teamError && <p className="text-xs text-red-500 mb-3">{teamError}</p>}
+        {isTeam && teamLoading && <p className="text-xs text-gray-400 mb-3">同期中…</p>}
 
         <div className="space-y-4 pb-10">
           {sorted.length === 0 && <p className="text-gray-400">No notes yet</p>}
           {sorted.map((n) => (
-            <div key={n.id} className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+            <div key={n.id} className={`rounded-2xl border p-4 ${isTeam ? "border-blue-100 bg-blue-50" : "border-gray-200 bg-gray-50"}`}>
               <button onClick={() => handleOpenNote(n)} className="w-full text-left">
                 {n.text && <p className="text-[15px] mb-3 whitespace-pre-wrap leading-relaxed">{n.source === "voice" ? "🎤 " : ""}{n.text}</p>}
                 {n.images && n.images.length > 0 && (
@@ -300,11 +318,22 @@ export default function NotesPage({ setTab }) {
                 )}
               </button>
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <span className="text-[11px] text-gray-400 font-semibold">{formatDateTime(n.createdAt)}</span>
+                <span className="text-[11px] text-gray-400 font-semibold">
+                  {formatDateTime(n.createdAt)}
+                  {isTeam && (
+                    <span className="ml-1.5 inline-flex items-center gap-1 text-blue-600 bg-blue-100 rounded-full px-2 py-0.5">
+                      ● {n.author || "名無し"}
+                    </span>
+                  )}
+                </span>
                 <div className="flex items-center gap-1.5">
-                  <button onClick={() => { setPasteTarget(n); setPasteMode("calendar"); }} className="bg-white border border-gray-300 text-gray-700 rounded-lg px-2.5 py-1 text-xs font-medium">To Calendar</button>
-                  <button onClick={() => { setPasteTarget(n); setPasteMode("projects"); }} className="bg-white border border-gray-300 text-gray-700 rounded-lg px-2.5 py-1 text-xs font-medium">To Project</button>
-                  <button onClick={() => deleteNote(n.id)} className="text-gray-400 text-xs px-1">Delete</button>
+                  {!isTeam && (
+                    <>
+                      <button onClick={() => { setPasteTarget(n); setPasteMode("calendar"); }} className="bg-white border border-gray-300 text-gray-700 rounded-lg px-2.5 py-1 text-xs font-medium">To Calendar</button>
+                      <button onClick={() => { setPasteTarget(n); setPasteMode("projects"); }} className="bg-white border border-gray-300 text-gray-700 rounded-lg px-2.5 py-1 text-xs font-medium">To Project</button>
+                    </>
+                  )}
+                  <button onClick={() => (isTeam ? deleteTeamNoteAction(n.id) : deleteNote(n.id))} className="text-gray-400 text-xs px-1">Delete</button>
                 </div>
               </div>
             </div>
