@@ -249,8 +249,13 @@ export const addTeamEvent = (id, title, author, date, time) => appendRow(TAB_EVE
 export const deleteTeamEvent = (id) => deleteRow(TAB_EVENTS, id);
 
 export const fetchTeamProjects = () => fetchTab(TAB_PROJECTS);
-export const addTeamProject = (id, name, author) => appendRow(TAB_PROJECTS, { id, text: name, author, createdAt: Date.now() }, { driveFolder: '' });
+export const addTeamProject = (id, name, author) => appendRow(TAB_PROJECTS, { id, text: name, author, createdAt: Date.now() }, { driveFolderId: '', driveFiles: [] });
 export const deleteTeamProject = (id) => deleteRow(TAB_PROJECTS, id);
+// Updates just the Drive folder/files metadata on a team project, keeping
+// its existing name/author/createdAt intact.
+export async function updateTeamProjectDrive(project, driveFolderId, driveFiles) {
+  return updateRow(TAB_PROJECTS, project.id, { id: project.id, text: project.text, author: project.author, createdAt: project.createdAt }, { driveFolderId, driveFiles });
+}
 
 export const fetchTeamProjectItems = () => fetchTab(TAB_PROJECT_ITEMS);
 export const addTeamProjectItem = (id, text, author, projectId) => appendRow(TAB_PROJECT_ITEMS, { id, text, author, createdAt: Date.now() }, { projectId });

@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Layout } from "../components";
 import { useData, formatDateTime } from "../dataStore";
-import { isDriveConnected, ensureProjectFolder, uploadFileToProjectFolder, listProjectFiles, deleteProjectFile } from "../googleDrive";
+import { isDriveConnected, ensureProjectFolder, uploadFileToProjectFolder, listProjectFiles, deleteProjectFile, getTeamRootFolderId } from "../googleDrive";
 
 function isImageFile(mimeType) {
   return typeof mimeType === "string" && mimeType.startsWith("image/");
@@ -49,7 +49,7 @@ export default function ProjectsPage({ setTab }) {
     data, addProject, setProjectDriveFolderId, setProjectDriveFiles, addProjectDriveFile, removeProjectDriveFile,
     updateProjectItem, addProjectItem, deleteProject, deleteProjectItem,
     space, teamData, teamLoading, teamError,
-    addTeamProjectAction, deleteTeamProjectAction, addTeamProjectItemAction, updateTeamProjectItemAction, deleteTeamProjectItemAction,
+    addTeamProjectAction, deleteTeamProjectAction, updateTeamProjectDriveAction, addTeamProjectItemAction, updateTeamProjectItemAction, deleteTeamProjectItemAction,
   } = useData();
   const isTeam = space === "team";
   const [name, setName] = useState("");
@@ -75,13 +75,17 @@ export default function ProjectsPage({ setTab }) {
   // Loads (or reloads) the Drive file list for a project's gallery, creating
   // the project's Drive folder on first use if it doesn't exist yet.
   async function loadGallery(p) {
-    if (isTeam || !isDriveConnected()) return;
+    if (!isDriveConnected()) return;
     setGalleryError((prev) => ({ ...prev, [p.id]: "" }));
     try {
-      const folderId = await ensureProjectFolder(p.id, p.name, p.driveFolderId);
-      if (folderId !== p.driveFolderId) setProjectDriveFolderId(p.id, folderId);
+      const rootFolderId = isTeam ? await getTeamRootFolderId() : undefined;
+      const folderId = await ensureProjectFolder(p.id, p.name, p.driveFolderId, rootFolderId);
       const files = await listProjectFiles(folderId);
-      setProjectDriveFiles(p.id, files);
+      if (isTeam) await updateTeamProjectDriveAction(p, folderId, files);
+      else {
+        if (folderId !== p.driveFolderId) setProjectDriveFolderId(p.id, folderId);
+        setProjectDriveFiles(p.id, files);
+      }
     } catch (err) {
       setGalleryError((prev) => ({ ...prev, [p.id]: "Driveとの連携に失敗しました。Settingsで連携状況を確認してください。" }));
     }
@@ -97,11 +101,19 @@ export default function ProjectsPage({ setTab }) {
     setGalleryUploading((prev) => ({ ...prev, [p.id]: true }));
     setGalleryError((prev) => ({ ...prev, [p.id]: "" }));
     try {
-      const folderId = await ensureProjectFolder(p.id, p.name, p.driveFolderId);
-      if (folderId !== p.driveFolderId) setProjectDriveFolderId(p.id, folderId);
+      const rootFolderId = isTeam ? await getTeamRootFolderId() : undefined;
+      const folderId = await ensureProjectFolder(p.id, p.name, p.driveFolderId, rootFolderId);
+      const uploadedFiles = [];
       for (const file of files) {
         const uploaded = await uploadFileToProjectFolder(file, folderId);
-        addProjectDriveFile(p.id, uploaded);
+        uploadedFiles.push(uploaded);
+        if (!isTeam) addProjectDriveFile(p.id, uploaded);
+      }
+      if (isTeam) {
+        const merged = [...uploadedFiles, ...(p.driveFiles || [])];
+        await updateTeamProjectDriveAction(p, folderId, merged);
+      } else if (folderId !== p.driveFolderId) {
+        setProjectDriveFolderId(p.id, folderId);
       }
     } catch (err) {
       setGalleryError((prev) => ({ ...prev, [p.id]: "アップロードに失敗しました" }));
@@ -114,7 +126,12 @@ export default function ProjectsPage({ setTab }) {
     if (!window.confirm(`「${file.name}」をDriveから削除しますか？`)) return;
     try {
       await deleteProjectFile(file.id);
-      removeProjectDriveFile(p.id, file.id);
+      if (isTeam) {
+        const remaining = (p.driveFiles || []).filter((f) => f.id !== file.id);
+        await updateTeamProjectDriveAction(p, p.driveFolderId, remaining);
+      } else {
+        removeProjectDriveFile(p.id, file.id);
+      }
     } catch {
       setGalleryError((prev) => ({ ...prev, [p.id]: "削除に失敗しました" }));
     }
@@ -144,7 +161,7 @@ export default function ProjectsPage({ setTab }) {
       requestAnimationFrame(() => {
         rowRefs.current[p.id]?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
-      if (!isTeam) loadGallery(p);
+      loadGallery(p);
     }
   }
 
@@ -203,9 +220,8 @@ export default function ProjectsPage({ setTab }) {
                         )}
                       </div>
 
-                      {/* File & photo gallery (Personal only — backed by a real Drive folder) */}
-                      {!isTeam && (
-                        <div className="mb-3">
+                      {/* File & photo gallery — backed by a real Drive folder (Personal: personal folder, Team: shared folder) */}
+                      <div className="mb-3">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-xs font-bold text-gray-600">📎 ファイル・写真</span>
                             <div className="flex gap-1.5">
@@ -263,8 +279,7 @@ export default function ProjectsPage({ setTab }) {
                               ))}
                             </div>
                           )}
-                        </div>
-                      )}
+                      </div>
 
                       <div className="mb-3">
                         <textarea
@@ -322,15 +337,13 @@ export default function ProjectsPage({ setTab }) {
                       )}
 
                       <div className="flex gap-2">
+                        <button onClick={() => loadGallery(p)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-semibold bg-white">
+                          🔄 ギャラリー更新
+                        </button>
                         {!isTeam && (
-                          <>
-                            <button onClick={() => loadGallery(p)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-semibold bg-white">
-                              🔄 ギャラリー更新
-                            </button>
-                            <button onClick={() => setTab("calendar")} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-semibold bg-white">
-                              📅 カレンダー連携
-                            </button>
-                          </>
+                          <button onClick={() => setTab("calendar")} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-semibold bg-white">
+                            📅 カレンダー連携
+                          </button>
                         )}
                       </div>
                     </div>

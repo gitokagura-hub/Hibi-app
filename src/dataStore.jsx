@@ -4,7 +4,7 @@ import {
   fetchTeamNotes, addTeamNote, updateTeamNote, deleteTeamNote,
   fetchTeamTasks, addTeamTask, updateTeamTask, deleteTeamTask,
   fetchTeamEvents, addTeamEvent, deleteTeamEvent,
-  fetchTeamProjects, addTeamProject, deleteTeamProject,
+  fetchTeamProjects, addTeamProject, deleteTeamProject, updateTeamProjectDrive,
   fetchTeamProjectItems, addTeamProjectItem, updateTeamProjectItem, deleteTeamProjectItem,
 } from './googleSheets';
 
@@ -373,6 +373,20 @@ export function DataProvider({ children }) {
     catch { setTeamError('削除に失敗しました'); }
     finally { setTeamLoading(false); }
   }
+  // Saves a Team project's Drive folder id / file list without a full
+  // refresh-triggering reload — local optimistic update so the gallery
+  // doesn't flicker empty while the next refresh comes in.
+  async function updateTeamProjectDriveAction(project, driveFolderId, driveFiles) {
+    try {
+      await updateTeamProjectDrive(project, driveFolderId, driveFiles);
+      setTeamData(prev => ({
+        ...prev,
+        projects: prev.projects.map(p => p.id === project.id ? { ...p, driveFolderId, driveFiles } : p),
+      }));
+    } catch {
+      setTeamError('Drive情報の保存に失敗しました');
+    }
+  }
   async function addTeamProjectItemAction(projectId, text) {
     const author = getAuthorName() || '名無し';
     setTeamLoading(true);
@@ -421,7 +435,7 @@ export function DataProvider({ children }) {
     addTeamNoteAction, updateTeamNoteAction, deleteTeamNoteAction,
     addTeamTaskAction, toggleTeamTaskAction, updateTeamTaskAction, deleteTeamTaskAction,
     addTeamEventAction, deleteTeamEventAction,
-    addTeamProjectAction, deleteTeamProjectAction,
+    addTeamProjectAction, deleteTeamProjectAction, updateTeamProjectDriveAction,
     addTeamProjectItemAction, updateTeamProjectItemAction, deleteTeamProjectItemAction,
   };
 

@@ -12,6 +12,10 @@ const SCOPE = 'https://www.googleapis.com/auth/drive';
 // and it works even though the folder wasn't created by this app (which is
 // why the scope above had to widen from drive.file to full drive access).
 const ROOT_FOLDER_ID = '16e2sc1xBJgfCFBeYyvQXMvhtq0e05m77';
+// Separate shared folder for Team-space projects, so Personal and Team
+// files never mix. Whoever connects Drive needs at least "editor" access
+// to this folder (shared to them by whoever created it).
+const TEAM_ROOT_FOLDER_ID = '1tkFxzTYFKe1JyvBz0GDLI4fR1ddOEe3u';
 const CONNECTED_FLAG = 'hibi-drive-connected';
 const FOLDER_ID_KEY = 'hibi-drive-folder-id';
 const TOKEN_KEY = 'hibi-drive-token';
@@ -94,8 +98,12 @@ function requireToken() {
   return accessToken;
 }
 
-async function getOrCreateFolder() {
-  return ROOT_FOLDER_ID;
+async function getOrCreateFolder(rootFolderId) {
+  return rootFolderId || ROOT_FOLDER_ID;
+}
+
+export async function getTeamRootFolderId() {
+  return TEAM_ROOT_FOLDER_ID;
 }
 
 export async function uploadImage(file) {
@@ -205,7 +213,7 @@ export async function restoreDataFromDrive() {
 // folderId is cached on the project object itself (driveFolderId) so repeated
 // calls don't need to search every time — caller passes it in and stores
 // whatever this returns back onto the project.
-async function getOrCreateProjectFolder(projectId, projectName, cachedFolderId) {
+async function getOrCreateProjectFolder(projectId, projectName, cachedFolderId, rootFolderId) {
   const token = requireToken();
   if (cachedFolderId) {
     const check = await fetch(`https://www.googleapis.com/drive/v3/files/${cachedFolderId}?fields=id,trashed`, {
@@ -216,7 +224,7 @@ async function getOrCreateProjectFolder(projectId, projectName, cachedFolderId) 
       if (!checkData.trashed) return cachedFolderId;
     }
   }
-  const parentFolderId = await getOrCreateFolder();
+  const parentFolderId = await getOrCreateFolder(rootFolderId);
   const safeName = (projectName || 'プロジェクト').slice(0, 80);
   const q = encodeURIComponent(`name='${safeName}' and '${parentFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`);
   const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {
@@ -236,9 +244,10 @@ async function getOrCreateProjectFolder(projectId, projectName, cachedFolderId) 
 
 // Public wrapper: ensures a project has a Drive folder, returns its id.
 // Pass the project's currently-known driveFolderId (or '' if none yet) so we
-// reuse it instead of creating duplicates.
-export async function ensureProjectFolder(projectId, projectName, cachedFolderId) {
-  return getOrCreateProjectFolder(projectId, projectName, cachedFolderId);
+// reuse it instead of creating duplicates. Pass rootFolderId for Team
+// projects (use getTeamRootFolderId()); omit it for Personal projects.
+export async function ensureProjectFolder(projectId, projectName, cachedFolderId, rootFolderId) {
+  return getOrCreateProjectFolder(projectId, projectName, cachedFolderId, rootFolderId);
 }
 
 // Uploads a single File into a project's Drive folder. Returns { fileId, name, mimeType, webViewLink }.
