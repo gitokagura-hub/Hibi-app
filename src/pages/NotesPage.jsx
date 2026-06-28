@@ -110,7 +110,7 @@ function ProjectPickerSheet({ projects, onClose, onPick }) {
 
 function FullScreenComposer({
   text, setText, pendingImages, setPendingImages, pendingFiles, setPendingFiles,
-  uploading, onPickPhoto, onPickFile, onVoice, onSave, onSend, onClose,
+  uploading, onPickPhoto, onPickFile, onVoice, onSave, onSend, onClose, isEditing,
 }) {
   const photoInputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -119,7 +119,7 @@ function FullScreenComposer({
     <div className="fixed inset-0 z-50 bg-white flex flex-col">
       <div className="flex items-center justify-between px-5 pt-14 pb-3 border-b border-gray-100">
         <button onClick={onClose} className="text-gray-500">閉じる</button>
-        <span className="font-semibold">New Note</span>
+        <span className="font-semibold">{isEditing ? "Edit Note" : "New Note"}</span>
         <div className="w-10" />
       </div>
 
@@ -164,7 +164,9 @@ function FullScreenComposer({
         <input ref={fileInputRef} type="file" multiple onChange={onPickFile} className="hidden" />
         <div className="flex gap-2">
           <button onClick={onSave} className="flex-1 rounded-xl border px-4 py-3 text-sm font-semibold">保存</button>
-          <button onClick={onSend} className="flex-1 rounded-xl bg-black text-white px-4 py-3 text-sm font-semibold">📤 Send</button>
+          {!isEditing && (
+            <button onClick={onSend} className="flex-1 rounded-xl bg-black text-white px-4 py-3 text-sm font-semibold">📤 Send</button>
+          )}
         </div>
       </div>
     </div>
@@ -172,12 +174,13 @@ function FullScreenComposer({
 }
 
 export default function NotesPage({ setTab }) {
-  const { data, addNote, deleteNote, pasteNoteToCalendar, pasteNoteToProject, sendToProject } = useData();
+  const { data, addNote, deleteNote, updateNote, pasteNoteToCalendar, pasteNoteToProject, sendToProject } = useData();
   const [text, setText] = useState("");
   const [pendingImages, setPendingImages] = useState([]);
   const [pendingFiles, setPendingFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState(null);
   const [projectPickerOpen, setProjectPickerOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [pasteTarget, setPasteTarget] = useState(null);
@@ -198,8 +201,35 @@ export default function NotesPage({ setTab }) {
   }
 
   function handleSaveNote() {
+    if (editingNoteId) {
+      updateNote(editingNoteId, text.trim());
+      resetComposer();
+      setEditingNoteId(null);
+      setComposerOpen(false);
+      return;
+    }
     if (!text.trim() && pendingImages.length === 0 && pendingFiles.length === 0) return;
     addNote(text.trim(), "text", pendingImages, pendingFiles);
+    resetComposer();
+    setComposerOpen(false);
+  }
+
+  function handleOpenNote(n) {
+    setEditingNoteId(n.id);
+    setText(n.text || "");
+    setPendingImages(n.images || []);
+    setPendingFiles(n.files || []);
+    setComposerOpen(true);
+  }
+
+  function handleOpenNewComposer() {
+    setEditingNoteId(null);
+    resetComposer();
+    setComposerOpen(true);
+  }
+
+  function handleCloseComposer() {
+    setEditingNoteId(null);
     resetComposer();
     setComposerOpen(false);
   }
@@ -242,7 +272,7 @@ export default function NotesPage({ setTab }) {
         </div>
 
         <button
-          onClick={() => setComposerOpen(true)}
+          onClick={handleOpenNewComposer}
           className="w-full text-left rounded-3xl border p-4 mb-6 text-gray-400 text-[15px]"
         >
           思いつきやアイデアを書き出す（壁打ち）...
@@ -252,21 +282,23 @@ export default function NotesPage({ setTab }) {
           {sorted.length === 0 && <p className="text-gray-400">No notes yet</p>}
           {sorted.map((n) => (
             <div key={n.id} className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-              {n.text && <p className="text-[15px] mb-3 whitespace-pre-wrap leading-relaxed">{n.source === "voice" ? "🎤 " : ""}{n.text}</p>}
-              {n.images && n.images.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto mb-3">
-                  {n.images.map((src, i) => (
-                    <img key={i} src={src} alt="" className="w-16 h-16 object-cover rounded-xl border flex-shrink-0" />
-                  ))}
-                </div>
-              )}
-              {n.files && n.files.length > 0 && (
-                <div className="space-y-1.5 mb-3">
-                  {n.files.map((f, i) => (
-                    <div key={i} className="text-xs rounded-lg border p-2 truncate">📄 {f.name}</div>
-                  ))}
-                </div>
-              )}
+              <button onClick={() => handleOpenNote(n)} className="w-full text-left">
+                {n.text && <p className="text-[15px] mb-3 whitespace-pre-wrap leading-relaxed">{n.source === "voice" ? "🎤 " : ""}{n.text}</p>}
+                {n.images && n.images.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto mb-3">
+                    {n.images.map((src, i) => (
+                      <img key={i} src={src} alt="" className="w-16 h-16 object-cover rounded-xl border flex-shrink-0" />
+                    ))}
+                  </div>
+                )}
+                {n.files && n.files.length > 0 && (
+                  <div className="space-y-1.5 mb-3">
+                    {n.files.map((f, i) => (
+                      <div key={i} className="text-xs rounded-lg border p-2 truncate">📄 {f.name}</div>
+                    ))}
+                  </div>
+                )}
+              </button>
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-gray-400 font-semibold">作成日: {formatDateTime(n.createdAt)}</span>
                 <div className="flex gap-1.5">
@@ -291,7 +323,8 @@ export default function NotesPage({ setTab }) {
           onVoice={() => setVoiceOpen(true)}
           onSave={handleSaveNote}
           onSend={() => setProjectPickerOpen(true)}
-          onClose={() => setComposerOpen(false)}
+          onClose={handleCloseComposer}
+          isEditing={!!editingNoteId}
         />
       )}
       {projectPickerOpen && (
