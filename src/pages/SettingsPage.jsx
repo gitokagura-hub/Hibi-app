@@ -255,11 +255,64 @@ export default function SettingsPage({ setTab }) {
         {/* Group 3: Information & Manuals */}
         <div className="pb-10">
           <GroupHeader>アプリケーション説明</GroupHeader>
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600 leading-relaxed">
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600 leading-relaxed mb-4">
             Dayliy Brains は「毎日開く、自分専用の思考整理アプリ」です。カレンダーによるスケジュール管理、低摩擦の壁打ちノート、それらを構造化するプロジェクトルームが連携します。
+          </div>
+
+          <GroupHeader>使い方ガイド</GroupHeader>
+          <div className="rounded-2xl border border-gray-200 overflow-hidden divide-y divide-gray-100">
+            <UsageItem title="① Personal / Team の切り替え">
+              Calendar・Notes・Projects画面の上部にあるタブで「Personal」と「ByMaeNikko Team」を切り替えられます。
+              <br /><br />
+              ・<strong>Personal</strong>：自分専用。この端末にだけ保存されます<br />
+              ・<strong>Team</strong>：上の「ByMaeNikko Team連携」で連携すると使えます。仲間と同じデータを見たり書いたりできます
+              <br /><br />
+              仲間にも同じURLを開いてもらい、それぞれ「連携する」→「表示する名前」を設定してもらえば、お互いのTeamデータが繋がります。
+            </UsageItem>
+
+            <UsageItem title="② プロジェクトのファイル・写真ギャラリー">
+              Projects画面でプロジェクトを開くと「📎 ファイル・写真」という欄があります。
+              <br /><br />
+              ここに写真やファイルを追加すると、自動的にGoogle Drive上の「Hibiアプリの画像 ＞ そのプロジェクト名」フォルダに保存されます。サムネイルをタップすればDrive上の実ファイルが開きます。
+              <br /><br />
+              ※ 使うには、先に「Google Drive 連携」が必要です。Team空間ではまだ使えません（Personalのみ）。
+            </UsageItem>
+
+            <UsageItem title="③ データのバックアップ・復元">
+              「データのバックアップ」から、カレンダー・ノート・プロジェクトの全データをGoogle Driveに保存できます。
+              <br /><br />
+              アプリを消してしまった、機種変更した、という時は「復元する」を押せば元に戻ります（Google Drive連携が必要です）。
+            </UsageItem>
+
+            <UsageItem title="④ まだ使えない機能">
+              以下はまだ実装中です：<br />
+              ・Google Calendarとの同期<br />
+              ・Gemini／ChatGPTキーを使った実際のAI呼び出し<br />
+              ・ボイスメモの自動文字起こし
+            </UsageItem>
           </div>
         </div>
       </div>
     </Layout>
+  );
+}
+
+function UsageItem({ title, children }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="bg-white">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between p-4 text-left"
+      >
+        <span className="text-sm font-semibold">{title}</span>
+        <span className="text-gray-400 text-xs">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 text-xs text-gray-600 leading-relaxed">
+          {children}
+        </div>
+      )}
+    </div>
   );
 }
