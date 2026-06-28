@@ -15,10 +15,24 @@ export const TEAM_SHEET_ID = '10MztdmVKKYD0C0XCpt8s-SufFASbELhWNKOKOGmn5fI';
 const SHEETS_SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
 const CONNECTED_FLAG = 'hibi-sheets-connected';
 const AUTHOR_NAME_KEY = 'hibi-team-author-name';
+const TOKEN_KEY = 'hibi-sheets-token';
+const TOKEN_EXPIRY_KEY = 'hibi-sheets-token-expiry';
 
 let tokenClient = null;
-let accessToken = null;
-let tokenExpiry = 0;
+// Restore from localStorage on load so a page reload / app relaunch doesn't
+// lose the connection (the token still self-expires after ~1hr either way).
+let accessToken = localStorage.getItem(TOKEN_KEY) || null;
+let tokenExpiry = Number(localStorage.getItem(TOKEN_EXPIRY_KEY)) || 0;
+
+function persistToken() {
+  if (accessToken) {
+    localStorage.setItem(TOKEN_KEY, accessToken);
+    localStorage.setItem(TOKEN_EXPIRY_KEY, String(tokenExpiry));
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_EXPIRY_KEY);
+  }
+}
 
 export function isTeamConfigured() {
   return typeof TEAM_SHEET_ID === 'string' && TEAM_SHEET_ID.length > 0 && !TEAM_SHEET_ID.startsWith('YOUR_');
@@ -64,6 +78,7 @@ export function connectTeam() {
       accessToken = resp.access_token;
       tokenExpiry = Date.now() + (resp.expires_in || 3600) * 1000;
       localStorage.setItem(CONNECTED_FLAG, '1');
+      persistToken();
       resolve(resp);
     };
     client.requestAccessToken({ prompt: 'consent' });
@@ -74,6 +89,7 @@ export function disconnectTeam() {
   accessToken = null;
   tokenExpiry = 0;
   localStorage.removeItem(CONNECTED_FLAG);
+  persistToken();
 }
 
 function requireToken() {

@@ -10,11 +10,25 @@ const SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const APP_FOLDER_NAME = 'Hibiアプリの画像';
 const CONNECTED_FLAG = 'hibi-drive-connected';
 const FOLDER_ID_KEY = 'hibi-drive-folder-id';
+const TOKEN_KEY = 'hibi-drive-token';
+const TOKEN_EXPIRY_KEY = 'hibi-drive-token-expiry';
 
 let tokenClient = null;
-let accessToken = null;
-let tokenExpiry = 0;
+// Restore from localStorage on load so a page reload / app relaunch doesn't
+// lose the connection (the token still self-expires after ~1hr either way).
+let accessToken = localStorage.getItem(TOKEN_KEY) || null;
+let tokenExpiry = Number(localStorage.getItem(TOKEN_EXPIRY_KEY)) || 0;
 const blobUrlCache = new Map();
+
+function persistToken() {
+  if (accessToken) {
+    localStorage.setItem(TOKEN_KEY, accessToken);
+    localStorage.setItem(TOKEN_EXPIRY_KEY, String(tokenExpiry));
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_EXPIRY_KEY);
+  }
+}
 
 export function isDriveConfigured() {
   return typeof CLIENT_ID === 'string' && CLIENT_ID.length > 0 && !CLIENT_ID.startsWith('YOUR_');
@@ -53,6 +67,7 @@ export function connectDrive() {
       accessToken = resp.access_token;
       tokenExpiry = Date.now() + (resp.expires_in || 3600) * 1000;
       localStorage.setItem(CONNECTED_FLAG, '1');
+      persistToken();
       resolve(resp);
     };
     client.requestAccessToken({ prompt: 'consent' });
@@ -64,6 +79,7 @@ export function disconnectDrive() {
   tokenExpiry = 0;
   localStorage.removeItem(CONNECTED_FLAG);
   localStorage.removeItem(FOLDER_ID_KEY);
+  persistToken();
   blobUrlCache.forEach(url => URL.revokeObjectURL(url));
   blobUrlCache.clear();
 }
