@@ -1,6 +1,11 @@
 import { useState, useRef } from "react";
 import { Layout } from "../components";
 import { useData, formatDateTime } from "../dataStore";
+import { isDriveConnected, ensureProjectFolder, uploadFileToProjectFolder, listProjectFiles, deleteProjectFile } from "../googleDrive";
+
+function isImageFile(mimeType) {
+  return typeof mimeType === "string" && mimeType.startsWith("image/");
+}
 
 function FullScreenItemEditor({ item, onChange, onClose }) {
   return (
@@ -41,7 +46,8 @@ function FullScreenItemEditor({ item, onChange, onClose }) {
 
 export default function ProjectsPage({ setTab }) {
   const {
-    data, addProject, setProjectDriveFolder, updateProjectItem, addProjectItem, deleteProject, deleteProjectItem,
+    data, addProject, setProjectDriveFolderId, setProjectDriveFiles, addProjectDriveFile, removeProjectDriveFile,
+    updateProjectItem, addProjectItem, deleteProject, deleteProjectItem,
     space, teamData, teamLoading, teamError,
     addTeamProjectAction, deleteTeamProjectAction, addTeamProjectItemAction, updateTeamProjectItemAction, deleteTeamProjectItemAction,
   } = useData();
@@ -50,7 +56,11 @@ export default function ProjectsPage({ setTab }) {
   const [openId, setOpenId] = useState(null);
   const [editing, setEditing] = useState(null); // { projectId, itemId }
   const [newMemoText, setNewMemoText] = useState({}); // { [projectId]: text }
+  const [galleryUploading, setGalleryUploading] = useState({}); // { [projectId]: boolean }
+  const [galleryError, setGalleryError] = useState({}); // { [projectId]: string }
   const rowRefs = useRef({});
+  const photoInputRefs = useRef({});
+  const fileInputRefs = useRef({});
 
   // Team projects/items come back as two flat lists from the sheet; stitch
   // them into the same { ...project, items: [...] } shape the UI expects.
@@ -61,6 +71,54 @@ export default function ProjectsPage({ setTab }) {
         items: teamData.projectItems.filter((it) => it.projectId === p.id),
       }))
     : data.projects;
+
+  // Loads (or reloads) the Drive file list for a project's gallery, creating
+  // the project's Drive folder on first use if it doesn't exist yet.
+  async function loadGallery(p) {
+    if (isTeam || !isDriveConnected()) return;
+    setGalleryError((prev) => ({ ...prev, [p.id]: "" }));
+    try {
+      const folderId = await ensureProjectFolder(p.id, p.name, p.driveFolderId);
+      if (folderId !== p.driveFolderId) setProjectDriveFolderId(p.id, folderId);
+      const files = await listProjectFiles(folderId);
+      setProjectDriveFiles(p.id, files);
+    } catch (err) {
+      setGalleryError((prev) => ({ ...prev, [p.id]: "Driveとの連携に失敗しました。Settingsで連携状況を確認してください。" }));
+    }
+  }
+
+  async function handleGalleryUpload(p, fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    if (!isDriveConnected()) {
+      setGalleryError((prev) => ({ ...prev, [p.id]: "先にSettingsでGoogle Driveと連携してください" }));
+      return;
+    }
+    setGalleryUploading((prev) => ({ ...prev, [p.id]: true }));
+    setGalleryError((prev) => ({ ...prev, [p.id]: "" }));
+    try {
+      const folderId = await ensureProjectFolder(p.id, p.name, p.driveFolderId);
+      if (folderId !== p.driveFolderId) setProjectDriveFolderId(p.id, folderId);
+      for (const file of files) {
+        const uploaded = await uploadFileToProjectFolder(file, folderId);
+        addProjectDriveFile(p.id, uploaded);
+      }
+    } catch (err) {
+      setGalleryError((prev) => ({ ...prev, [p.id]: "アップロードに失敗しました" }));
+    } finally {
+      setGalleryUploading((prev) => ({ ...prev, [p.id]: false }));
+    }
+  }
+
+  async function handleGalleryDelete(p, file) {
+    if (!window.confirm(`「${file.name}」をDriveから削除しますか？`)) return;
+    try {
+      await deleteProjectFile(file.id);
+      removeProjectDriveFile(p.id, file.id);
+    } catch {
+      setGalleryError((prev) => ({ ...prev, [p.id]: "削除に失敗しました" }));
+    }
+  }
 
   function handleAddMemo(projectId) {
     const text = (newMemoText[projectId] || "").trim();
@@ -86,6 +144,7 @@ export default function ProjectsPage({ setTab }) {
       requestAnimationFrame(() => {
         rowRefs.current[p.id]?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
+      if (!isTeam) loadGallery(p);
     }
   }
 
@@ -139,24 +198,72 @@ export default function ProjectsPage({ setTab }) {
 
                       <div className="text-[13px] text-gray-800 mb-3 space-y-1">
                         <div>• [ノート連携] ノートから転送されたアイデアを{p.items.length}件格納</div>
-                        {!isTeam && (
-                          <div>
-                            • [Google Drive]{" "}
-                            {p.driveFolder ? `「${p.driveFolder}」フォルダに連携中` : "未連携"}
-                          </div>
-                        )}
                         {isTeam && (
                           <div>• [作成者] {p.author || "名無し"}</div>
                         )}
                       </div>
 
+                      {/* File & photo gallery (Personal only — backed by a real Drive folder) */}
                       {!isTeam && (
-                        <input
-                          value={p.driveFolder}
-                          onChange={(e) => setProjectDriveFolder(p.id, e.target.value)}
-                          placeholder="連携するDriveフォルダ名を入力..."
-                          className="w-full rounded-lg border p-2 text-xs mb-3 bg-white"
-                        />
+                        <div className="mb-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-bold text-gray-600">📎 ファイル・写真</span>
+                            <div className="flex gap-1.5">
+                              <button
+                                onClick={() => fileInputRefs.current[p.id]?.click()}
+                                disabled={galleryUploading[p.id]}
+                                className="rounded-lg border px-2.5 py-1 text-xs bg-white"
+                              >
+                                {galleryUploading[p.id] ? "…" : "📎 ファイル"}
+                              </button>
+                              <button
+                                onClick={() => photoInputRefs.current[p.id]?.click()}
+                                disabled={galleryUploading[p.id]}
+                                className="rounded-lg border px-2.5 py-1 text-xs bg-white"
+                              >
+                                {galleryUploading[p.id] ? "…" : "📷 写真"}
+                              </button>
+                            </div>
+                          </div>
+                          <input
+                            ref={(el) => (photoInputRefs.current[p.id] = el)}
+                            type="file" accept="image/*" multiple className="hidden"
+                            onChange={(e) => { handleGalleryUpload(p, e.target.files); e.target.value = ""; }}
+                          />
+                          <input
+                            ref={(el) => (fileInputRefs.current[p.id] = el)}
+                            type="file" multiple className="hidden"
+                            onChange={(e) => { handleGalleryUpload(p, e.target.files); e.target.value = ""; }}
+                          />
+
+                          {!isDriveConnected() && (
+                            <p className="text-[11px] text-gray-400">SettingsでGoogle Driveと連携すると使えます</p>
+                          )}
+                          {galleryError[p.id] && <p className="text-[11px] text-red-500">{galleryError[p.id]}</p>}
+
+                          {p.driveFiles && p.driveFiles.length > 0 && (
+                            <div className="grid grid-cols-3 gap-1.5 mt-2">
+                              {p.driveFiles.map((f) => (
+                                <div key={f.id} className="relative rounded-lg border bg-white overflow-hidden">
+                                  {isImageFile(f.mimeType) ? (
+                                    <a href={f.webViewLink} target="_blank" rel="noopener noreferrer">
+                                      <img src={f.thumbnailLink || f.webViewLink} alt={f.name} className="w-full h-16 object-cover" />
+                                    </a>
+                                  ) : (
+                                    <a href={f.webViewLink} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center h-16 px-1 text-center">
+                                      <span className="text-lg">📄</span>
+                                      <span className="text-[9px] truncate w-full">{f.name}</span>
+                                    </a>
+                                  )}
+                                  <button
+                                    onClick={() => handleGalleryDelete(p, f)}
+                                    className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 text-white text-[10px] flex items-center justify-center"
+                                  >×</button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       )}
 
                       <div className="mb-3">
@@ -217,8 +324,8 @@ export default function ProjectsPage({ setTab }) {
                       <div className="flex gap-2">
                         {!isTeam && (
                           <>
-                            <button className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-semibold bg-white">
-                              🔄 転送ボタン
+                            <button onClick={() => loadGallery(p)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-semibold bg-white">
+                              🔄 ギャラリー更新
                             </button>
                             <button onClick={() => setTab("calendar")} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-semibold bg-white">
                               📅 カレンダー連携

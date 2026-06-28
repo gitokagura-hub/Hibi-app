@@ -207,6 +207,86 @@ export async function restoreDataFromDrive() {
   return { data, modifiedTime: searchData.files[0].modifiedTime };
 }
 
+// Finds or creates a per-project subfolder inside the app's main Drive folder.
+// folderId is cached on the project object itself (driveFolderId) so repeated
+// calls don't need to search every time — caller passes it in and stores
+// whatever this returns back onto the project.
+async function getOrCreateProjectFolder(projectId, projectName, cachedFolderId) {
+  const token = requireToken();
+  if (cachedFolderId) {
+    const check = await fetch(`https://www.googleapis.com/drive/v3/files/${cachedFolderId}?fields=id,trashed`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (check.ok) {
+      const checkData = await check.json();
+      if (!checkData.trashed) return cachedFolderId;
+    }
+  }
+  const parentFolderId = await getOrCreateFolder();
+  const safeName = (projectName || 'プロジェクト').slice(0, 80);
+  const q = encodeURIComponent(`name='${safeName}' and '${parentFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+  const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const searchData = await searchRes.json();
+  if (searchData.files && searchData.files.length > 0) return searchData.files[0].id;
+
+  const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: safeName, mimeType: 'application/vnd.google-apps.folder', parents: [parentFolderId] }),
+  });
+  const createData = await createRes.json();
+  return createData.id;
+}
+
+// Public wrapper: ensures a project has a Drive folder, returns its id.
+// Pass the project's currently-known driveFolderId (or '' if none yet) so we
+// reuse it instead of creating duplicates.
+export async function ensureProjectFolder(projectId, projectName, cachedFolderId) {
+  return getOrCreateProjectFolder(projectId, projectName, cachedFolderId);
+}
+
+// Uploads a single File into a project's Drive folder. Returns { fileId, name, mimeType, webViewLink }.
+export async function uploadFileToProjectFolder(file, folderId) {
+  const token = requireToken();
+  const metadata = { name: file.name, parents: [folderId] };
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', file);
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,webViewLink', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) throw new Error('UPLOAD_FAILED');
+  return res.json();
+}
+
+// Lists all non-folder files currently inside a project's Drive folder.
+export async function listProjectFiles(folderId) {
+  const token = requireToken();
+  const q = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType,webViewLink,thumbnailLink,createdTime)&orderBy=createdTime desc`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error('LIST_FAILED');
+  const data = await res.json();
+  return data.files || [];
+}
+
+export async function deleteProjectFile(fileId) {
+  const token = requireToken();
+  await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (blobUrlCache.has(fileId)) {
+    URL.revokeObjectURL(blobUrlCache.get(fileId));
+    blobUrlCache.delete(fileId);
+  }
+}
+
 export async function deleteImage(fileId) {
   const token = requireToken();
   await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {

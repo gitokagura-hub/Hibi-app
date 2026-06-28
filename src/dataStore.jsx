@@ -70,7 +70,7 @@ function emptyData() {
     events: [],    // { id, date, time, title, createdAt }
     memos: {},     // { [date]: { text, images: [], files: [] } }
     notes: [],     // { id, text, images: [], files: [], source: 'text'|'voice', createdAt }
-    projects: [],  // { id, name, items: [{id, text, images, files, createdAt}], driveFolder: '', createdAt }
+    projects: [],  // { id, name, items: [{id, text, images, files, createdAt}], driveFolderId: '', driveFiles: [], createdAt }
     settings: { geminiKey: '', chatgptKey: '' },
   };
 }
@@ -86,7 +86,7 @@ function loadData() {
       if (typeof val === 'string') migratedMemos[date] = { text: val, images: [], files: [] };
       else migratedMemos[date] = { text: val.text || '', images: val.images || [], files: val.files || [] };
     }
-    const migratedProjects = (parsed.projects || []).map(p => ({ driveFolder: '', ...p, items: (p.items || []).map(it => ({ images: [], files: [], ...it })) }));
+    const migratedProjects = (parsed.projects || []).map(p => ({ driveFolderId: '', driveFiles: [], ...p, items: (p.items || []).map(it => ({ images: [], files: [], ...it })) }));
     return { ...emptyData(), ...parsed, memos: migratedMemos, projects: migratedProjects, settings: { ...emptyData().settings, ...(parsed.settings || {}) } };
   } catch {
     return emptyData();
@@ -219,11 +219,26 @@ export function DataProvider({ children }) {
     setData(prev => ({ ...prev, notes: prev.notes.map(n => n.id === id ? { ...n, text } : n) }));
   }
   function addProject(name) {
-    const project = { id: uid(), name, items: [], driveFolder: '', createdAt: Date.now() };
+    const project = { id: uid(), name, items: [], driveFolderId: '', driveFiles: [], createdAt: Date.now() };
     setData(prev => ({ ...prev, projects: [...prev.projects, project] }));
   }
-  function setProjectDriveFolder(projectId, folderName) {
-    setData(prev => ({ ...prev, projects: prev.projects.map(p => p.id === projectId ? { ...p, driveFolder: folderName } : p) }));
+  function setProjectDriveFolderId(projectId, folderId) {
+    setData(prev => ({ ...prev, projects: prev.projects.map(p => p.id === projectId ? { ...p, driveFolderId: folderId } : p) }));
+  }
+  function setProjectDriveFiles(projectId, files) {
+    setData(prev => ({ ...prev, projects: prev.projects.map(p => p.id === projectId ? { ...p, driveFiles: files } : p) }));
+  }
+  function addProjectDriveFile(projectId, file) {
+    setData(prev => ({
+      ...prev,
+      projects: prev.projects.map(p => p.id === projectId ? { ...p, driveFiles: [file, ...p.driveFiles] } : p),
+    }));
+  }
+  function removeProjectDriveFile(projectId, fileId) {
+    setData(prev => ({
+      ...prev,
+      projects: prev.projects.map(p => p.id === projectId ? { ...p, driveFiles: p.driveFiles.filter(f => f.id !== fileId) } : p),
+    }));
   }
   function updateProjectItem(projectId, itemId, text) {
     setData(prev => ({
@@ -386,7 +401,7 @@ export function DataProvider({ children }) {
       if (typeof val === 'string') migratedMemos[date] = { text: val, images: [], files: [] };
       else migratedMemos[date] = { text: val.text || '', images: val.images || [], files: val.files || [] };
     }
-    const migratedProjects = (restored.projects || []).map(p => ({ driveFolder: '', ...p, items: (p.items || []).map(it => ({ images: [], files: [], ...it })) }));
+    const migratedProjects = (restored.projects || []).map(p => ({ driveFolderId: '', driveFiles: [], ...p, items: (p.items || []).map(it => ({ images: [], files: [], ...it })) }));
     setData({ ...emptyData(), ...restored, memos: migratedMemos, projects: migratedProjects, settings: { ...emptyData().settings, ...(restored.settings || {}) } });
   }
 
@@ -397,7 +412,7 @@ export function DataProvider({ children }) {
     addEvent, deleteEvent,
     getMemo, setMemo, addMemoImages, removeMemoImage, addMemoFiles, removeMemoFile,
     addNote, deleteNote, updateNote,
-    addProject, setProjectDriveFolder, updateProjectItem, addProjectItem, deleteProject, deleteProjectItem, sendToProject,
+    addProject, setProjectDriveFolderId, setProjectDriveFiles, addProjectDriveFile, removeProjectDriveFile, updateProjectItem, addProjectItem, deleteProject, deleteProjectItem, sendToProject,
     pasteNoteToCalendar, pasteNoteToProject,
     setSettings, replaceAllData,
     // Space switching + Team data
