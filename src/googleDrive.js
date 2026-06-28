@@ -40,31 +40,11 @@ function getClient() {
   return tokenClient;
 }
 
-// Waits briefly for the Google Identity Services script to finish loading,
-// since it's loaded with async/defer and may not be ready the instant the
-// person taps "connect" right after opening the app.
-function waitForGoogleScript(timeoutMs = 4000) {
-  return new Promise((resolve, reject) => {
-    if (window.google && window.google.accounts && window.google.accounts.oauth2) {
-      resolve();
-      return;
-    }
-    const start = Date.now();
-    const interval = setInterval(() => {
-      if (window.google && window.google.accounts && window.google.accounts.oauth2) {
-        clearInterval(interval);
-        resolve();
-      } else if (Date.now() - start > timeoutMs) {
-        clearInterval(interval);
-        reject(new Error('GOOGLE_SCRIPT_NOT_LOADED'));
-      }
-    }, 150);
-  });
-}
-
-// Must be called from inside a direct user gesture (click handler) the first time.
-export async function connectDrive() {
-  await waitForGoogleScript();
+// Must be called from inside a direct user gesture (click handler).
+// IMPORTANT: this must stay synchronous up to requestAccessToken() — any
+// `await` before it breaks the "direct user gesture" chain Safari/Chrome
+// require, and the consent popup gets silently blocked instead of shown.
+export function connectDrive() {
   return new Promise((resolve, reject) => {
     const client = getClient();
     if (!client) { reject(new Error('GOOGLE_SCRIPT_NOT_LOADED')); return; }

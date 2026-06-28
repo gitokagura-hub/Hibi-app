@@ -52,28 +52,10 @@ function getClient() {
   return tokenClient;
 }
 
-function waitForGoogleScript(timeoutMs = 4000) {
-  return new Promise((resolve, reject) => {
-    if (window.google && window.google.accounts && window.google.accounts.oauth2) {
-      resolve();
-      return;
-    }
-    const start = Date.now();
-    const interval = setInterval(() => {
-      if (window.google && window.google.accounts && window.google.accounts.oauth2) {
-        clearInterval(interval);
-        resolve();
-      } else if (Date.now() - start > timeoutMs) {
-        clearInterval(interval);
-        reject(new Error('GOOGLE_SCRIPT_NOT_LOADED'));
-      }
-    }, 150);
-  });
-}
-
-// Must be called from inside a direct user gesture (click handler) the first time.
-export async function connectTeam() {
-  await waitForGoogleScript();
+// Must be called from inside a direct user gesture (click handler).
+// IMPORTANT: stays synchronous up to requestAccessToken() — see note in
+// googleDrive.js's connectDrive for why an `await` here breaks the popup.
+export function connectTeam() {
   return new Promise((resolve, reject) => {
     const client = getClient();
     if (!client) { reject(new Error('GOOGLE_SCRIPT_NOT_LOADED')); return; }
