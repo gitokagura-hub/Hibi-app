@@ -19,12 +19,14 @@ const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "Ju
 
 export default function CalendarPage({ setTab }) {
   const {
-    data, addTask, toggleTask, addEvent, deleteEvent,
+    data, addTask, toggleTask, deleteTask, updateTask, addEvent, deleteEvent,
     getMemo, setMemo, addMemoImages, removeMemoImage, addMemoFiles, removeMemoFile,
   } = useData();
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [taskInput, setTaskInput] = useState("");
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editingTaskText, setEditingTaskText] = useState("");
   const [eventTime, setEventTime] = useState("09:00");
   const [eventTitle, setEventTitle] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -68,6 +70,23 @@ export default function CalendarPage({ setTab }) {
     if (!eventTitle.trim()) return;
     addEvent(selectedDate, eventTime, eventTitle.trim());
     setEventTitle("");
+  }
+
+  function startEditTask(t) {
+    setEditingTaskId(t.id);
+    setEditingTaskText(t.title);
+  }
+
+  function saveEditTask() {
+    const text = editingTaskText.trim();
+    if (text) updateTask(editingTaskId, text);
+    setEditingTaskId(null);
+    setEditingTaskText("");
+  }
+
+  function cancelEditTask() {
+    setEditingTaskId(null);
+    setEditingTaskText("");
   }
 
   async function handlePickPhoto(e) {
@@ -190,13 +209,29 @@ export default function CalendarPage({ setTab }) {
           <h2 className="text-2xl font-semibold mb-4">Task</h2>
           <div className="space-y-2 mb-3">
             {dayTasks.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => toggleTask(t.id)}
-                className={`w-full text-left rounded-2xl border p-4 ${t.completed ? "text-gray-400 line-through" : ""}`}
-              >
-                {t.completed ? "☑" : "☐"} {t.title}
-              </button>
+              <div key={t.id} className="flex items-center gap-2 rounded-2xl border p-4">
+                <button onClick={() => toggleTask(t.id)} className="flex-shrink-0 text-lg">
+                  {t.completed ? "☑" : "☐"}
+                </button>
+                {editingTaskId === t.id ? (
+                  <input
+                    autoFocus
+                    value={editingTaskText}
+                    onChange={(e) => setEditingTaskText(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") saveEditTask(); if (e.key === "Escape") cancelEditTask(); }}
+                    onBlur={saveEditTask}
+                    className="flex-1 outline-none border-b border-gray-300"
+                  />
+                ) : (
+                  <button
+                    onClick={() => startEditTask(t)}
+                    className={`flex-1 text-left ${t.completed ? "text-gray-400 line-through" : ""}`}
+                  >
+                    {t.title}
+                  </button>
+                )}
+                <button onClick={() => deleteTask(t.id)} className="flex-shrink-0 text-gray-400 text-sm">🗑</button>
+              </div>
             ))}
           </div>
           <textarea

@@ -119,6 +119,9 @@ export function DataProvider({ children }) {
   function toggleTask(id) {
     setData(prev => ({ ...prev, tasks: prev.tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t) }));
   }
+  function updateTask(id, title) {
+    setData(prev => ({ ...prev, tasks: prev.tasks.map(t => t.id === id ? { ...t, title } : t) }));
+  }
   function deleteTask(id) {
     setData(prev => ({ ...prev, tasks: prev.tasks.filter(t => t.id !== id) }));
   }
@@ -233,7 +236,7 @@ export function DataProvider({ children }) {
   const value = {
     data,
     storageError,
-    addTask, toggleTask, deleteTask,
+    addTask, toggleTask, deleteTask, updateTask,
     addEvent, deleteEvent,
     getMemo, setMemo, addMemoImages, removeMemoImage, addMemoFiles, removeMemoFile,
     addNote, deleteNote, updateNote,
