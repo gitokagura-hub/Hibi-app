@@ -134,6 +134,79 @@ export async function getImageUrl(fileId) {
   return url;
 }
 
+const BACKUP_FILE_NAME = 'dayliybrains-backup.json';
+const BACKUP_FILE_ID_KEY = 'hibi-drive-backup-file-id';
+
+// Saves the full app data object as a single JSON file in the app's Drive folder.
+// Overwrites the previous backup file if one already exists, so there's always
+// just one "latest" backup rather than an ever-growing pile of files.
+export async function backupDataToDrive(data) {
+  const token = requireToken();
+  const folderId = await getOrCreateFolder();
+  const json = JSON.stringify(data);
+  const blob = new Blob([json], { type: 'application/json' });
+
+  let fileId = localStorage.getItem(BACKUP_FILE_ID_KEY);
+  if (fileId) {
+    const check = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,trashed`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!check.ok) fileId = null;
+    else {
+      const checkData = await check.json();
+      if (checkData.trashed) fileId = null;
+    }
+  }
+  if (!fileId) {
+    const q = encodeURIComponent(`name='${BACKUP_FILE_NAME}' and '${folderId}' in parents and trashed=false`);
+    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const searchData = await searchRes.json();
+    if (searchData.files && searchData.files.length > 0) fileId = searchData.files[0].id;
+  }
+
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(
+    fileId ? { name: BACKUP_FILE_NAME } : { name: BACKUP_FILE_NAME, parents: [folderId] }
+  )], { type: 'application/json' }));
+  form.append('file', blob);
+
+  const url = fileId
+    ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart&fields=id,modifiedTime`
+    : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,modifiedTime`;
+  const res = await fetch(url, {
+    method: fileId ? 'PATCH' : 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) throw new Error('BACKUP_FAILED');
+  const resData = await res.json();
+  localStorage.setItem(BACKUP_FILE_ID_KEY, resData.id);
+  return resData.modifiedTime;
+}
+
+// Fetches the latest backup JSON from Drive and returns the parsed data object.
+// Throws NO_BACKUP if no backup file exists yet.
+export async function restoreDataFromDrive() {
+  const token = requireToken();
+  const folderId = await getOrCreateFolder();
+  const q = encodeURIComponent(`name='${BACKUP_FILE_NAME}' and '${folderId}' in parents and trashed=false`);
+  const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,modifiedTime)&orderBy=modifiedTime desc`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const searchData = await searchRes.json();
+  if (!searchData.files || searchData.files.length === 0) throw new Error('NO_BACKUP');
+  const fileId = searchData.files[0].id;
+  localStorage.setItem(BACKUP_FILE_ID_KEY, fileId);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error('RESTORE_FAILED');
+  const data = await res.json();
+  return { data, modifiedTime: searchData.files[0].modifiedTime };
+}
+
 export async function deleteImage(fileId) {
   const token = requireToken();
   await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {

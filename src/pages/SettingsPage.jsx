@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Layout } from "../components";
 import { useData } from "../dataStore";
-import { isDriveConfigured, isDriveConnected, wasDriveConnectedBefore, connectDrive, disconnectDrive } from "../googleDrive";
+import { isDriveConfigured, isDriveConnected, wasDriveConnectedBefore, connectDrive, disconnectDrive, backupDataToDrive, restoreDataFromDrive } from "../googleDrive";
 
 function GroupHeader({ children }) {
   return (
@@ -10,10 +10,12 @@ function GroupHeader({ children }) {
 }
 
 export default function SettingsPage({ setTab }) {
-  const { data, setSettings } = useData();
+  const { data, setSettings, replaceAllData } = useData();
   const [driveConnected, setDriveConnected] = useState(isDriveConnected());
   const [driveBusy, setDriveBusy] = useState(false);
   const [driveError, setDriveError] = useState("");
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [backupMessage, setBackupMessage] = useState("");
   const driveReady = isDriveConfigured();
 
   useEffect(() => {
@@ -35,6 +37,43 @@ export default function SettingsPage({ setTab }) {
       setDriveError("接続に失敗しました。もう一度お試しください。");
     } finally {
       setDriveBusy(false);
+    }
+  }
+
+  async function handleBackup() {
+    setBackupMessage("");
+    if (!driveConnected) {
+      setBackupMessage("先にGoogle Driveと連携してください");
+      return;
+    }
+    setBackupBusy(true);
+    try {
+      await backupDataToDrive(data);
+      setBackupMessage("バックアップ完了（" + new Date().toLocaleString("ja-JP") + "）");
+    } catch (err) {
+      setBackupMessage("バックアップに失敗しました。もう一度お試しください。");
+    } finally {
+      setBackupBusy(false);
+    }
+  }
+
+  async function handleRestore() {
+    setBackupMessage("");
+    if (!driveConnected) {
+      setBackupMessage("先にGoogle Driveと連携してください");
+      return;
+    }
+    if (!window.confirm("Driveに保存されているバックアップで、現在のデータを上書きします。よろしいですか？")) return;
+    setBackupBusy(true);
+    try {
+      const { data: restored, modifiedTime } = await restoreDataFromDrive();
+      replaceAllData(restored);
+      setBackupMessage("復元完了（バックアップ日時: " + new Date(modifiedTime).toLocaleString("ja-JP") + "）");
+    } catch (err) {
+      if (err.message === "NO_BACKUP") setBackupMessage("Driveにバックアップが見つかりませんでした");
+      else setBackupMessage("復元に失敗しました。もう一度お試しください。");
+    } finally {
+      setBackupBusy(false);
     }
   }
 
@@ -66,6 +105,37 @@ export default function SettingsPage({ setTab }) {
               ) : (
                 <span className="text-gray-400 text-sm">利用不可</span>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Group 1.5: Backup & Restore */}
+        <div className="mb-7">
+          <GroupHeader>データのバックアップ</GroupHeader>
+          <div className="rounded-2xl border border-gray-200 overflow-hidden">
+            <div className="p-4">
+              <p className="text-sm text-gray-600 mb-3">
+                {driveConnected
+                  ? "カレンダー・ノート・プロジェクトのすべてのデータをGoogle Driveに保存・復元できます。"
+                  : "バックアップを使うには、まず上のGoogle Driveと連携してください。"}
+              </p>
+              <div className="flex gap-2 mb-2">
+                <button
+                  onClick={handleBackup}
+                  disabled={!driveConnected || backupBusy}
+                  className="flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold bg-white disabled:opacity-40"
+                >
+                  {backupBusy ? "…" : "バックアップする"}
+                </button>
+                <button
+                  onClick={handleRestore}
+                  disabled={!driveConnected || backupBusy}
+                  className="flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold bg-white disabled:opacity-40"
+                >
+                  {backupBusy ? "…" : "復元する"}
+                </button>
+              </div>
+              {backupMessage && <p className="text-xs text-gray-500 mt-1">{backupMessage}</p>}
             </div>
           </div>
         </div>

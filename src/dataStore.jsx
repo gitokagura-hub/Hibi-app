@@ -232,6 +232,17 @@ export function DataProvider({ children }) {
   function setSettings(patch) {
     setData(prev => ({ ...prev, settings: { ...prev.settings, ...patch } }));
   }
+  // Replaces the entire app data with a restored backup. Runs the same
+  // migration/defaults logic as loadData so older or partial backups still work.
+  function replaceAllData(restored) {
+    const migratedMemos = {};
+    for (const [date, val] of Object.entries(restored.memos || {})) {
+      if (typeof val === 'string') migratedMemos[date] = { text: val, images: [], files: [] };
+      else migratedMemos[date] = { text: val.text || '', images: val.images || [], files: val.files || [] };
+    }
+    const migratedProjects = (restored.projects || []).map(p => ({ driveFolder: '', ...p, items: (p.items || []).map(it => ({ images: [], files: [], ...it })) }));
+    setData({ ...emptyData(), ...restored, memos: migratedMemos, projects: migratedProjects, settings: { ...emptyData().settings, ...(restored.settings || {}) } });
+  }
 
   const value = {
     data,
@@ -242,7 +253,7 @@ export function DataProvider({ children }) {
     addNote, deleteNote, updateNote,
     addProject, setProjectDriveFolder, updateProjectItem, addProjectItem, deleteProject, deleteProjectItem, sendToProject,
     pasteNoteToCalendar, pasteNoteToProject,
-    setSettings,
+    setSettings, replaceAllData,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
