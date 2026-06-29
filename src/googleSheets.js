@@ -249,6 +249,7 @@ export const deleteTeamTask = (id) => deleteRow(TAB_TASKS, id);
 
 export const fetchTeamEvents = () => fetchTab(TAB_EVENTS);
 export const addTeamEvent = (id, title, author, date, time) => appendRow(TAB_EVENTS, { id, text: title, author, createdAt: Date.now() }, { date, time });
+export const updateTeamEvent = (id, title, author, date, time) => updateRow(TAB_EVENTS, id, { id, text: title, author, createdAt: Date.now() }, { date, time });
 export const deleteTeamEvent = (id) => deleteRow(TAB_EVENTS, id);
 
 export const fetchTeamProjects = () => fetchTab(TAB_PROJECTS);

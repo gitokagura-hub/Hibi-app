@@ -3,7 +3,7 @@ import {
   isTeamConnected, getAuthorName, ensureTeamSheetReady,
   fetchTeamNotes, addTeamNote, updateTeamNote, deleteTeamNote,
   fetchTeamTasks, addTeamTask, updateTeamTask, deleteTeamTask,
-  fetchTeamEvents, addTeamEvent, deleteTeamEvent,
+  fetchTeamEvents, addTeamEvent, updateTeamEvent, deleteTeamEvent,
   fetchTeamProjects, addTeamProject, deleteTeamProject, updateTeamProjectDrive,
   fetchTeamProjectItems, addTeamProjectItem, updateTeamProjectItem, deleteTeamProjectItem,
   fetchTeamMemos, saveTeamMemo,
@@ -179,6 +179,9 @@ export function DataProvider({ children }) {
   }
   function deleteEvent(id) {
     setData(prev => ({ ...prev, events: prev.events.filter(e => e.id !== id) }));
+  }
+  function updateEvent(id, time, title) {
+    setData(prev => ({ ...prev, events: prev.events.map(e => e.id === id ? { ...e, time, title } : e) }));
   }
   function getMemo(date) {
     return data.memos[date] || { text: '', images: [], files: [] };
@@ -365,6 +368,14 @@ export function DataProvider({ children }) {
     catch (err) { setTeamError('削除に失敗しました（' + (err?.message || '不明なエラー') + '）'); }
     finally { setTeamLoading(false); }
   }
+  async function updateTeamEventAction(event, time, title) {
+    const author = getAuthorName() || '名無し';
+    setTeamLoading(true);
+    setTeamError('');
+    try { await updateTeamEvent(event.id, title, author, event.date, time); await refreshTeamData(); }
+    catch (err) { setTeamError('更新に失敗しました（' + (err?.message || '不明なエラー') + '）'); }
+    finally { setTeamLoading(false); }
+  }
   async function addTeamProjectAction(name) {
     const author = getAuthorName() || '名無し';
     setTeamLoading(true);
@@ -514,7 +525,7 @@ export function DataProvider({ children }) {
     data,
     storageError,
     addTask, toggleTask, deleteTask, updateTask,
-    addEvent, deleteEvent,
+    addEvent, deleteEvent, updateEvent,
     getMemo, setMemo, addMemoImages, removeMemoImage, addMemoFiles, removeMemoFile,
     addNote, deleteNote, updateNote,
     addProject, setProjectDriveFolderId, setProjectDriveFiles, addProjectDriveFile, removeProjectDriveFile, updateProjectItem, addProjectItem, deleteProject, deleteProjectItem, sendToProject,
@@ -524,7 +535,7 @@ export function DataProvider({ children }) {
     space, switchSpace, teamData, teamLoading, teamError, refreshTeamData,
     addTeamNoteAction, updateTeamNoteAction, deleteTeamNoteAction,
     addTeamTaskAction, toggleTeamTaskAction, updateTeamTaskAction, deleteTeamTaskAction,
-    addTeamEventAction, deleteTeamEventAction,
+    addTeamEventAction, deleteTeamEventAction, updateTeamEventAction,
     addTeamProjectAction, deleteTeamProjectAction, updateTeamProjectDriveAction,
     addTeamProjectItemAction, updateTeamProjectItemAction, deleteTeamProjectItemAction,
     getTeamMemo, setTeamMemoAction, addTeamMemoImagesAction, removeTeamMemoImageAction, addTeamMemoFilesAction, removeTeamMemoFileAction,

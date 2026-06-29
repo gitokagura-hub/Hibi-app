@@ -21,11 +21,11 @@ const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "Ju
 
 export default function CalendarPage({ setTab }) {
   const {
-    data, addTask, toggleTask, deleteTask, updateTask, addEvent, deleteEvent,
+    data, addTask, toggleTask, deleteTask, updateTask, addEvent, deleteEvent, updateEvent,
     getMemo, setMemo, addMemoImages, removeMemoImage, addMemoFiles, removeMemoFile, addNote,
     space, teamData, teamLoading, teamError,
     addTeamTaskAction, toggleTeamTaskAction, updateTeamTaskAction, deleteTeamTaskAction,
-    addTeamEventAction, deleteTeamEventAction,
+    addTeamEventAction, deleteTeamEventAction, updateTeamEventAction,
     getTeamMemo, setTeamMemoAction, addTeamMemoImagesAction, removeTeamMemoImageAction, addTeamMemoFilesAction, removeTeamMemoFileAction,
     addTeamNoteAction,
   } = useData();
@@ -36,6 +36,9 @@ export default function CalendarPage({ setTab }) {
   const [taskInput, setTaskInput] = useState("");
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskText, setEditingTaskText] = useState("");
+  const [editingEventId, setEditingEventId] = useState(null);
+  const [editingEventText, setEditingEventText] = useState("");
+  const [editingEventTime, setEditingEventTime] = useState("");
   const [eventTime, setEventTime] = useState("09:00");
   const [eventTitle, setEventTitle] = useState("");
   const [isAllDay, setIsAllDay] = useState(false);
@@ -111,6 +114,30 @@ export default function CalendarPage({ setTab }) {
   function cancelEditTask() {
     setEditingTaskId(null);
     setEditingTaskText("");
+  }
+
+  function startEditEvent(e) {
+    setEditingEventId(e.id);
+    setEditingEventText(e.title || e.text || "");
+    setEditingEventTime(e.time || "");
+  }
+
+  function saveEditEvent() {
+    const text = editingEventText.trim();
+    const event = dayEvents.find((e) => e.id === editingEventId);
+    if (text && event) {
+      if (isTeam) updateTeamEventAction(event, editingEventTime, text);
+      else updateEvent(editingEventId, editingEventTime, text);
+    }
+    setEditingEventId(null);
+    setEditingEventText("");
+    setEditingEventTime("");
+  }
+
+  function cancelEditEvent() {
+    setEditingEventId(null);
+    setEditingEventText("");
+    setEditingEventTime("");
   }
 
   function handleToggleTask(t) {
@@ -241,10 +268,34 @@ export default function CalendarPage({ setTab }) {
           {/* 1. Schedule */}
           <div className="space-y-3 mb-10">
             {dayEvents.map((e) => (
-              <button key={e.id} onClick={() => handleDeleteEvent(e.id)} className={`w-full text-left rounded-2xl border p-4 ${isTeam ? "border-blue-100 bg-blue-50" : ""}`}>
-                {e.time ? `${e.time}　${e.text || e.title}` : (e.text || e.title)}
-                {isTeam && <span className="block text-[10px] text-blue-500 mt-1">● {e.author || "名無し"}</span>}
-              </button>
+              <div key={e.id} className={`rounded-2xl border p-4 ${isTeam ? "border-blue-100 bg-blue-50" : ""}`}>
+                {editingEventId === e.id ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="time"
+                      value={editingEventTime}
+                      onChange={(ev) => setEditingEventTime(ev.target.value)}
+                      className="rounded-xl border p-2 text-sm w-28 flex-shrink-0"
+                    />
+                    <input
+                      autoFocus
+                      value={editingEventText}
+                      onChange={(ev) => setEditingEventText(ev.target.value)}
+                      onKeyDown={(ev) => { if (ev.key === "Enter") saveEditEvent(); if (ev.key === "Escape") cancelEditEvent(); }}
+                      className="flex-1 outline-none border-b border-gray-300 text-sm"
+                    />
+                    <button onClick={saveEditEvent} className="flex-shrink-0 text-xs font-semibold bg-black text-white rounded-lg px-2.5 py-1">保存</button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => startEditEvent(e)} className="flex-1 text-left">
+                      {e.time ? `${e.time}　${e.text || e.title}` : (e.text || e.title)}
+                      {isTeam && <span className="block text-[10px] text-blue-500 mt-1">● {e.author || "名無し"}</span>}
+                    </button>
+                    <button onClick={() => handleDeleteEvent(e.id)} className="flex-shrink-0 text-gray-400 text-sm">🗑</button>
+                  </div>
+                )}
+              </div>
             ))}
             <label className="flex items-center gap-2 text-sm text-gray-600">
               <input
