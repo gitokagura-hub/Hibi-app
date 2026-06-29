@@ -197,7 +197,7 @@ export default function CalendarPage({ setTab }) {
           </div>
 
           {/* Calendar */}
-          <div className="grid grid-cols-7" style={{ gridAutoRows: "92px" }}>
+          <div className="grid grid-cols-7" style={{ gridAutoRows: "78px" }}>
             {grid.map((d, index) => {
               if (!d) return <div key={index} className="border border-gray-100" />;
               const ds = dateOf(d);
@@ -208,14 +208,14 @@ export default function CalendarPage({ setTab }) {
                 <button
                   key={index}
                   onClick={() => selectDate(ds)}
-                  className={`border border-gray-100 flex flex-col items-start justify-start p-1 text-left ${isSelected ? "bg-gray-100" : ""}`}
+                  className={`border border-gray-100 flex flex-col items-start justify-start p-0.5 text-left ${isSelected ? "bg-gray-100" : ""}`}
                 >
-                  <span className={`text-xs leading-none mb-0.5 ${isToday ? "font-bold" : ""}`}>{d}</span>
-                  <div className="flex flex-col gap-0.5 w-full">
+                  <span className={`text-[10px] leading-none mb-0.5 ${isToday ? "font-bold" : ""}`}>{d}</span>
+                  <div className="flex flex-col gap-px w-full">
                     {items.map((it, i) => (
                       <span
                         key={i}
-                        className={`text-[7px] leading-tight px-1 rounded overflow-hidden whitespace-nowrap w-full ${it.kind === "event" ? "bg-gray-200" : "bg-gray-100 text-gray-500"}`}
+                        className={`text-[6px] leading-[1.3] px-0.5 rounded overflow-hidden whitespace-nowrap w-full ${it.kind === "event" ? "bg-gray-200" : "bg-gray-100 text-gray-500"}`}
                       >
                         {it.kind === "event" ? it.title : `${it.completed ? "☑" : "☐"} ${it.title}`}
                       </span>
