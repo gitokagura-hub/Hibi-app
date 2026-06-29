@@ -9,11 +9,11 @@ export default function AIConnections({ selected, onSelect }) {
     <div className="flex items-center gap-3">
 
       <button
-        onClick={() => onSelect && onSelect("ChatGPT")}
-        className={`h-10 px-4 rounded-full border border-gray-200 flex items-center gap-2 ${selected === "ChatGPT" ? "bg-black text-white" : "bg-white"}`}
+        onClick={() => onSelect && onSelect("Gemini")}
+        className={`h-10 px-4 rounded-full border border-gray-200 flex items-center gap-2 ${selected === "Gemini" ? "bg-black text-white" : "bg-white"}`}
       >
-        <Bot size={18} />
-        ChatGPT
+        <Brain size={18} />
+        Gemini
       </button>
 
       <button
@@ -25,11 +25,11 @@ export default function AIConnections({ selected, onSelect }) {
       </button>
 
       <button
-        onClick={() => onSelect && onSelect("Gemini")}
-        className={`h-10 px-4 rounded-full border border-gray-200 flex items-center gap-2 ${selected === "Gemini" ? "bg-black text-white" : "bg-white"}`}
+        onClick={() => onSelect && onSelect("ChatGPT")}
+        className={`h-10 px-4 rounded-full border border-gray-200 flex items-center gap-2 ${selected === "ChatGPT" ? "bg-black text-white" : "bg-white"}`}
       >
-        <Brain size={18} />
-        Gemini
+        <Bot size={18} />
+        ChatGPT
       </button>
 
     </div>
