@@ -268,7 +268,7 @@ export default function NotesPage({ setTab }) {
   const [aiAssistOpen, setAiAssistOpen] = useState(false);
   const [pasteTarget, setPasteTarget] = useState(null);
   const [pasteMode, setPasteMode] = useState(null);
-  const [selectedAI, setSelectedAI] = useState("ChatGPT");
+  const [selectedAI, setSelectedAI] = useState("Gemini");
   const [now, setNow] = useState(Date.now());
   const sorted = isTeam
     ? [...teamData.notes].sort((a, b) => b.createdAt - a.createdAt)
