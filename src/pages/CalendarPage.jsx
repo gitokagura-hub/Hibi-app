@@ -39,6 +39,7 @@ export default function CalendarPage({ setTab }) {
   const [editingEventId, setEditingEventId] = useState(null);
   const [editingEventText, setEditingEventText] = useState("");
   const [editingEventTime, setEditingEventTime] = useState("");
+  const [editingEventIsAllDay, setEditingEventIsAllDay] = useState(false);
   const [eventTime, setEventTime] = useState("09:00");
   const [eventTitle, setEventTitle] = useState("");
   const [isAllDay, setIsAllDay] = useState(false);
@@ -120,24 +121,28 @@ export default function CalendarPage({ setTab }) {
     setEditingEventId(e.id);
     setEditingEventText(e.title || e.text || "");
     setEditingEventTime(e.time || "");
+    setEditingEventIsAllDay(!e.time);
   }
 
   function saveEditEvent() {
     const text = editingEventText.trim();
     const event = dayEvents.find((e) => e.id === editingEventId);
+    const time = editingEventIsAllDay ? "" : editingEventTime;
     if (text && event) {
-      if (isTeam) updateTeamEventAction(event, editingEventTime, text);
-      else updateEvent(editingEventId, editingEventTime, text);
+      if (isTeam) updateTeamEventAction(event, time, text);
+      else updateEvent(editingEventId, time, text);
     }
     setEditingEventId(null);
     setEditingEventText("");
     setEditingEventTime("");
+    setEditingEventIsAllDay(false);
   }
 
   function cancelEditEvent() {
     setEditingEventId(null);
     setEditingEventText("");
     setEditingEventTime("");
+    setEditingEventIsAllDay(false);
   }
 
   function handleToggleTask(t) {
@@ -270,21 +275,34 @@ export default function CalendarPage({ setTab }) {
             {dayEvents.map((e) => (
               <div key={e.id} className={`rounded-2xl border p-4 ${isTeam ? "border-blue-100 bg-blue-50" : ""}`}>
                 {editingEventId === e.id ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="time"
-                      value={editingEventTime}
-                      onChange={(ev) => setEditingEventTime(ev.target.value)}
-                      className="rounded-xl border p-2 text-sm w-28 flex-shrink-0"
-                    />
-                    <input
-                      autoFocus
-                      value={editingEventText}
-                      onChange={(ev) => setEditingEventText(ev.target.value)}
-                      onKeyDown={(ev) => { if (ev.key === "Enter") saveEditEvent(); if (ev.key === "Escape") cancelEditEvent(); }}
-                      className="flex-1 outline-none border-b border-gray-300 text-sm"
-                    />
-                    <button onClick={saveEditEvent} className="flex-shrink-0 text-xs font-semibold bg-black text-white rounded-lg px-2.5 py-1">保存</button>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-xs text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={editingEventIsAllDay}
+                        onChange={(ev) => setEditingEventIsAllDay(ev.target.checked)}
+                        className="w-3.5 h-3.5"
+                      />
+                      終日（時間なし）
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {!editingEventIsAllDay && (
+                        <input
+                          type="time"
+                          value={editingEventTime}
+                          onChange={(ev) => setEditingEventTime(ev.target.value)}
+                          className="rounded-xl border p-2 text-sm w-28 flex-shrink-0"
+                        />
+                      )}
+                      <input
+                        autoFocus
+                        value={editingEventText}
+                        onChange={(ev) => setEditingEventText(ev.target.value)}
+                        onKeyDown={(ev) => { if (ev.key === "Enter") saveEditEvent(); if (ev.key === "Escape") cancelEditEvent(); }}
+                        className="flex-1 outline-none border-b border-gray-300 text-sm"
+                      />
+                      <button onClick={saveEditEvent} className="flex-shrink-0 text-xs font-semibold bg-black text-white rounded-lg px-2.5 py-1">保存</button>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
