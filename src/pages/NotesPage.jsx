@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Layout, AIConnections } from "../components";
 import { useData, todayStr, fileToCompressedDataUrl, fileToDataUrl, formatDateTime } from "../dataStore";
 import { runAIOnNote } from "../aiAssist";
+import { useConfirm } from "../components/ConfirmModal";
 
 function deriveTitle(text) {
   const firstLine = text.split("\n")[0];
@@ -255,6 +256,7 @@ export default function NotesPage({ setTab }) {
     addTeamNoteAction, updateTeamNoteAction, deleteTeamNoteAction,
   } = useData();
   const isTeam = space === "team";
+  const confirm = useConfirm();
   const [text, setText] = useState("");
   const [pendingImages, setPendingImages] = useState([]);
   const [pendingFiles, setPendingFiles] = useState([]);
@@ -427,7 +429,7 @@ export default function NotesPage({ setTab }) {
                       <button onClick={() => { setPasteTarget(n); setPasteMode("projects"); }} className="bg-white border border-gray-300 text-gray-700 rounded-lg px-2.5 py-1 text-xs font-medium">To Project</button>
                     </>
                   )}
-                  <button onClick={() => { if (window.confirm("このノートを削除しますか？")) (isTeam ? deleteTeamNoteAction(n.id) : deleteNote(n.id)); }} className="text-gray-400 text-xs px-1">Delete</button>
+                  <button onClick={async () => { if (await confirm("このノートを削除しますか？")) (isTeam ? deleteTeamNoteAction(n.id) : deleteNote(n.id)); }} className="text-gray-400 text-xs px-1">Delete</button>
                 </div>
               </div>
             </div>

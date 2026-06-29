@@ -2,6 +2,7 @@ import { useState, useMemo, useRef } from "react";
 import { useData, todayStr, fileToCompressedDataUrl, fileToDataUrl } from "../dataStore";
 import BottomNavigation from "../components/BottomNavigation";
 import SpaceSwitcher from "../components/SpaceSwitcher";
+import { useConfirm } from "../components/ConfirmModal";
 
 function pad(n) { return String(n).padStart(2, "0"); }
 function fmt(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
@@ -27,6 +28,7 @@ export default function CalendarPage({ setTab }) {
     addTeamEventAction, deleteTeamEventAction,
   } = useData();
   const isTeam = space === "team";
+  const confirm = useConfirm();
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [taskInput, setTaskInput] = useState("");
@@ -109,14 +111,14 @@ export default function CalendarPage({ setTab }) {
     else toggleTask(t.id);
   }
 
-  function handleDeleteTask(id) {
-    if (!window.confirm("このタスクを削除しますか？")) return;
+  async function handleDeleteTask(id) {
+    if (!(await confirm("このタスクを削除しますか？"))) return;
     if (isTeam) deleteTeamTaskAction(id);
     else deleteTask(id);
   }
 
-  function handleDeleteEvent(id) {
-    if (!window.confirm("この予定を削除しますか？")) return;
+  async function handleDeleteEvent(id) {
+    if (!(await confirm("この予定を削除しますか？"))) return;
     if (isTeam) deleteTeamEventAction(id);
     else deleteEvent(id);
   }

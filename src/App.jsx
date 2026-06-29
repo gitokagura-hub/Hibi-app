@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { DataProvider } from "./dataStore";
+import { ConfirmProvider } from "./components/ConfirmModal";
 
 import CalendarPage from "./pages/CalendarPage";
 import NotesPage from "./pages/NotesPage";
@@ -31,7 +32,9 @@ function Router() {
 export default function App() {
   return (
     <DataProvider>
-      <Router />
+      <ConfirmProvider>
+        <Router />
+      </ConfirmProvider>
     </DataProvider>
   );
 }

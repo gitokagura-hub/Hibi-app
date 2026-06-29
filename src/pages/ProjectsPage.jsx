@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Layout } from "../components";
 import { useData, formatDateTime } from "../dataStore";
 import { isDriveConnected, ensureProjectFolder, uploadFileToProjectFolder, listProjectFiles, deleteProjectFile, getTeamRootFolderId } from "../googleDrive";
+import { useConfirm } from "../components/ConfirmModal";
 
 function isImageFile(mimeType) {
   return typeof mimeType === "string" && mimeType.startsWith("image/");
@@ -52,6 +53,7 @@ export default function ProjectsPage({ setTab }) {
     addTeamProjectAction, deleteTeamProjectAction, updateTeamProjectDriveAction, addTeamProjectItemAction, updateTeamProjectItemAction, deleteTeamProjectItemAction,
   } = useData();
   const isTeam = space === "team";
+  const confirm = useConfirm();
   const [name, setName] = useState("");
   const [openId, setOpenId] = useState(null);
   const [editing, setEditing] = useState(null); // { projectId, itemId }
@@ -123,7 +125,7 @@ export default function ProjectsPage({ setTab }) {
   }
 
   async function handleGalleryDelete(p, file) {
-    if (!window.confirm(`「${file.name}」をDriveから削除しますか？`)) return;
+    if (!(await confirm(`「${file.name}」をDriveから削除しますか？`))) return;
     try {
       await deleteProjectFile(file.id);
       if (isTeam) {
@@ -165,9 +167,9 @@ export default function ProjectsPage({ setTab }) {
     }
   }
 
-  function handleDeleteProject(e, p) {
+  async function handleDeleteProject(e, p) {
     e.stopPropagation();
-    if (window.confirm(`「${p.name}」を削除しますか？中の項目もすべて削除されます。`)) {
+    if (await confirm(`「${p.name}」を削除しますか？中の項目もすべて削除されます。`)) {
       if (isTeam) deleteTeamProjectAction(p.id);
       else deleteProject(p.id);
       if (openId === p.id) setOpenId(null);
@@ -315,7 +317,7 @@ export default function ProjectsPage({ setTab }) {
                                   {item.text || <span className="text-gray-400">（空のメモ）</span>}
                                   {isTeam && <span className="block text-[10px] text-blue-500 mt-1">● {item.author || "名無し"}</span>}
                                 </button>
-                                <button onClick={() => { if (window.confirm("このメモを削除しますか？")) (isTeam ? deleteTeamProjectItemAction(item.id) : deleteProjectItem(p.id, item.id)); }} className="text-gray-400 text-sm flex-shrink-0">🗑</button>
+                                <button onClick={async () => { if (await confirm("このメモを削除しますか？")) (isTeam ? deleteTeamProjectItemAction(item.id) : deleteProjectItem(p.id, item.id)); }} className="text-gray-400 text-sm flex-shrink-0">🗑</button>
                               </div>
                               {item.images && item.images.length > 0 && (
                                 <div className="flex gap-1.5 overflow-x-auto mt-1.5">

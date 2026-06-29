@@ -3,6 +3,7 @@ import { Layout } from "../components";
 import { useData } from "../dataStore";
 import { isDriveConfigured, isDriveConnected, wasDriveConnectedBefore, connectDrive, disconnectDrive, backupDataToDrive, restoreDataFromDrive } from "../googleDrive";
 import { isTeamConfigured, isTeamConnected, connectTeam, disconnectTeam, getAuthorName, setAuthorName } from "../googleSheets";
+import { useConfirm } from "../components/ConfirmModal";
 
 function GroupHeader({ children }) {
   return (
@@ -12,6 +13,7 @@ function GroupHeader({ children }) {
 
 export default function SettingsPage({ setTab }) {
   const { data, setSettings, replaceAllData, refreshTeamData } = useData();
+  const confirm = useConfirm();
   const [driveConnected, setDriveConnected] = useState(isDriveConnected());
   const [driveBusy, setDriveBusy] = useState(false);
   const [driveError, setDriveError] = useState("");
@@ -106,7 +108,7 @@ export default function SettingsPage({ setTab }) {
       setBackupMessage("先にGoogle Driveと連携してください");
       return;
     }
-    if (!window.confirm("Driveに保存されているバックアップで、現在のデータを上書きします。よろしいですか？")) return;
+    if (!(await confirm("Driveに保存されているバックアップで、現在のデータを上書きします。よろしいですか？"))) return;
     setBackupBusy(true);
     try {
       const { data: restored, modifiedTime } = await restoreDataFromDrive();
