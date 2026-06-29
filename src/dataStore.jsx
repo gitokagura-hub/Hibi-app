@@ -6,6 +6,7 @@ import {
   fetchTeamEvents, addTeamEvent, deleteTeamEvent,
   fetchTeamProjects, addTeamProject, deleteTeamProject, updateTeamProjectDrive,
   fetchTeamProjectItems, addTeamProjectItem, updateTeamProjectItem, deleteTeamProjectItem,
+  fetchTeamMemos, saveTeamMemo,
 } from './googleSheets';
 
 const STORAGE_KEY = 'dayliybrains-data';
@@ -115,7 +116,7 @@ export function DataProvider({ children }) {
   // Personal data lives in `data` above (localStorage, untouched by this).
   // Team data lives in `teamData` below, synced with the shared Google Sheet.
   const [space, setSpace] = useState(() => localStorage.getItem('hibi-current-space') || 'personal');
-  const [teamData, setTeamData] = useState({ notes: [], tasks: [], events: [], projects: [], projectItems: [] });
+  const [teamData, setTeamData] = useState({ notes: [], tasks: [], events: [], projects: [], projectItems: [], memos: [] });
   const [teamLoading, setTeamLoading] = useState(false);
   const [teamError, setTeamError] = useState('');
 
@@ -131,10 +132,10 @@ export function DataProvider({ children }) {
     setTeamError('');
     try {
       await ensureTeamSheetReady();
-      const [notes, tasks, events, projects, projectItems] = await Promise.all([
-        fetchTeamNotes(), fetchTeamTasks(), fetchTeamEvents(), fetchTeamProjects(), fetchTeamProjectItems(),
+      const [notes, tasks, events, projects, projectItems, memos] = await Promise.all([
+        fetchTeamNotes(), fetchTeamTasks(), fetchTeamEvents(), fetchTeamProjects(), fetchTeamProjectItems(), fetchTeamMemos(),
       ]);
-      setTeamData({ notes, tasks, events, projects, projectItems });
+      setTeamData({ notes, tasks, events, projects, projectItems, memos });
     } catch (err) {
       console.error('refreshTeamData failed:', err);
       setTeamError('チームデータの読み込みに失敗しました（' + (err?.message || '不明なエラー') + '）');
@@ -422,6 +423,81 @@ export function DataProvider({ children }) {
     finally { setTeamLoading(false); }
   }
 
+  // ---- Team Memos: one memo per calendar date, mirroring getMemo/setMemo ----
+  function getTeamMemo(date) {
+    const found = teamData.memos.find(m => m.id === date);
+    return found || { text: '', images: [], files: [], author: '' };
+  }
+  async function setTeamMemoAction(date, text) {
+    const author = getAuthorName() || '名無し';
+    const existing = getTeamMemo(date);
+    try {
+      await saveTeamMemo(date, text, author, existing.images, existing.files);
+      setTeamData(prev => ({
+        ...prev,
+        memos: prev.memos.some(m => m.id === date)
+          ? prev.memos.map(m => m.id === date ? { ...m, text, author } : m)
+          : [...prev.memos, { id: date, text, author, images: existing.images, files: existing.files, createdAt: Date.now() }],
+      }));
+    } catch (err) {
+      setTeamError('メモの保存に失敗しました（' + (err?.message || '不明なエラー') + '）');
+    }
+  }
+  async function addTeamMemoImagesAction(date, dataUrls) {
+    const author = getAuthorName() || '名無し';
+    const existing = getTeamMemo(date);
+    const images = [...existing.images, ...dataUrls];
+    try {
+      await saveTeamMemo(date, existing.text, author, images, existing.files);
+      setTeamData(prev => ({
+        ...prev,
+        memos: prev.memos.some(m => m.id === date)
+          ? prev.memos.map(m => m.id === date ? { ...m, images } : m)
+          : [...prev.memos, { id: date, text: existing.text, author, images, files: existing.files, createdAt: Date.now() }],
+      }));
+    } catch (err) {
+      setTeamError('画像の保存に失敗しました（' + (err?.message || '不明なエラー') + '）');
+    }
+  }
+  async function removeTeamMemoImageAction(date, index) {
+    const author = getAuthorName() || '名無し';
+    const existing = getTeamMemo(date);
+    const images = existing.images.filter((_, i) => i !== index);
+    try {
+      await saveTeamMemo(date, existing.text, author, images, existing.files);
+      setTeamData(prev => ({ ...prev, memos: prev.memos.map(m => m.id === date ? { ...m, images } : m) }));
+    } catch (err) {
+      setTeamError('画像の削除に失敗しました（' + (err?.message || '不明なエラー') + '）');
+    }
+  }
+  async function addTeamMemoFilesAction(date, items) {
+    const author = getAuthorName() || '名無し';
+    const existing = getTeamMemo(date);
+    const files = [...existing.files, ...items];
+    try {
+      await saveTeamMemo(date, existing.text, author, existing.images, files);
+      setTeamData(prev => ({
+        ...prev,
+        memos: prev.memos.some(m => m.id === date)
+          ? prev.memos.map(m => m.id === date ? { ...m, files } : m)
+          : [...prev.memos, { id: date, text: existing.text, author, images: existing.images, files, createdAt: Date.now() }],
+      }));
+    } catch (err) {
+      setTeamError('ファイルの保存に失敗しました（' + (err?.message || '不明なエラー') + '）');
+    }
+  }
+  async function removeTeamMemoFileAction(date, index) {
+    const author = getAuthorName() || '名無し';
+    const existing = getTeamMemo(date);
+    const files = existing.files.filter((_, i) => i !== index);
+    try {
+      await saveTeamMemo(date, existing.text, author, existing.images, files);
+      setTeamData(prev => ({ ...prev, memos: prev.memos.map(m => m.id === date ? { ...m, files } : m) }));
+    } catch (err) {
+      setTeamError('ファイルの削除に失敗しました（' + (err?.message || '不明なエラー') + '）');
+    }
+  }
+
   // Replaces the entire app data with a restored backup. Runs the same
   // migration/defaults logic as loadData so older or partial backups still work.
   function replaceAllData(restored) {
@@ -451,6 +527,7 @@ export function DataProvider({ children }) {
     addTeamEventAction, deleteTeamEventAction,
     addTeamProjectAction, deleteTeamProjectAction, updateTeamProjectDriveAction,
     addTeamProjectItemAction, updateTeamProjectItemAction, deleteTeamProjectItemAction,
+    getTeamMemo, setTeamMemoAction, addTeamMemoImagesAction, removeTeamMemoImageAction, addTeamMemoFilesAction, removeTeamMemoFileAction,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

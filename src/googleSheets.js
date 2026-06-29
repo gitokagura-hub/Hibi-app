@@ -106,7 +106,10 @@ const TAB_TASKS = 'TeamTasks';
 const TAB_EVENTS = 'TeamEvents';
 const TAB_PROJECTS = 'TeamProjects';
 const TAB_PROJECT_ITEMS = 'TeamProjectItems';
-const ALL_TABS = [TAB_NOTES, TAB_TASKS, TAB_EVENTS, TAB_PROJECTS, TAB_PROJECT_ITEMS];
+// Memos are keyed by date (e.g. "2026-06-29") stored in the id column,
+// rather than a uid — one row per calendar day.
+const TAB_MEMOS = 'TeamMemos';
+const ALL_TABS = [TAB_NOTES, TAB_TASKS, TAB_EVENTS, TAB_PROJECTS, TAB_PROJECT_ITEMS, TAB_MEMOS];
 const HEADER_ROW = ['id', 'text', 'author', 'createdAt', 'extra'];
 
 // Creates any missing tabs with header rows. Safe to call repeatedly.
@@ -261,3 +264,18 @@ export const fetchTeamProjectItems = () => fetchTab(TAB_PROJECT_ITEMS);
 export const addTeamProjectItem = (id, text, author, projectId) => appendRow(TAB_PROJECT_ITEMS, { id, text, author, createdAt: Date.now() }, { projectId });
 export const updateTeamProjectItem = (id, text, author, projectId) => updateRow(TAB_PROJECT_ITEMS, id, { id, text, author, createdAt: Date.now() }, { projectId });
 export const deleteTeamProjectItem = (id) => deleteRow(TAB_PROJECT_ITEMS, id);
+
+// ---- Team Memos (one row per calendar date, keyed by date in the id column) ----
+
+export const fetchTeamMemos = () => fetchTab(TAB_MEMOS);
+
+// Upserts a memo for a given date: updates the row if one already exists
+// for that date, otherwise appends a new row.
+export async function saveTeamMemo(date, text, author, images, files) {
+  const rowNum = await findRowNumber(TAB_MEMOS, date);
+  const obj = { id: date, text, author, createdAt: Date.now() };
+  const extra = { images: images || [], files: files || [] };
+  if (rowNum) return updateRow(TAB_MEMOS, date, obj, extra);
+  return appendRow(TAB_MEMOS, obj, extra);
+}
+
