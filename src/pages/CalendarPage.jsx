@@ -197,7 +197,7 @@ export default function CalendarPage({ setTab }) {
                         key={i}
                         className={`text-[8px] leading-tight px-1 rounded truncate w-full ${it.kind === "event" ? "bg-gray-200" : "bg-gray-100 text-gray-500"}`}
                       >
-                        {it.kind === "event" ? `${it.time} ${it.title}` : `${it.completed ? "☑" : "☐"} ${it.title}`}
+                        {it.kind === "event" ? it.title : `${it.completed ? "☑" : "☐"} ${it.title}`}
                       </span>
                     ))}
                   </div>
@@ -239,6 +239,9 @@ export default function CalendarPage({ setTab }) {
                 placeholder="Add schedule..."
                 className="flex-1 rounded-2xl border p-4"
               />
+              <button onClick={handleAddEvent} disabled={!eventTitle.trim()} className="rounded-2xl bg-black text-white px-5 font-semibold disabled:opacity-30">
+                追加
+              </button>
             </div>
           </div>
 
@@ -251,14 +254,16 @@ export default function CalendarPage({ setTab }) {
                   {t.completed ? "☑" : "☐"}
                 </button>
                 {editingTaskId === t.id ? (
-                  <input
-                    autoFocus
-                    value={editingTaskText}
-                    onChange={(e) => setEditingTaskText(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") saveEditTask(); if (e.key === "Escape") cancelEditTask(); }}
-                    onBlur={saveEditTask}
-                    className="flex-1 outline-none border-b border-gray-300"
-                  />
+                  <>
+                    <input
+                      autoFocus
+                      value={editingTaskText}
+                      onChange={(e) => setEditingTaskText(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") saveEditTask(); if (e.key === "Escape") cancelEditTask(); }}
+                      className="flex-1 outline-none border-b border-gray-300"
+                    />
+                    <button onClick={saveEditTask} className="flex-shrink-0 text-xs font-semibold bg-black text-white rounded-lg px-2.5 py-1">保存</button>
+                  </>
                 ) : (
                   <button
                     onClick={() => startEditTask(t)}
@@ -277,8 +282,11 @@ export default function CalendarPage({ setTab }) {
             onChange={(e) => setTaskInput(e.target.value)}
             onKeyDown={handleAddTask}
             placeholder="Add Task..."
-            className="w-full h-40 rounded-2xl border p-4 mb-10"
+            className="w-full h-40 rounded-2xl border p-4 mb-3"
           />
+          <button onClick={() => { if (taskInput.trim()) { if (isTeam) addTeamTaskAction(selectedDate, taskInput.trim()); else addTask(selectedDate, taskInput.trim()); setTaskInput(""); } }} disabled={!taskInput.trim()} className="w-full rounded-2xl bg-black text-white p-3.5 font-semibold mb-10 disabled:opacity-30">
+            タスクを追加
+          </button>
 
           {/* 3. Memo (personal only — team memo storage isn't supported yet) */}
           {!isTeam && (
