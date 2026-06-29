@@ -402,7 +402,7 @@ export default function NotesPage({ setTab }) {
                     className="text-[15px] mb-3 leading-relaxed overflow-hidden"
                     style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", maxHeight: "2.6em" }}
                   >
-                    {n.source === "voice" ? "🎤 " : ""}{n.text}
+                    {n.source === "voice" ? "🎤 " : ""}{n.text.replace(/\s*\n+\s*/g, " ")}
                   </p>
                 )}
                 {n.images && n.images.length > 0 && (
