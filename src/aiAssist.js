@@ -3,7 +3,7 @@
 // using the API key the person entered in Settings. Keys never leave the
 // device except in the direct request to that provider's own API.
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_MODEL = 'gemini-3.5-flash';
 const CLAUDE_MODEL = 'claude-sonnet-4-6';
 
 export async function runAIOnNote({ provider, apiKey, noteText, instruction }) {
