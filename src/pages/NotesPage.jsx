@@ -397,7 +397,7 @@ export default function NotesPage({ setTab }) {
           {sorted.map((n) => (
             <div key={n.id} className={`rounded-2xl border p-4 ${isTeam ? "border-blue-100 bg-blue-50" : "border-gray-200 bg-gray-50"}`}>
               <button onClick={() => handleOpenNote(n)} className="w-full text-left">
-                {n.text && <p className="text-[15px] mb-3 whitespace-pre-wrap leading-relaxed">{n.source === "voice" ? "🎤 " : ""}{n.text}</p>}
+                {n.text && <p className="text-[15px] mb-3 leading-relaxed line-clamp-2">{n.source === "voice" ? "🎤 " : ""}{n.text}</p>}
                 {n.images && n.images.length > 0 && (
                   <div className="flex gap-2 overflow-x-auto mb-3">
                     {n.images.map((src, i) => (

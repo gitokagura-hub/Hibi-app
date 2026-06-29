@@ -22,11 +22,12 @@ const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "Ju
 export default function CalendarPage({ setTab }) {
   const {
     data, addTask, toggleTask, deleteTask, updateTask, addEvent, deleteEvent,
-    getMemo, setMemo, addMemoImages, removeMemoImage, addMemoFiles, removeMemoFile,
+    getMemo, setMemo, addMemoImages, removeMemoImage, addMemoFiles, removeMemoFile, addNote,
     space, teamData, teamLoading, teamError,
     addTeamTaskAction, toggleTeamTaskAction, updateTeamTaskAction, deleteTeamTaskAction,
     addTeamEventAction, deleteTeamEventAction,
     getTeamMemo, setTeamMemoAction, addTeamMemoImagesAction, removeTeamMemoImageAction, addTeamMemoFilesAction, removeTeamMemoFileAction,
+    addTeamNoteAction,
   } = useData();
   const isTeam = space === "team";
   const confirm = useConfirm();
@@ -149,6 +150,19 @@ export default function CalendarPage({ setTab }) {
       if (isTeam) await addTeamMemoFilesAction(selectedDate, items);
       else addMemoFiles(selectedDate, items);
     } catch {} finally { setUploadingFile(false); }
+  }
+
+  const [memoSent, setMemoSent] = useState(false);
+  async function handleSendMemoToNote() {
+    if (!memoText.trim() && memo.images.length === 0 && memo.files.length === 0) return;
+    if (isTeam) {
+      // Team notes don't support images/files yet — text only.
+      await addTeamNoteAction(memoText.trim());
+    } else {
+      addNote(memoText.trim(), "text", memo.images, memo.files);
+    }
+    setMemoSent(true);
+    setTimeout(() => setMemoSent(false), 2000);
   }
 
   return (
@@ -306,6 +320,13 @@ export default function CalendarPage({ setTab }) {
               </button>
             </div>
           </div>
+          <button
+            onClick={handleSendMemoToNote}
+            disabled={!memoText.trim() && memo.images.length === 0 && memo.files.length === 0}
+            className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold mb-2 disabled:opacity-30"
+          >
+            {memoSent ? "✅ ノートに送信しました" : "📤 このメモをノートへ転送"}
+          </button>
           {isTeam && memo.author && <p className="text-[11px] text-blue-500 mb-1.5">● 最終更新: {memo.author}</p>}
           <textarea
             value={memoText}
