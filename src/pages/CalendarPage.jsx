@@ -197,13 +197,13 @@ export default function CalendarPage({ setTab }) {
           </div>
 
           {/* Calendar */}
-          <div className="grid grid-cols-7" style={{ gridAutoRows: "78px" }}>
+          <div className="grid grid-cols-7" style={{ gridAutoRows: "92px" }}>
             {grid.map((d, index) => {
               if (!d) return <div key={index} className="border border-gray-100" />;
               const ds = dateOf(d);
               const isToday = ds === todayS;
               const isSelected = ds === selectedDate;
-              const items = (cellPreview[ds] || []).slice(0, 2);
+              const items = (cellPreview[ds] || []).slice(0, 4);
               return (
                 <button
                   key={index}
@@ -215,7 +215,7 @@ export default function CalendarPage({ setTab }) {
                     {items.map((it, i) => (
                       <span
                         key={i}
-                        className={`text-[8px] leading-tight px-1 rounded truncate w-full ${it.kind === "event" ? "bg-gray-200" : "bg-gray-100 text-gray-500"}`}
+                        className={`text-[7px] leading-tight px-1 rounded overflow-hidden whitespace-nowrap w-full ${it.kind === "event" ? "bg-gray-200" : "bg-gray-100 text-gray-500"}`}
                       >
                         {it.kind === "event" ? it.title : `${it.completed ? "☑" : "☐"} ${it.title}`}
                       </span>
