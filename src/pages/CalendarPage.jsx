@@ -38,6 +38,7 @@ export default function CalendarPage({ setTab }) {
   const [editingTaskText, setEditingTaskText] = useState("");
   const [eventTime, setEventTime] = useState("09:00");
   const [eventTitle, setEventTitle] = useState("");
+  const [isAllDay, setIsAllDay] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const photoInputRef = useRef(null);
@@ -85,8 +86,9 @@ export default function CalendarPage({ setTab }) {
 
   function handleAddEvent() {
     if (!eventTitle.trim()) return;
-    if (isTeam) addTeamEventAction(selectedDate, eventTime, eventTitle.trim());
-    else addEvent(selectedDate, eventTime, eventTitle.trim());
+    const time = isAllDay ? "" : eventTime;
+    if (isTeam) addTeamEventAction(selectedDate, time, eventTitle.trim());
+    else addEvent(selectedDate, time, eventTitle.trim());
     setEventTitle("");
   }
 
@@ -240,17 +242,28 @@ export default function CalendarPage({ setTab }) {
           <div className="space-y-3 mb-10">
             {dayEvents.map((e) => (
               <button key={e.id} onClick={() => handleDeleteEvent(e.id)} className={`w-full text-left rounded-2xl border p-4 ${isTeam ? "border-blue-100 bg-blue-50" : ""}`}>
-                {e.time}　{e.text || e.title}
+                {e.time ? `${e.time}　${e.text || e.title}` : (e.text || e.title)}
                 {isTeam && <span className="block text-[10px] text-blue-500 mt-1">● {e.author || "名無し"}</span>}
               </button>
             ))}
-            <div className="flex gap-2">
+            <label className="flex items-center gap-2 text-sm text-gray-600">
               <input
-                type="time"
-                value={eventTime}
-                onChange={(ev) => setEventTime(ev.target.value)}
-                className="rounded-2xl border p-4 w-32"
+                type="checkbox"
+                checked={isAllDay}
+                onChange={(ev) => setIsAllDay(ev.target.checked)}
+                className="w-4 h-4"
               />
+              終日（時間なし）
+            </label>
+            <div className="flex gap-2">
+              {!isAllDay && (
+                <input
+                  type="time"
+                  value={eventTime}
+                  onChange={(ev) => setEventTime(ev.target.value)}
+                  className="rounded-2xl border p-4 w-32"
+                />
+              )}
               <input
                 type="text"
                 value={eventTitle}
