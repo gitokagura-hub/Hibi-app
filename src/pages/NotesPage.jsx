@@ -398,11 +398,12 @@ export default function NotesPage({ setTab }) {
             <div key={n.id} className={`rounded-2xl border p-4 ${isTeam ? "border-blue-100 bg-blue-50" : "border-gray-200 bg-gray-50"}`}>
               <button onClick={() => handleOpenNote(n)} className="w-full text-left">
                 {n.text && (
-                  <p
-                    className="text-[15px] mb-3 leading-relaxed overflow-hidden"
-                    style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", maxHeight: "2.6em" }}
-                  >
-                    {n.source === "voice" ? "🎤 " : ""}{n.text.replace(/\s*\n+\s*/g, " ")}
+                  <p className="text-[15px] mb-3 leading-relaxed">
+                    {n.source === "voice" ? "🎤 " : ""}
+                    {(() => {
+                      const flat = n.text.replace(/[\r\n\t]+/g, " ").replace(/ {2,}/g, " ").trim();
+                      return flat.length > 60 ? flat.slice(0, 60) + "…" : flat;
+                    })()}
                   </p>
                 )}
                 {n.images && n.images.length > 0 && (
