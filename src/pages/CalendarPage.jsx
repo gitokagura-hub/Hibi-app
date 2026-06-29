@@ -195,7 +195,7 @@ export default function CalendarPage({ setTab }) {
   }
 
   return (
-    <div className="h-screen bg-white flex flex-col">
+    <div className="h-[100dvh] bg-white flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white px-5 pt-8 pb-1">
         <div className="mb-2">
@@ -205,9 +205,9 @@ export default function CalendarPage({ setTab }) {
       </header>
 
       {/* Full Screen Scroll */}
-      <main className="flex-1 overflow-y-auto" style={{ scrollSnapType: "y mandatory" }}>
+      <main className="flex-1 overflow-y-auto">
         {/* ========= PAGE 1 ========= */}
-        <section className="h-full flex flex-col" style={{ scrollSnapAlign: "start", scrollSnapStop: "always", paddingBottom: "calc(5rem + env(safe-area-inset-bottom))" }}>
+        <section className="flex flex-col" style={{ paddingBottom: "calc(5rem + env(safe-area-inset-bottom))" }}>
           {/* Month */}
           <div className="px-5 py-1">
             <div className="flex items-center justify-between">
@@ -257,7 +257,7 @@ export default function CalendarPage({ setTab }) {
         </section>
 
         {/* ========= PAGE 2 ========= */}
-        <section className="min-h-full px-5 py-8" style={{ scrollSnapAlign: "start", scrollSnapStop: "always", paddingBottom: "calc(8rem + env(safe-area-inset-bottom))" }}>
+        <section className="px-5 py-8" style={{ paddingBottom: "calc(8rem + env(safe-area-inset-bottom))" }}>
           <h2 className="text-2xl font-semibold mb-6">
             {MONTH_NAMES[calMonth.m]} {Number(selectedDate.split("-")[2])}'s Schedule
           </h2>
