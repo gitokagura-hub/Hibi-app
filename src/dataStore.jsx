@@ -298,79 +298,90 @@ export function DataProvider({ children }) {
   async function addTeamNoteAction(text) {
     const author = getAuthorName() || '名無し';
     setTeamLoading(true);
+    setTeamError('');
     try { await addTeamNote(uid(), text, author); await refreshTeamData(); }
-    catch { setTeamError('保存に失敗しました'); }
+    catch (err) { setTeamError('保存に失敗しました（' + (err?.message || '不明なエラー') + '）'); }
     finally { setTeamLoading(false); }
   }
   async function updateTeamNoteAction(id, text) {
     const author = getAuthorName() || '名無し';
     setTeamLoading(true);
+    setTeamError('');
     try { await updateTeamNote(id, text, author); await refreshTeamData(); }
-    catch { setTeamError('更新に失敗しました'); }
+    catch (err) { setTeamError('更新に失敗しました（' + (err?.message || '不明なエラー') + '）'); }
     finally { setTeamLoading(false); }
   }
   async function deleteTeamNoteAction(id) {
     setTeamLoading(true);
+    setTeamError('');
     try { await deleteTeamNote(id); await refreshTeamData(); }
-    catch { setTeamError('削除に失敗しました'); }
+    catch (err) { setTeamError('削除に失敗しました（' + (err?.message || '不明なエラー') + '）'); }
     finally { setTeamLoading(false); }
   }
   async function addTeamTaskAction(date, title) {
     const author = getAuthorName() || '名無し';
     setTeamLoading(true);
+    setTeamError('');
     try { await addTeamTask(uid(), title, author, date); await refreshTeamData(); }
-    catch { setTeamError('保存に失敗しました'); }
+    catch (err) { setTeamError('保存に失敗しました（' + (err?.message || '不明なエラー') + '）'); }
     finally { setTeamLoading(false); }
   }
   async function toggleTeamTaskAction(task) {
     const author = getAuthorName() || '名無し';
     setTeamLoading(true);
+    setTeamError('');
     try { await updateTeamTask(task.id, task.text, author, { date: task.date, completed: !task.completed }); await refreshTeamData(); }
-    catch { setTeamError('更新に失敗しました'); }
+    catch (err) { setTeamError('更新に失敗しました（' + (err?.message || '不明なエラー') + '）'); }
     finally { setTeamLoading(false); }
   }
   async function updateTeamTaskAction(task, newTitle) {
     const author = getAuthorName() || '名無し';
     setTeamLoading(true);
+    setTeamError('');
     try { await updateTeamTask(task.id, newTitle, author, { date: task.date, completed: task.completed }); await refreshTeamData(); }
-    catch { setTeamError('更新に失敗しました'); }
+    catch (err) { setTeamError('更新に失敗しました（' + (err?.message || '不明なエラー') + '）'); }
     finally { setTeamLoading(false); }
   }
   async function deleteTeamTaskAction(id) {
     setTeamLoading(true);
+    setTeamError('');
     try { await deleteTeamTask(id); await refreshTeamData(); }
-    catch { setTeamError('削除に失敗しました'); }
+    catch (err) { setTeamError('削除に失敗しました（' + (err?.message || '不明なエラー') + '）'); }
     finally { setTeamLoading(false); }
   }
   async function addTeamEventAction(date, time, title) {
     const author = getAuthorName() || '名無し';
     setTeamLoading(true);
+    setTeamError('');
     try { await addTeamEvent(uid(), title, author, date, time); await refreshTeamData(); }
-    catch { setTeamError('保存に失敗しました'); }
+    catch (err) { setTeamError('保存に失敗しました（' + (err?.message || '不明なエラー') + '）'); }
     finally { setTeamLoading(false); }
   }
   async function deleteTeamEventAction(id) {
     setTeamLoading(true);
+    setTeamError('');
     try { await deleteTeamEvent(id); await refreshTeamData(); }
-    catch { setTeamError('削除に失敗しました'); }
+    catch (err) { setTeamError('削除に失敗しました（' + (err?.message || '不明なエラー') + '）'); }
     finally { setTeamLoading(false); }
   }
   async function addTeamProjectAction(name) {
     const author = getAuthorName() || '名無し';
     setTeamLoading(true);
+    setTeamError('');
     try { await addTeamProject(uid(), name, author); await refreshTeamData(); }
-    catch { setTeamError('保存に失敗しました'); }
+    catch (err) { setTeamError('保存に失敗しました（' + (err?.message || '不明なエラー') + '）'); }
     finally { setTeamLoading(false); }
   }
   async function deleteTeamProjectAction(id) {
     setTeamLoading(true);
+    setTeamError('');
     try {
       await deleteTeamProject(id);
       const items = teamData.projectItems.filter(it => it.projectId === id);
       await Promise.all(items.map(it => deleteTeamProjectItem(it.id)));
       await refreshTeamData();
     }
-    catch { setTeamError('削除に失敗しました'); }
+    catch (err) { setTeamError('削除に失敗しました（' + (err?.message || '不明なエラー') + '）'); }
     finally { setTeamLoading(false); }
   }
   // Saves a Team project's Drive folder id / file list without a full
@@ -383,28 +394,31 @@ export function DataProvider({ children }) {
         ...prev,
         projects: prev.projects.map(p => p.id === project.id ? { ...p, driveFolderId, driveFiles } : p),
       }));
-    } catch {
-      setTeamError('Drive情報の保存に失敗しました');
+    } catch (err) {
+      setTeamError('Drive情報の保存に失敗しました（' + (err?.message || '不明なエラー') + '）');
     }
   }
   async function addTeamProjectItemAction(projectId, text) {
     const author = getAuthorName() || '名無し';
     setTeamLoading(true);
+    setTeamError('');
     try { await addTeamProjectItem(uid(), text, author, projectId); await refreshTeamData(); }
-    catch { setTeamError('保存に失敗しました'); }
+    catch (err) { setTeamError('保存に失敗しました（' + (err?.message || '不明なエラー') + '）'); }
     finally { setTeamLoading(false); }
   }
   async function updateTeamProjectItemAction(id, text, projectId) {
     const author = getAuthorName() || '名無し';
     setTeamLoading(true);
+    setTeamError('');
     try { await updateTeamProjectItem(id, text, author, projectId); await refreshTeamData(); }
-    catch { setTeamError('更新に失敗しました'); }
+    catch (err) { setTeamError('更新に失敗しました（' + (err?.message || '不明なエラー') + '）'); }
     finally { setTeamLoading(false); }
   }
   async function deleteTeamProjectItemAction(id) {
     setTeamLoading(true);
+    setTeamError('');
     try { await deleteTeamProjectItem(id); await refreshTeamData(); }
-    catch { setTeamError('削除に失敗しました'); }
+    catch (err) { setTeamError('削除に失敗しました（' + (err?.message || '不明なエラー') + '）'); }
     finally { setTeamLoading(false); }
   }
 
