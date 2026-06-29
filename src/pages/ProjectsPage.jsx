@@ -60,6 +60,7 @@ export default function ProjectsPage({ setTab }) {
   const [newMemoText, setNewMemoText] = useState({}); // { [projectId]: text }
   const [galleryUploading, setGalleryUploading] = useState({}); // { [projectId]: boolean }
   const [galleryError, setGalleryError] = useState({}); // { [projectId]: string }
+  const [brokenThumbs, setBrokenThumbs] = useState({}); // { [fileId]: true } — Drive thumbnails that failed to load
   const rowRefs = useRef({});
   const photoInputRefs = useRef({});
   const fileInputRefs = useRef({});
@@ -263,13 +264,18 @@ export default function ProjectsPage({ setTab }) {
                             <div className="grid grid-cols-3 gap-1.5 mt-2">
                               {p.driveFiles.map((f) => (
                                 <div key={f.id} className="relative rounded-lg border bg-white overflow-hidden">
-                                  {isImageFile(f.mimeType) ? (
+                                  {isImageFile(f.mimeType) && !brokenThumbs[f.id] ? (
                                     <a href={f.webViewLink} target="_blank" rel="noopener noreferrer">
-                                      <img src={f.thumbnailLink || f.webViewLink} alt={f.name} className="w-full h-16 object-cover" />
+                                      <img
+                                        src={f.thumbnailLink || f.webViewLink}
+                                        alt={f.name}
+                                        className="w-full h-16 object-cover"
+                                        onError={() => setBrokenThumbs((prev) => ({ ...prev, [f.id]: true }))}
+                                      />
                                     </a>
                                   ) : (
                                     <a href={f.webViewLink} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center justify-center h-16 px-1 text-center">
-                                      <span className="text-lg">📄</span>
+                                      <span className="text-lg">{isImageFile(f.mimeType) ? "🖼️" : "📄"}</span>
                                       <span className="text-[9px] truncate w-full">{f.name}</span>
                                     </a>
                                   )}
