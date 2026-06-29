@@ -227,7 +227,7 @@ export default function CalendarPage({ setTab }) {
 
           {/* Week */}
           <div className="grid grid-cols-7 text-center text-xs text-gray-400">
-            {WEEKDAYS.map((w) => <div key={w}>{w}</div>)}
+            {WEEKDAYS.map((w, i) => <div key={w} className={i === 0 ? "text-red-300" : ""}>{w}</div>)}
           </div>
 
           {/* Calendar */}
@@ -237,6 +237,7 @@ export default function CalendarPage({ setTab }) {
               const ds = dateOf(d);
               const isToday = ds === todayS;
               const isSelected = ds === selectedDate;
+              const isSunday = index % 7 === 0;
               const items = (cellPreview[ds] || []).slice(0, 4);
               return (
                 <button
@@ -244,7 +245,7 @@ export default function CalendarPage({ setTab }) {
                   onClick={() => selectDate(ds)}
                   className={`border border-gray-100 flex flex-col items-start justify-start p-0.5 text-left ${isSelected ? "bg-green-100" : ""}`}
                 >
-                  <span className={`text-[10px] leading-none mb-0.5 ${isToday ? "font-bold" : ""}`}>{d}</span>
+                  <span className={`text-[10px] leading-none mb-0.5 ${isToday ? "font-bold" : ""} ${isSunday ? "text-red-300" : ""}`}>{d}</span>
                   <div className="flex flex-col gap-px w-full">
                     {items.map((it, i) => (
                       <span
