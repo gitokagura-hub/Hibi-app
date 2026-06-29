@@ -237,7 +237,7 @@ export default function CalendarPage({ setTab }) {
                 <button
                   key={index}
                   onClick={() => selectDate(ds)}
-                  className={`border border-gray-100 flex flex-col items-start justify-start p-0.5 text-left ${isSelected ? "bg-gray-100" : ""}`}
+                  className={`border border-gray-100 flex flex-col items-start justify-start p-0.5 text-left ${isSelected ? "bg-green-100" : ""}`}
                 >
                   <span className={`text-[10px] leading-none mb-0.5 ${isToday ? "font-bold" : ""}`}>{d}</span>
                   <div className="flex flex-col gap-px w-full">

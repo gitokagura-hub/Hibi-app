@@ -11,18 +11,18 @@ export default function SpaceSwitcher() {
         <button
           onClick={() => switchSpace("personal")}
           className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2 text-[13px] font-semibold transition-colors ${
-            space === "personal" ? "bg-white text-black shadow-sm" : "text-gray-500"
+            space === "personal" ? "bg-gray-600 text-white shadow-sm" : "text-gray-500"
           }`}
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-gray-400" /> Personal
+          <span className={`w-1.5 h-1.5 rounded-full ${space === "personal" ? "bg-white" : "bg-gray-400"}`} /> Personal
         </button>
         <button
           onClick={() => switchSpace("team")}
           className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2 text-[13px] font-semibold transition-colors ${
-            space === "team" ? "bg-white text-black shadow-sm" : "text-gray-500"
+            space === "team" ? "bg-gray-600 text-white shadow-sm" : "text-gray-500"
           }`}
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-600" /> ByMaeNikko Team
+          <span className={`w-1.5 h-1.5 rounded-full ${space === "team" ? "bg-white" : "bg-blue-600"}`} /> ByMaeNikko Team
         </button>
       </div>
     </div>
