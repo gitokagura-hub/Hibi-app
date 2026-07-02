@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
  * 各ページで useSwipeBack(戻る関数) と呼ぶだけで使える。
  */
 export function useSwipeBack(onBack, options = {}) {
-  const { edgeWidth = 28, threshold = 70 } = options;
+  const { edgeWidth = 45, threshold = 55 } = options;
   const startX = useRef(null);
   const startY = useRef(null);
 
@@ -25,7 +25,7 @@ export function useSwipeBack(onBack, options = {}) {
       const dx = t.clientX - startX.current;
       const dy = Math.abs(t.clientY - (startY.current ?? t.clientY));
       startX.current = null;
-      if (dx > threshold && dy < 60) {
+      if (dx > threshold && dy < 80) {
         onBack();
       }
     }
