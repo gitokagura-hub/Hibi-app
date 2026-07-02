@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Paperclip, X, Upload } from "lucide-react";
 import {
   isDriveConnected,
+  ensureAppFolder,
   ensureProjectFolder,
   uploadFileToProjectFolder,
   listProjectFiles,
@@ -9,14 +10,14 @@ import {
 } from "../googleDrive";
 
 /**
- * Sukima / Timeless Analogue 共通のDriveファイルギャラリー。
- * Daily BrainsのProjectsページと同じ仕組み（レコードごとにDriveサブフォルダを持つ）を
- * 汎用化したもの。呼び出し側は driveFolderId / driveFiles を自分のstoreで保持し、
- * onFolderId / onFilesChange で更新を受け取るだけでよい。
+ * Sukima / Timeless Analogue / Daily Brains 共通のDriveファイルギャラリー。
+ * Drive内は「(appFolderName) ＞ (レコード名)」の2階層で整理される。
+ * 例: Sukima ＞ 小澤氏 / Timeless Analogue ＞ SENSE BY HAND — はじめに
  */
 export default function DriveGallery({
   entityId,
   entityName,
+  appFolderName,
   driveFolderId,
   driveFiles,
   onFolderId,
@@ -27,10 +28,15 @@ export default function DriveGallery({
   const [error, setError] = useState("");
   const connected = isDriveConnected();
 
+  async function resolveFolder() {
+    const appRootId = await ensureAppFolder(appFolderName);
+    return ensureProjectFolder(entityId, entityName, driveFolderId, appRootId);
+  }
+
   async function ensureLoaded() {
     if (!connected) return;
     try {
-      const folderId = await ensureProjectFolder(entityId, entityName, driveFolderId);
+      const folderId = await resolveFolder();
       if (folderId !== driveFolderId) onFolderId(folderId);
       const files = await listProjectFiles(folderId);
       onFilesChange(files);
@@ -50,7 +56,7 @@ export default function DriveGallery({
     setBusy(true);
     setError("");
     try {
-      const folderId = await ensureProjectFolder(entityId, entityName, driveFolderId);
+      const folderId = await resolveFolder();
       if (folderId !== driveFolderId) onFolderId(folderId);
       const uploaded = [];
       for (const f of files) {
