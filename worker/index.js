@@ -59,9 +59,11 @@ export default {
       return env.ASSETS.fetch(request);
     }
 
-    // 簡易トークンチェック
+    // 簡易トークンチェック（ヘッダー優先、無ければURLの ?token= も許可 — ブラウザで直接テストできるように）
     const auth = request.headers.get("Authorization") || "";
-    const token = auth.replace(/^Bearer\s+/i, "");
+    const headerToken = auth.replace(/^Bearer\s+/i, "");
+    const queryToken = url.searchParams.get("token") || "";
+    const token = headerToken || queryToken;
     if (!env.API_TOKEN || token !== env.API_TOKEN) {
       return json({ error: "Unauthorized" }, 401);
     }
