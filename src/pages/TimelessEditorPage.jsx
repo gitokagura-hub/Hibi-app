@@ -1,6 +1,7 @@
 import { ChevronLeft, Trash2 } from "lucide-react";
 import { useTimeless, CATEGORIES, STATUS } from "../timelessStore";
 import { useSwipeBack } from "../useSwipeBack";
+import DriveGallery from "../components/DriveGallery";
 
 export default function TimelessEditorPage({ articleId, onBack }) {
   useSwipeBack(onBack);
@@ -89,9 +90,21 @@ export default function TimelessEditorPage({ articleId, onBack }) {
           value={article.content}
           onChange={(e) => updateArticle(article.id, { content: e.target.value })}
           placeholder="ここに下書きを書いていく。音声メモの文字起こしをそのまま貼ってもOK。"
-          rows={18}
+          rows={14}
           className="w-full text-[15px] leading-relaxed text-gray-800 focus:outline-none resize-none"
         />
+
+        <div className="mt-5">
+          <DriveGallery
+            entityId={article.id}
+            entityName={article.title || "無題の記事"}
+            driveFolderId={article.driveFolderId}
+            driveFiles={article.driveFiles}
+            onFolderId={(id) => updateArticle(article.id, { driveFolderId: id })}
+            onFilesChange={(files) => updateArticle(article.id, { driveFiles: files })}
+            accentColor="#8C6B47"
+          />
+        </div>
       </div>
     </div>
   );
