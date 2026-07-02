@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { useSukima, GROUPS, CARD_DEFS } from "../sukimaStore";
 import { useSwipeBack } from "../useSwipeBack";
+import DriveGallery from "../components/DriveGallery";
 
 const STATUS_OPTIONS = [
   { id: "draft", label: "下書き" },
@@ -217,6 +218,17 @@ export default function SukimaDetailPage({ entryId, onBack }) {
       </div>
 
       <div className="px-5 py-4">
+        <div className="mb-4">
+          <DriveGallery
+            entityId={entry.id}
+            entityName={entry.name || "無題の研究"}
+            driveFolderId={entry.driveFolderId}
+            driveFiles={entry.driveFiles}
+            onFolderId={(id) => updateEntry(entry.id, { driveFolderId: id })}
+            onFilesChange={(files) => updateEntry(entry.id, { driveFiles: files })}
+            accentColor="#279a63"
+          />
+        </div>
         {GROUPS.map((g) => (
           <div key={g.code} className="mb-4">
             <div className="text-[11px] font-bold text-gray-400 tracking-wide mb-1.5 px-1">
