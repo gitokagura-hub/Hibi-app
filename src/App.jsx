@@ -8,6 +8,9 @@ import LibraryPage from "./pages/LibraryPage";
 import SukimaListPage from "./pages/SukimaListPage";
 import SukimaDetailPage from "./pages/SukimaDetailPage";
 import { SukimaProvider } from "./sukimaStore";
+import TimelessListPage from "./pages/TimelessListPage";
+import TimelessEditorPage from "./pages/TimelessEditorPage";
+import { TimelessProvider } from "./timelessStore";
 import CalendarPage from "./pages/CalendarPage";
 import NotesPage from "./pages/NotesPage";
 import ProjectsPage from "./pages/ProjectsPage";
@@ -65,20 +68,17 @@ function SukimaApp({ onHome }) {
   );
 }
 
-// Timeless Analogue はまだ未実装。仮のプレースホルダー。
-function ComingSoonPage({ title, onHome }) {
+// Timeless Analogue（下書きワークスペース）。一覧⇔エディタの内部遷移を持つので専用ルーター。
+function TimelessApp({ onHome }) {
+  const [openId, setOpenId] = useState(null);
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 text-center relative">
-      <button
-        onClick={onHome}
-        className="fixed top-3 left-3 z-30 w-9 h-9 rounded-full bg-white/90 backdrop-blur border border-gray-200 flex items-center justify-center shadow-sm"
-        aria-label="Homeへ戻る"
-      >
-        <ChevronLeft size={18} className="text-gray-600" />
-      </button>
-      <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
-      <p className="mt-2 text-sm text-gray-500">まだ実装されていません。</p>
-    </div>
+    <TimelessProvider>
+      {openId ? (
+        <TimelessEditorPage articleId={openId} onBack={() => setOpenId(null)} />
+      ) : (
+        <TimelessListPage onHome={onHome} onOpenArticle={setOpenId} />
+      )}
+    </TimelessProvider>
   );
 }
 
@@ -93,7 +93,7 @@ function AppRouter() {
     return <SukimaApp onHome={() => setApp("home")} />;
   }
   if (app === "timeless") {
-    return <ComingSoonPage title="Timeless Analogue" onHome={() => setApp("home")} />;
+    return <TimelessApp onHome={() => setApp("home")} />;
   }
   if (app === "library") {
     return <LibraryPage onHome={() => setApp("home")} />;
