@@ -20,9 +20,8 @@ const CATEGORIES = [
 ];
 
 const STATUS = [
-  { id: "idea", label: "アイデア" },
   { id: "draft", label: "下書き" },
-  { id: "ready", label: "清書待ち" },
+  { id: "done", label: "完成" },
 ];
 
 function uid() {
@@ -36,26 +35,26 @@ function seedData() {
         id: uid(),
         title: "SENSE BY HAND — はじめに",
         category: "sense",
-        status: "ready",
+        status: "done",
         content:
           "30年間、現場に立ち続けて見えてきたもの。道具より先に、段取りを覚えろと言われる理由から始まる、木造大工の視点。\n\n（Notionで原稿確定済み。ここに全文を移して整えていく）",
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
+        createdAt: Date.now() - 1000 * 60 * 60 * 24 * 2,
+        updatedAt: Date.now() - 1000 * 60 * 60 * 24 * 2,
       },
       {
         id: uid(),
         title: "注文住宅の現場が進まない3つの本当の原因",
         category: "sense",
-        status: "idea",
+        status: "draft",
         content: "現役の大工が教える、お施主様ができる解決策。",
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
+        createdAt: Date.now() - 1000 * 60 * 60 * 24,
+        updatedAt: Date.now() - 1000 * 60 * 60 * 24,
       },
       {
         id: uid(),
         title: "レイヴカルチャーと木造現場に共通する感覚",
         category: "muzic",
-        status: "idea",
+        status: "draft",
         content: "大自然と音楽の融合体験から、現場の段取りへ。",
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -96,7 +95,7 @@ export function TimelessProvider({ children }) {
       id: uid(),
       title: title || "無題の記事",
       category,
-      status: "idea",
+      status: "draft",
       content: "",
       createdAt: Date.now(),
       updatedAt: Date.now(),
