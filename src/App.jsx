@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { DataProvider } from "./dataStore";
 import { ConfirmProvider } from "./components/ConfirmModal";
+import { useSwipeBack } from "./useSwipeBack";
 
 import HomePage from "./pages/HomePage";
 import LibraryPage from "./pages/LibraryPage";
@@ -19,6 +20,7 @@ import SettingsPage from "./pages/SettingsPage";
 
 // Daily Brains（既存5画面）用のルーター。中身は元のApp.jsxのRouterと同一。
 function DailyBrainsRouter({ onHome }) {
+  useSwipeBack(onHome);
   const [tab, setTab] = useState("calendar");
 
   let page;
