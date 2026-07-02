@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { useSukima, GROUPS, CARD_DEFS } from "../sukimaStore";
+import { useSwipeBack } from "../useSwipeBack";
 
 const STATUS_OPTIONS = [
   { id: "draft", label: "下書き" },
@@ -144,6 +145,7 @@ function CardRow({ def, value, onChange }) {
 }
 
 export default function SukimaDetailPage({ entryId, onBack }) {
+  useSwipeBack(onBack);
   const { getEntry, updateEntry, updateField, deleteEntry } = useSukima();
   const entry = getEntry(entryId);
 
