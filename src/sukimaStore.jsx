@@ -53,6 +53,8 @@ function emptyEntry({ type, name }) {
     status: "draft", // "draft" | "investigating" | "done"
     tags: [],
     relatedText: "",
+    driveFolderId: "",
+    driveFiles: [],
     fields,
     createdAt: Date.now(),
     updatedAt: Date.now(),
