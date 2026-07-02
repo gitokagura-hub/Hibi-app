@@ -1,8 +1,10 @@
 import { useMemo } from "react";
 import { ChevronLeft, Image as ImageIcon } from "lucide-react";
 import { useData } from "../dataStore";
+import { useSwipeBack } from "../useSwipeBack";
 
 export default function LibraryPage({ onHome }) {
+  useSwipeBack(onHome);
   const { data } = useData();
 
   // Daily Brains内の3つの保存場所（Notes / Calendar memos / Projects）を横断して画像を集約
