@@ -98,6 +98,7 @@ export default function TimelessEditorPage({ articleId, onBack }) {
           <DriveGallery
             entityId={article.id}
             entityName={article.title || "無題の記事"}
+            appFolderName="Timeless Analogue"
             driveFolderId={article.driveFolderId}
             driveFiles={article.driveFiles}
             onFolderId={(id) => updateArticle(article.id, { driveFolderId: id })}
