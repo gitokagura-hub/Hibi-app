@@ -160,11 +160,16 @@ export default function SukimaDetailPage({ entryId, onBack }) {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <button
+        onClick={onBack}
+        className="fixed bottom-6 left-5 z-30 w-11 h-11 rounded-full bg-white/90 backdrop-blur border border-gray-200 flex items-center justify-center shadow-sm"
+        aria-label="一覧へ戻る"
+      >
+        <ChevronLeft size={18} className="text-gray-600" />
+      </button>
+
       <div className="bg-white sticky top-0 z-20 border-b border-gray-100">
-        <div className="flex items-center justify-between px-4 pt-14 pb-2">
-          <button onClick={onBack} className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
-            <ChevronLeft size={18} className="text-gray-600" />
-          </button>
+        <div className="flex items-center justify-end px-4 pt-14 pb-2">
           <button
             onClick={() => {
               if (confirm(`「${entry.name}」を削除しますか？`)) {
