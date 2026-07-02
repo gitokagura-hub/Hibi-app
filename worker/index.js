@@ -69,6 +69,39 @@ export default {
     }
 
     const match = url.pathname.match(/^\/api\/data\/([a-zA-Z]+)$/);
+    const appendMatch = url.pathname.match(/^\/api\/append\/([a-zA-Z]+)$/);
+
+    if (appendMatch) {
+      const app = appendMatch[1];
+      const arrayKeyMap = { sukima: "entries", timeless: "articles" };
+      const arrayKey = arrayKeyMap[app];
+      if (!arrayKey) return json({ error: "Unknown app" }, 400);
+
+      const payloadParam = url.searchParams.get("item");
+      if (!payloadParam) return json({ error: "Missing item param" }, 400);
+
+      let item;
+      try {
+        item = JSON.parse(decodeURIComponent(atob(payloadParam)));
+      } catch {
+        return json({ error: "Invalid base64/JSON in item param" }, 400);
+      }
+
+      await ensureSchema(env.DB);
+      const row = await env.DB.prepare("SELECT json FROM app_data WHERE app = ?").bind(app).first();
+      const current = row ? JSON.parse(row.json) : { [arrayKey]: [] };
+      if (!Array.isArray(current[arrayKey])) current[arrayKey] = [];
+      current[arrayKey] = [item, ...current[arrayKey]];
+
+      const now = Date.now();
+      await env.DB.prepare(
+        `INSERT INTO app_data (app, json, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(app) DO UPDATE SET json = excluded.json, updated_at = excluded.updated_at`
+      ).bind(app, JSON.stringify(current), now).run();
+
+      return json({ ok: true, added: item.name || item.title || "(unnamed)" });
+    }
+
     if (!match) {
       return json({ error: "Not found" }, 404);
     }
