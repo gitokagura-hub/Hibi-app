@@ -1,4 +1,13 @@
-import { CalendarDays, Search, FileText, Image, ChevronRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { CalendarDays, Search, FileText, Image, ChevronRight, HardDrive } from "lucide-react";
+import {
+  isDriveConfigured,
+  isDriveConnected,
+  wasDriveConnectedBefore,
+  connectDrive,
+  disconnectDrive,
+  ensureDriveConnection,
+} from "../googleDrive";
 
 const apps = [
   {
@@ -42,6 +51,82 @@ const accentMap = {
   slate: { border: "border-slate-500", iconBg: "bg-slate-100", iconText: "text-slate-600", badgeBg: "bg-slate-100", badgeText: "text-slate-600" },
 };
 
+function DriveStatusCard() {
+  const driveReady = isDriveConfigured();
+  const [connected, setConnected] = useState(isDriveConnected());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!driveReady) return;
+    if (isDriveConnected()) {
+      setConnected(true);
+      return;
+    }
+    // Homeに来るたびに、裏で自動再接続を試みる（同意画面は出さない）
+    if (wasDriveConnectedBefore()) {
+      ensureDriveConnection()
+        .then(() => setConnected(true))
+        .catch(() => setConnected(false));
+    }
+  }, [driveReady]);
+
+  if (!driveReady) return null;
+
+  async function handleTap() {
+    if (connected) return;
+    setError("");
+    setBusy(true);
+    try {
+      await connectDrive();
+      setConnected(true);
+    } catch {
+      setError("接続に失敗しました。もう一度タップしてください。");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mb-4">
+      <button
+        onClick={handleTap}
+        disabled={connected || busy}
+        className={`w-full flex items-center gap-3 rounded-2xl border p-3.5 text-left ${
+          connected ? "bg-emerald-50 border-emerald-100" : "bg-gray-50 border-gray-200 active:scale-[0.98]"
+        }`}
+      >
+        <div
+          className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+            connected ? "bg-emerald-100" : "bg-gray-200"
+          }`}
+        >
+          <HardDrive size={16} className={connected ? "text-emerald-700" : "text-gray-500"} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold text-gray-900">Google Drive</div>
+          <div className="text-xs text-gray-500 mt-0.5">
+            {connected ? "接続済み" : busy ? "接続中…" : "未接続 — タップして接続"}
+          </div>
+        </div>
+        {connected && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              disconnectDrive();
+              setConnected(false);
+            }}
+            className="text-xs text-gray-400 px-2"
+          >
+            解除
+          </button>
+        )}
+      </button>
+      {error && <p className="text-xs text-red-500 mt-1.5 px-1">{error}</p>}
+    </div>
+  );
+}
+
 export default function HomePage({ onSelect }) {
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -55,6 +140,7 @@ export default function HomePage({ onSelect }) {
 
       {/* Content */}
       <main className="flex-1 overflow-y-auto px-5 pb-24">
+        <DriveStatusCard />
         <div className="flex flex-col gap-4">
           {apps.map((item) => {
             const Icon = item.icon;
