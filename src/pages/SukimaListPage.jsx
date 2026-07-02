@@ -120,7 +120,7 @@ export default function SukimaListPage({ onHome, onOpenEntry }) {
     <div className="min-h-screen bg-white relative">
       <button
         onClick={onHome}
-        className="fixed top-3 left-3 z-30 w-9 h-9 rounded-full bg-white/90 backdrop-blur border border-gray-200 flex items-center justify-center shadow-sm"
+        className="fixed bottom-6 left-5 z-30 w-11 h-11 rounded-full bg-white/90 backdrop-blur border border-gray-200 flex items-center justify-center shadow-sm"
         aria-label="Homeへ戻る"
       >
         <ChevronLeft size={18} className="text-gray-600" />
@@ -204,10 +204,10 @@ export default function SukimaListPage({ onHome, onOpenEntry }) {
       {/* FAB */}
       <button
         onClick={() => setShowAdd(true)}
-        className="fixed right-5 bottom-8 w-14 h-14 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg z-30"
+        className="fixed top-3 right-3 z-30 w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg"
         aria-label="新規作成"
       >
-        <Plus size={24} />
+        <Plus size={19} />
       </button>
 
       {showAdd && (
