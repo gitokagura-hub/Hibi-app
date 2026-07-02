@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { ChevronLeft, Plus, X } from "lucide-react";
 import { useTimeless, CATEGORIES, STATUS } from "../timelessStore";
+import { useSwipeBack } from "../useSwipeBack";
 
 const STATUS_STYLE = {
   draft: "bg-amber-50 text-amber-800",
@@ -90,6 +91,7 @@ function AddSheet({ onClose, onCreate }) {
 }
 
 export default function TimelessListPage({ onHome, onOpenArticle }) {
+  useSwipeBack(onHome);
   const { articles, addArticle } = useTimeless();
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [viewMode, setViewMode] = useState("category"); // "category" | "timeline"
