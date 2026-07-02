@@ -1,8 +1,10 @@
 {
   "name": "hibiapp",
+  "main": "worker/index.js",
   "compatibility_date": "2026-06-27",
   "assets": {
     "directory": "./dist",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application"
   },
   "d1_databases": [
@@ -11,5 +13,8 @@
       "database_name": "gitowork",
       "database_id": "a9a43626-6c80-44dd-9446-a240bf3a5a02"
     }
-  ]
+  ],
+  "vars": {
+    "API_TOKEN": "Le9PsVoMj-aiupu8QeMZU0I9i7V9EVtw"
+  }
 }
