@@ -46,10 +46,11 @@ function DailyBrainsRouter({ onHome }) {
       {/* Homeへ戻るボタン。既存Layout/pagesは一切変更せず、上に浮かせるだけ */}
       <button
         onClick={onHome}
-        className="fixed top-3 left-3 z-30 w-9 h-9 rounded-full bg-white/90 backdrop-blur border border-gray-200 flex items-center justify-center shadow-sm"
+        className="fixed right-4 z-30 w-12 h-12 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-lg"
+        style={{ bottom: "calc(env(safe-area-inset-bottom) + 96px)" }}
         aria-label="Homeへ戻る"
       >
-        <ChevronLeft size={18} className="text-gray-600" />
+        <ChevronLeft size={22} className="text-gray-700" />
       </button>
       {page}
     </div>
