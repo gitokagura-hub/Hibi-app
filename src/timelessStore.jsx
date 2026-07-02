@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import { reconcileOnStartup, saveCloud } from "./cloudSync";
 
 /* =========================================================================
    Timeless Analogue 専用データストア
@@ -93,7 +94,19 @@ export function TimelessProvider({ children }) {
   const [data, setData] = useState(loadData);
 
   useEffect(() => {
+    let cancelled = false;
+    reconcileOnStartup("timeless", data).then((result) => {
+      if (!cancelled && JSON.stringify(result) !== JSON.stringify(data)) {
+        setData(result);
+      }
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     saveData(data);
+    saveCloud("timeless", data).catch(() => {});
   }, [data]);
 
   function addArticle(title, category) {
