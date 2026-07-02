@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { ChevronLeft, Search, Plus, X } from "lucide-react";
 import { useSukima } from "../sukimaStore";
+import { useSwipeBack } from "../useSwipeBack";
 
 const STATUS_LABEL = { draft: "下書き", investigating: "調査中", done: "完了" };
 const STATUS_STYLE = {
@@ -89,6 +90,7 @@ function AddSheet({ type, onClose, onCreate }) {
 }
 
 export default function SukimaListPage({ onHome, onOpenEntry }) {
+  useSwipeBack(onHome);
   const { entries, addEntry } = useSukima();
   const [type, setType] = useState("person"); // "person" | "company"
   const [query, setQuery] = useState("");
