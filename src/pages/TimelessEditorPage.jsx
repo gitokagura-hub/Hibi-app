@@ -1,7 +1,9 @@
 import { ChevronLeft, Trash2 } from "lucide-react";
 import { useTimeless, CATEGORIES, STATUS } from "../timelessStore";
+import { useSwipeBack } from "../useSwipeBack";
 
 export default function TimelessEditorPage({ articleId, onBack }) {
+  useSwipeBack(onBack);
   const { getArticle, updateArticle, deleteArticle } = useTimeless();
   const article = getArticle(articleId);
 
