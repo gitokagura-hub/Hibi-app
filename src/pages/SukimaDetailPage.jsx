@@ -222,6 +222,7 @@ export default function SukimaDetailPage({ entryId, onBack }) {
           <DriveGallery
             entityId={entry.id}
             entityName={entry.name || "無題の研究"}
+            appFolderName="Sukima"
             driveFolderId={entry.driveFolderId}
             driveFiles={entry.driveFiles}
             onFolderId={(id) => updateEntry(entry.id, { driveFolderId: id })}
