@@ -3,18 +3,6 @@
  *
  * Daily Brains / Sukima / Timeless Analogue のデータを、
  * D1（クラウドの共有データベース）に保存・読み込みするための最小API。
- *
- * 各アプリのデータは丸ごと1つのJSONとしてapp_dataテーブルに保存する
- * （既存のlocalStorageの中身と同じ形をそのままクラウドに置き換えるイメージ）。
- *
- * ルート:
- *   GET  /api/data/:app   -> そのアプリの保存データ（JSON）を返す
- *   PUT  /api/data/:app   -> そのアプリのデータ（JSON）を保存する
- *
- * :app は "brains" | "sukima" | "timeless" のいずれか。
- *
- * 簡易保護として、Authorization: Bearer <API_TOKEN> ヘッダーを必須にしている。
- * トークンはwrangler.jsonc の vars.API_TOKEN と一致している必要がある。
  */
 
 const ALLOWED_APPS = new Set(["brains", "sukima", "timeless"]);
@@ -22,7 +10,7 @@ const ALLOWED_APPS = new Set(["brains", "sukima", "timeless"]);
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, PUT, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, PUT, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
   };
 }
@@ -54,12 +42,10 @@ export default {
       return new Response(null, { headers: corsHeaders() });
     }
 
-    // /api/ 以外は静的ファイル（React SPA本体）をそのまま返す
     if (!url.pathname.startsWith("/api/")) {
       return env.ASSETS.fetch(request);
     }
 
-    // 簡易トークンチェック（ヘッダー優先、無ければURLの ?token= も許可 — ブラウザで直接テストできるように）
     const auth = request.headers.get("Authorization") || "";
     const headerToken = auth.replace(/^Bearer\s+/i, "");
     const queryToken = url.searchParams.get("token") || "";
@@ -77,14 +63,21 @@ export default {
       const arrayKey = arrayKeyMap[app];
       if (!arrayKey) return json({ error: "Unknown app" }, 400);
 
-      const payloadParam = url.searchParams.get("item");
-      if (!payloadParam) return json({ error: "Missing item param" }, 400);
-
       let item;
-      try {
-        item = JSON.parse(decodeURIComponent(atob(payloadParam)));
-      } catch {
-        return json({ error: "Invalid base64/JSON in item param" }, 400);
+      if (request.method === "POST") {
+        try {
+          item = await request.json();
+        } catch {
+          return json({ error: "Invalid JSON body" }, 400);
+        }
+      } else {
+        const payloadParam = url.searchParams.get("item");
+        if (!payloadParam) return json({ error: "Missing item param" }, 400);
+        try {
+          item = JSON.parse(decodeURIComponent(atob(payloadParam)));
+        } catch {
+          return json({ error: "Invalid base64/JSON in item param" }, 400);
+        }
       }
 
       await ensureSchema(env.DB);
