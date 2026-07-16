@@ -189,13 +189,38 @@ function FullScreenComposer({
 }) {
   const photoInputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback for older browsers
+      const el = document.createElement("textarea");
+      el.value = text;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-white flex flex-col">
       <div className="flex items-center justify-between px-5 pt-14 pb-3 border-b border-gray-100">
         <button onClick={onClose} className="text-gray-500">閉じる</button>
         <span className="font-semibold">{isEditing ? "Edit Note" : "New Note"}</span>
-        <div className="w-10" />
+        {text ? (
+          <button onClick={handleCopy} className="text-sm text-gray-500">
+            {copied ? "✅ コピー済" : "📋 コピー"}
+          </button>
+        ) : (
+          <div className="w-10" />
+        )}
       </div>
 
       <textarea
