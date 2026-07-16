@@ -92,26 +92,6 @@ export function disconnectDrive() {
   blobUrlCache.clear();
 }
 
-// トークンが切れていても、以前接続していれば「同意画面を出さずに」裏で再取得を試みる。
-// Googleのセッションがまだ有効なら、ユーザーの操作なしで自動的に再接続できる。
-// （prompt: '' が鍵。これがあると、既に許可済みのユーザーには何も表示せず即座にトークンが返る）
-export function ensureDriveConnection() {
-  return new Promise((resolve, reject) => {
-    if (isDriveConnected()) { resolve(true); return; }
-    if (!wasDriveConnectedBefore()) { reject(new Error('NOT_CONNECTED')); return; }
-    const client = getClient();
-    if (!client) { reject(new Error('GOOGLE_SCRIPT_NOT_LOADED')); return; }
-    client.callback = (resp) => {
-      if (resp.error) { reject(resp); return; }
-      accessToken = resp.access_token;
-      tokenExpiry = Date.now() + (resp.expires_in || 3600) * 1000;
-      persistToken();
-      resolve(true);
-    };
-    client.requestAccessToken({ prompt: '' });
-  });
-}
-
 // Throws if not connected; UI should catch this and prompt a reconnect tap.
 function requireToken() {
   if (!isDriveConnected()) throw new Error('NOT_CONNECTED');
@@ -124,47 +104,6 @@ async function getOrCreateFolder(rootFolderId) {
 
 export async function getTeamRootFolderId() {
   return TEAM_ROOT_FOLDER_ID;
-}
-
-// アプリ名ごとのフォルダID（Sukima / Timeless Analogue / Daily Brains）をキャッシュ。
-// これにより、メインのDriveフォルダ内が「Sukima」「Timeless Analogue」「Daily Brains」の
-// 3つに整理され、各アプリのレコード用サブフォルダはその中に作られるようになる。
-const APP_FOLDER_CACHE_PREFIX = 'hibi-drive-app-folder-';
-
-export async function ensureAppFolder(appName) {
-  const token = requireToken();
-  const cacheKey = APP_FOLDER_CACHE_PREFIX + appName;
-  const cached = localStorage.getItem(cacheKey);
-  if (cached) {
-    const check = await fetch(`https://www.googleapis.com/drive/v3/files/${cached}?fields=id,trashed`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (check.ok) {
-      const checkData = await check.json();
-      if (!checkData.trashed) return cached;
-    }
-  }
-
-  const q = encodeURIComponent(
-    `name='${appName}' and '${ROOT_FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`
-  );
-  const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const searchData = await searchRes.json();
-  if (searchData.files && searchData.files.length > 0) {
-    localStorage.setItem(cacheKey, searchData.files[0].id);
-    return searchData.files[0].id;
-  }
-
-  const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: appName, mimeType: 'application/vnd.google-apps.folder', parents: [ROOT_FOLDER_ID] }),
-  });
-  const createData = await createRes.json();
-  localStorage.setItem(cacheKey, createData.id);
-  return createData.id;
 }
 
 export async function uploadImage(file) {

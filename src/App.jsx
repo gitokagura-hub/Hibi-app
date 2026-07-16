@@ -14,12 +14,16 @@ function Router() {
   switch (tab) {
     case "notes":
       return <NotesPage setTab={setTab} />;
+
     case "projects":
       return <ProjectsPage setTab={setTab} />;
+
     case "search":
       return <SearchPage setTab={setTab} />;
+
     case "settings":
       return <SettingsPage setTab={setTab} />;
+
     default:
       return <CalendarPage setTab={setTab} />;
   }

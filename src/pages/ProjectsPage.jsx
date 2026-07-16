@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Layout } from "../components";
 import { useData, formatDateTime } from "../dataStore";
-import { isDriveConnected, ensureAppFolder, ensureProjectFolder, uploadFileToProjectFolder, listProjectFiles, deleteProjectFile, getTeamRootFolderId } from "../googleDrive";
+import { isDriveConnected, ensureProjectFolder, uploadFileToProjectFolder, listProjectFiles, deleteProjectFile, getTeamRootFolderId } from "../googleDrive";
 import { useConfirm } from "../components/ConfirmModal";
 
 function isImageFile(mimeType) {
@@ -81,7 +81,7 @@ export default function ProjectsPage({ setTab }) {
     if (!isDriveConnected()) return;
     setGalleryError((prev) => ({ ...prev, [p.id]: "" }));
     try {
-      const rootFolderId = isTeam ? await getTeamRootFolderId() : await ensureAppFolder('Daily Brains');
+      const rootFolderId = isTeam ? await getTeamRootFolderId() : undefined;
       const folderId = await ensureProjectFolder(p.id, p.name, p.driveFolderId, rootFolderId);
       const files = await listProjectFiles(folderId);
       if (isTeam) await updateTeamProjectDriveAction(p, folderId, files);
@@ -104,7 +104,7 @@ export default function ProjectsPage({ setTab }) {
     setGalleryUploading((prev) => ({ ...prev, [p.id]: true }));
     setGalleryError((prev) => ({ ...prev, [p.id]: "" }));
     try {
-      const rootFolderId = isTeam ? await getTeamRootFolderId() : await ensureAppFolder('Daily Brains');
+      const rootFolderId = isTeam ? await getTeamRootFolderId() : undefined;
       const folderId = await ensureProjectFolder(p.id, p.name, p.driveFolderId, rootFolderId);
       const uploadedFiles = [];
       for (const file of files) {
