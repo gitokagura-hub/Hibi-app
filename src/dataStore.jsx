@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { reconcileOnStartup, saveCloud } from './cloudSync';
 import {
   isTeamConnected, getAuthorName, ensureTeamSheetReady,
   fetchTeamNotes, addTeamNote, updateTeamNote, deleteTeamNote,
@@ -150,12 +151,25 @@ export function DataProvider({ children }) {
   }, []);
 
 
+  // ---- クラウド同期（Phase 0: D1経由でDaily Brainsのデータを端末間共有）----
+  useEffect(() => {
+    let cancelled = false;
+    reconcileOnStartup('brains', data).then((result) => {
+      if (!cancelled && JSON.stringify(result) !== JSON.stringify(data)) {
+        setData(result);
+      }
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (initialLoad.current) { initialLoad.current = false; return; }
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       const ok = saveData(data);
       setStorageError(!ok);
+      saveCloud('brains', data).catch(() => {}); // オフライン時は無視、次回保存時に再挑戦
     }, 400);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [data]);

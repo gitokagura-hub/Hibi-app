@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Layout } from "../components";
 import { useData } from "../dataStore";
-import { isDriveConfigured, isDriveConnected, wasDriveConnectedBefore, connectDrive, disconnectDrive, backupDataToDrive, restoreDataFromDrive } from "../googleDrive";
+import { isDriveConfigured, isDriveConnected, wasDriveConnectedBefore, connectDrive, disconnectDrive, ensureDriveConnection, backupDataToDrive, restoreDataFromDrive } from "../googleDrive";
 import { isTeamConfigured, isTeamConnected, connectTeam, disconnectTeam, getAuthorName, setAuthorName } from "../googleSheets";
 import { useConfirm } from "../components/ConfirmModal";
 
@@ -28,7 +28,15 @@ export default function SettingsPage({ setTab }) {
   const teamReady = isTeamConfigured();
 
   useEffect(() => {
-    setDriveConnected(isDriveConnected());
+    // トークンが切れていても、以前接続済みなら裏で自動的に再接続を試みる
+    // （同意画面は出さない。Googleセッションが切れてる場合だけ失敗し、その時だけ手動再接続が必要）
+    if (isDriveConnected()) {
+      setDriveConnected(true);
+    } else if (wasDriveConnectedBefore()) {
+      ensureDriveConnection()
+        .then(() => setDriveConnected(true))
+        .catch(() => setDriveConnected(false));
+    }
   }, []);
 
   async function handleDriveToggle() {
