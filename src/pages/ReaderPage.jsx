@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ChevronLeft, Play, Square, SkipBack, SkipForward, Shuffle, Repeat, Upload } from "lucide-react";
+import {
+  ChevronLeft, Play, Square, SkipBack, SkipForward, Shuffle, Repeat, Upload, Plus, Trash2, Pencil, X,
+} from "lucide-react";
 import { useSwipeBack } from "../useSwipeBack";
 
-const STORAGE_KEY = "kikinagashi-list";
+const STORAGE_KEY = "kikinagashi-items";
+const LEGACY_STORAGE_KEY = "kikinagashi-list"; // 旧・textarea一括版のデータ(移行用)
 const SETTINGS_KEY = "kikinagashi-settings";
 
 const LANG_NAMES = {
@@ -17,17 +20,19 @@ function labelFor(lang) {
   return LANG_NAMES[lang.toLowerCase()] || lang;
 }
 
-function parseList(text) {
+function splitLine(l) {
+  const sep = l.includes("|") ? "|" : l.includes(",") ? "," : null;
+  if (!sep) return { en: l.trim(), ja: "" };
+  const idx = l.indexOf(sep);
+  return { en: l.slice(0, idx).trim(), ja: l.slice(idx + 1).trim() };
+}
+
+function parseLines(text) {
   return text
     .split("\n")
     .map((l) => l.trim())
     .filter((l) => l.length > 0)
-    .map((l) => {
-      const sep = l.includes("|") ? "|" : l.includes(",") ? "," : null;
-      if (!sep) return { en: l, ja: "" };
-      const idx = l.indexOf(sep);
-      return { en: l.slice(0, idx).trim(), ja: l.slice(idx + 1).trim() };
-    });
+    .map(splitLine);
 }
 
 function shuffleArr(arr) {
@@ -39,16 +44,32 @@ function shuffleArr(arr) {
   return a;
 }
 
+function makeId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+function loadSavedItems() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  // 旧フォーマット(改行区切りテキスト)からの移行
+  try {
+    const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (legacy && legacy.trim()) {
+      return parseLines(legacy).map((it) => ({ id: makeId(), ...it }));
+    }
+  } catch {}
+  return [];
+}
+
 export default function ReaderPage({ onHome }) {
   useSwipeBack(onHome);
 
-  const [text, setText] = useState(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEY) || "";
-    } catch {
-      return "";
-    }
-  });
+  const [items, setItems] = useState(loadSavedItems);
+  const [enInput, setEnInput] = useState("");
+  const [jaInput, setJaInput] = useState("");
+  const [editingId, setEditingId] = useState(null);
 
   const [settings, setSettings] = useState(() => {
     try {
@@ -70,9 +91,9 @@ export default function ReaderPage({ onHome }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, text);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     } catch {}
-  }, [text]);
+  }, [items]);
   useEffect(() => {
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -115,6 +136,55 @@ export default function ReaderPage({ onHome }) {
     return allVoices.find((v) => v.lang.toLowerCase().startsWith("ja")) || null;
   }, [allVoices]);
 
+  // --- add / edit / delete saved items ---
+  function handleSave() {
+    const en = enInput.trim();
+    if (!en) return;
+    const ja = jaInput.trim();
+    if (editingId) {
+      setItems((prev) => prev.map((it) => (it.id === editingId ? { ...it, en, ja } : it)));
+      setEditingId(null);
+    } else {
+      setItems((prev) => [...prev, { id: makeId(), en, ja }]);
+    }
+    setEnInput("");
+    setJaInput("");
+  }
+
+  function handleEdit(item) {
+    setEditingId(item.id);
+    setEnInput(item.en);
+    setJaInput(item.ja);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEnInput("");
+    setJaInput("");
+  }
+
+  function handleDelete(id) {
+    setItems((prev) => prev.filter((it) => it.id !== id));
+    if (editingId === id) cancelEdit();
+  }
+
+  const fileInputRef = useRef(null);
+  function handleFilePicked(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const content = String(ev.target.result || "");
+      const parsed = parseLines(content).map((it) => ({ id: makeId(), ...it }));
+      if (parsed.length > 0) setItems((prev) => [...prev, ...parsed]);
+    };
+    reader.onerror = () => {
+      alert("ファイルを読み込めませんでした。テキスト形式(.txt / .csv)のファイルを選んでください。");
+    };
+    reader.readAsText(file, "UTF-8");
+    e.target.value = "";
+  }
+
   // --- playback state ---
   const [playing, setPlaying] = useState(false);
   const [order, setOrder] = useState([]);
@@ -125,6 +195,10 @@ export default function ReaderPage({ onHome }) {
   const repeatCountRef = useRef(0);
   const playingRef = useRef(false);
   const pauseTimerRef = useRef(null);
+
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   const current = order.length > 0 && itemsRef.current[order[pos]] ? itemsRef.current[order[pos]] : null;
 
@@ -196,7 +270,6 @@ export default function ReaderPage({ onHome }) {
       stopAll();
       return;
     }
-    const items = parseList(text);
     if (items.length === 0) return;
     itemsRef.current = items;
     const newOrder = settings.shuffle ? shuffleArr(items.map((_, i) => i)) : items.map((_, i) => i);
@@ -233,26 +306,6 @@ export default function ReaderPage({ onHome }) {
     setSettings((s) => ({ ...s, ...patch }));
   }
 
-  const fileInputRef = useRef(null);
-
-  function handleFilePicked(e) {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const content = String(ev.target.result || "");
-      setText((prev) => {
-        if (!prev.trim()) return content.trim();
-        return prev.replace(/\s+$/, "") + "\n" + content.trim();
-      });
-    };
-    reader.onerror = () => {
-      alert("ファイルを読み込めませんでした。テキスト形式(.txt / .csv)のファイルを選んでください。");
-    };
-    reader.readAsText(file, "UTF-8");
-    e.target.value = "";
-  }
-
   return (
     <div className="min-h-screen bg-white relative">
       <button
@@ -265,18 +318,49 @@ export default function ReaderPage({ onHome }) {
 
       <header className="px-5 pt-14 pb-3">
         <h1 className="text-3xl font-semibold tracking-tight">聞き流し</h1>
-        <p className="mt-1 text-sm text-gray-500">英語フレーズ・単語をループ再生</p>
+        <p className="mt-1 text-sm text-gray-500">{items.length}件のフレーズを保存中</p>
       </header>
 
       <main className="px-5 pb-32">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-xs text-gray-400">リスト</span>
+        {/* --- 1件ずつ追加するフォーム --- */}
+        <div className="rounded-2xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-gray-500">{editingId ? "編集中" : "新しいフレーズを追加"}</span>
+            {editingId && (
+              <button onClick={cancelEdit} className="text-xs text-gray-400 flex items-center gap-1">
+                <X size={12} /> キャンセル
+              </button>
+            )}
+          </div>
+          <input
+            value={enInput}
+            onChange={(e) => setEnInput(e.target.value)}
+            placeholder="英語フレーズ"
+            className="w-full text-sm border-b border-gray-200 py-2 outline-none focus:border-gray-400"
+          />
+          <input
+            value={jaInput}
+            onChange={(e) => setJaInput(e.target.value)}
+            placeholder="日本語訳(省略可)"
+            className="w-full text-sm border-b border-gray-200 py-2 mt-2 outline-none focus:border-gray-400"
+          />
+          <button
+            onClick={handleSave}
+            disabled={!enInput.trim()}
+            className="mt-3 w-full h-11 rounded-full bg-gray-900 text-white text-sm font-medium flex items-center justify-center gap-1.5 disabled:opacity-30 active:scale-[0.98] transition-transform"
+          >
+            <Plus size={15} />
+            {editingId ? "更新して保存" : "保存"}
+          </button>
+        </div>
+
+        <div className="flex items-center justify-end mt-2">
           <button
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 px-2.5 py-1.5 rounded-full border border-indigo-100 bg-indigo-50 active:scale-95 transition-transform"
           >
             <Upload size={13} />
-            ファイルから読み込む
+            ファイルからまとめて追加
           </button>
           <input
             ref={fileInputRef}
@@ -286,15 +370,26 @@ export default function ReaderPage({ onHome }) {
             className="hidden"
           />
         </div>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={
-            "1行に1フレーズ。日本語訳は | の後ろに書けます。\n\n例:\nHow have you been? | 最近どうしてた？\nIt slipped my mind. | うっかり忘れてた"
-          }
-          className="w-full min-h-[140px] rounded-2xl border border-gray-200 p-4 text-sm leading-relaxed text-gray-800 outline-none focus:border-gray-400"
-        />
-        <p className="mt-1.5 text-xs text-gray-400 px-1">形式: 英語 | 日本語、またはCSVの「英語,日本語」形式(訳は省略可)</p>
+
+        {/* --- 保存済みリスト --- */}
+        {items.length > 0 && (
+          <div className="mt-4 rounded-2xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+            {items.map((it, i) => (
+              <div key={it.id} className={`flex items-center gap-2 px-3.5 py-2.5 ${current && order[pos] === i ? "bg-indigo-50" : ""}`}>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm text-gray-900 truncate">{it.en}</div>
+                  {it.ja && <div className="text-xs text-gray-400 truncate">{it.ja}</div>}
+                </div>
+                <button onClick={() => handleEdit(it)} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 shrink-0">
+                  <Pencil size={14} />
+                </button>
+                <button onClick={() => handleDelete(it.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 shrink-0">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="mt-5 rounded-2xl border border-gray-200 p-4">
           <div className="flex items-center gap-3 mb-3">
@@ -380,7 +475,7 @@ export default function ReaderPage({ onHome }) {
               {current.ja && <div className="text-sm text-gray-500 mt-1.5 italic">{current.ja}</div>}
             </>
           ) : (
-            <div className="text-sm text-gray-400">リストを入力して再生してください</div>
+            <div className="text-sm text-gray-400">フレーズを保存して再生してください</div>
           )}
         </div>
 
@@ -393,7 +488,8 @@ export default function ReaderPage({ onHome }) {
           </button>
           <button
             onClick={handlePlay}
-            className="flex-1 h-12 rounded-full bg-gray-900 text-white flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+            disabled={items.length === 0}
+            className="flex-1 h-12 rounded-full bg-gray-900 text-white flex items-center justify-center gap-2 disabled:opacity-30 active:scale-[0.98] transition-transform"
           >
             {playing ? <Square size={16} /> : <Play size={16} />}
             <span className="text-sm font-medium">{playing ? "停止" : "再生"}</span>
