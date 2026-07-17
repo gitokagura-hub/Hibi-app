@@ -173,18 +173,36 @@ export default function ReaderPage({ onHome }) {
 
   const fileInputRef = useRef(null);
   function handleFilePicked(e) {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const content = String(ev.target.result || "");
-      const parsed = parseLines(content).map((it) => ({ id: makeId(), ...it }));
-      if (parsed.length > 0) setItems((prev) => [...prev, ...parsed]);
-    };
-    reader.onerror = () => {
-      alert("ファイルを読み込めませんでした。テキスト形式(.txt / .csv)のファイルを選んでください。");
-    };
-    reader.readAsText(file, "UTF-8");
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    let failedCount = 0;
+    let pendingCount = files.length;
+    const collected = [];
+
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const content = String(ev.target.result || "");
+        collected.push(...parseLines(content).map((it) => ({ id: makeId(), ...it })));
+        pendingCount--;
+        if (pendingCount === 0) finish();
+      };
+      reader.onerror = () => {
+        failedCount++;
+        pendingCount--;
+        if (pendingCount === 0) finish();
+      };
+      reader.readAsText(file, "UTF-8");
+    });
+
+    function finish() {
+      if (collected.length > 0) setItems((prev) => [...prev, ...collected]);
+      if (failedCount > 0) {
+        alert(`${failedCount}件のファイルを読み込めませんでした。テキスト形式(.txt / .csv)のファイルを選んでください。`);
+      }
+    }
+
     e.target.value = "";
   }
 
@@ -384,6 +402,7 @@ export default function ReaderPage({ onHome }) {
           <input
             ref={fileInputRef}
             type="file"
+            multiple
             accept=".txt,.csv,text/plain,text/csv"
             onChange={handleFilePicked}
             className="hidden"
