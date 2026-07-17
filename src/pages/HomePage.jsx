@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CalendarDays, Search, FileText, Image, ChevronRight, HardDrive } from "lucide-react";
+import { CalendarDays, Search, FileText, Image, ChevronRight, HardDrive, Headphones } from "lucide-react";
 import {
   isDriveConfigured,
   isDriveConnected,
@@ -42,6 +42,14 @@ const apps = [
     status: "ACTIVE",
     accent: "slate",
   },
+  {
+    id: "reader",
+    title: "聞き流し",
+    icon: Headphones,
+    description: "英語フレーズ・単語をループ再生",
+    status: "ACTIVE",
+    accent: "indigo",
+  },
 ];
 
 const accentMap = {
@@ -49,6 +57,7 @@ const accentMap = {
   green: { border: "border-emerald-600", iconBg: "bg-emerald-50", iconText: "text-emerald-700", badgeBg: "bg-emerald-50", badgeText: "text-emerald-700" },
   brown: { border: "border-amber-700", iconBg: "bg-amber-50", iconText: "text-amber-800", badgeBg: "bg-amber-50", badgeText: "text-amber-800" },
   slate: { border: "border-slate-500", iconBg: "bg-slate-100", iconText: "text-slate-600", badgeBg: "bg-slate-100", badgeText: "text-slate-600" },
+  indigo: { border: "border-indigo-500", iconBg: "bg-indigo-50", iconText: "text-indigo-600", badgeBg: "bg-indigo-50", badgeText: "text-indigo-600" },
 };
 
 function DriveStatusCard() {

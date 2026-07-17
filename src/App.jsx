@@ -17,6 +17,7 @@ import NotesPage from "./pages/NotesPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import SearchPage from "./pages/SearchPage";
 import SettingsPage from "./pages/SettingsPage";
+import ReaderPage from "./pages/ReaderPage";
 
 // Daily Brains（既存5画面）用のルーター。中身は元のApp.jsxのRouterと同一。
 function DailyBrainsRouter({ onHome }) {
@@ -100,6 +101,9 @@ function AppRouter() {
   }
   if (app === "library") {
     return <LibraryPage onHome={() => setApp("home")} />;
+  }
+  if (app === "reader") {
+    return <ReaderPage onHome={() => setApp("home")} />;
   }
   return <HomePage onSelect={setApp} />;
 }
