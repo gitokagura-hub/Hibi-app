@@ -3,7 +3,6 @@ import {
   ChevronLeft, Play, Square, SkipBack, SkipForward, Shuffle, Repeat, Upload, Plus, Trash2, Pencil, X,
 } from "lucide-react";
 import { useSwipeBack } from "../useSwipeBack";
-import { useConfirm } from "../components/ConfirmModal";
 
 const STORAGE_KEY = "kikinagashi-items";
 const LEGACY_STORAGE_KEY = "kikinagashi-list"; // 旧・textarea一括版のデータ(移行用)
@@ -66,7 +65,6 @@ function loadSavedItems() {
 
 export default function ReaderPage({ onHome }) {
   useSwipeBack(onHome);
-  const confirm = useConfirm();
 
   const [items, setItems] = useState(loadSavedItems);
   const [newEn, setNewEn] = useState("");
@@ -74,6 +72,7 @@ export default function ReaderPage({ onHome }) {
   const [editingId, setEditingId] = useState(null);
   const [editEn, setEditEn] = useState("");
   const [editJa, setEditJa] = useState("");
+  const [deletingId, setDeletingId] = useState(null);
 
   const [settings, setSettings] = useState(() => {
     try {
@@ -169,10 +168,10 @@ export default function ReaderPage({ onHome }) {
     cancelEdit();
   }
 
-  async function handleDelete(id, en) {
-    if (!(await confirm(`「${en}」を削除しますか？`))) return;
+  function confirmDelete(id) {
     setItems((prev) => prev.filter((it) => it.id !== id));
     if (editingId === id) cancelEdit();
+    setDeletingId(null);
   }
 
   const fileInputRef = useRef(null);
@@ -412,6 +411,31 @@ export default function ReaderPage({ onHome }) {
             {items.map((it, i) => {
               const isPlaying = current && order[pos] === i;
               const isEditing = editingId === it.id;
+              const isDeleting = deletingId === it.id;
+
+              if (isDeleting) {
+                return (
+                  <div key={it.id} className="bg-red-50 border-l-4 border-red-400 px-3.5 py-3.5">
+                    <div className="text-sm text-gray-800 leading-snug break-words mb-3">
+                      「{it.en}」を削除しますか？
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setDeletingId(null)}
+                        className="flex-1 h-9 rounded-full border border-gray-300 text-xs font-medium text-gray-600 flex items-center justify-center gap-1"
+                      >
+                        <X size={13} /> キャンセル
+                      </button>
+                      <button
+                        onClick={() => confirmDelete(it.id)}
+                        className="flex-1 h-9 rounded-full bg-red-600 text-white text-xs font-medium"
+                      >
+                        削除する
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
 
               if (isEditing) {
                 return (
@@ -460,7 +484,7 @@ export default function ReaderPage({ onHome }) {
                   <button onClick={() => handleEdit(it)} className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 shrink-0 active:bg-gray-100">
                     <Pencil size={15} />
                   </button>
-                  <button onClick={() => handleDelete(it.id, it.en)} className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 shrink-0 active:bg-gray-100">
+                  <button onClick={() => setDeletingId(it.id)} className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 shrink-0 active:bg-gray-100">
                     <Trash2 size={15} />
                   </button>
                 </div>
