@@ -526,8 +526,8 @@ export default function ReaderPage({ onHome }) {
                     onClick={() => handleEdit(it)}
                     className="flex-1 min-w-0 text-left pt-0.5"
                   >
-                    <div className="text-sm text-gray-900 leading-snug break-words">{it.en}</div>
-                    {it.ja && <div className="text-xs text-gray-400 leading-snug break-words mt-1">{it.ja}</div>}
+                    <div className="text-sm text-gray-900 leading-snug break-words line-clamp-2">{it.en}</div>
+                    {it.ja && <div className="text-xs text-gray-400 leading-snug break-words mt-1 line-clamp-1">{it.ja}</div>}
                   </button>
                   <button onClick={() => setDeletingId(it.id)} className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 shrink-0 active:bg-gray-100">
                     <Trash2 size={15} />
