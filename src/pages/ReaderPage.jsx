@@ -69,9 +69,11 @@ export default function ReaderPage({ onHome }) {
   const confirm = useConfirm();
 
   const [items, setItems] = useState(loadSavedItems);
-  const [enInput, setEnInput] = useState("");
-  const [jaInput, setJaInput] = useState("");
+  const [newEn, setNewEn] = useState("");
+  const [newJa, setNewJa] = useState("");
   const [editingId, setEditingId] = useState(null);
+  const [editEn, setEditEn] = useState("");
+  const [editJa, setEditJa] = useState("");
 
   const [settings, setSettings] = useState(() => {
     try {
@@ -138,31 +140,33 @@ export default function ReaderPage({ onHome }) {
     return allVoices.find((v) => v.lang.toLowerCase().startsWith("ja")) || null;
   }, [allVoices]);
 
-  // --- add / edit / delete saved items ---
-  function handleSave() {
-    const en = enInput.trim();
+  // --- 新規追加(上のフォーム専用) ---
+  function handleAdd() {
+    const en = newEn.trim();
     if (!en) return;
-    const ja = jaInput.trim();
-    if (editingId) {
-      setItems((prev) => prev.map((it) => (it.id === editingId ? { ...it, en, ja } : it)));
-      setEditingId(null);
-    } else {
-      setItems((prev) => [...prev, { id: makeId(), en, ja }]);
-    }
-    setEnInput("");
-    setJaInput("");
+    setItems((prev) => [...prev, { id: makeId(), en, ja: newJa.trim() }]);
+    setNewEn("");
+    setNewJa("");
   }
 
+  // --- 既存項目の編集(リスト内でインライン) ---
   function handleEdit(item) {
     setEditingId(item.id);
-    setEnInput(item.en);
-    setJaInput(item.ja);
+    setEditEn(item.en);
+    setEditJa(item.ja);
   }
 
   function cancelEdit() {
     setEditingId(null);
-    setEnInput("");
-    setJaInput("");
+    setEditEn("");
+    setEditJa("");
+  }
+
+  function saveEdit() {
+    const en = editEn.trim();
+    if (!en) return;
+    setItems((prev) => prev.map((it) => (it.id === editingId ? { ...it, en, ja: editJa.trim() } : it)));
+    cancelEdit();
   }
 
   async function handleDelete(id, en) {
@@ -359,35 +363,28 @@ export default function ReaderPage({ onHome }) {
       </header>
 
       <main className="px-5 pb-32">
-        {/* --- 1件ずつ追加するフォーム --- */}
+        {/* --- 新しいフレーズを追加 --- */}
         <div className="rounded-2xl border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-gray-500">{editingId ? "編集中" : "新しいフレーズを追加"}</span>
-            {editingId && (
-              <button onClick={cancelEdit} className="text-xs text-gray-400 flex items-center gap-1">
-                <X size={12} /> キャンセル
-              </button>
-            )}
-          </div>
+          <span className="text-xs font-medium text-gray-400">新しいフレーズを追加</span>
           <input
-            value={enInput}
-            onChange={(e) => setEnInput(e.target.value)}
+            value={newEn}
+            onChange={(e) => setNewEn(e.target.value)}
             placeholder="フレーズ"
-            className="w-full text-sm border-b border-gray-200 py-2 outline-none focus:border-gray-400"
+            className="w-full text-sm border-b border-gray-200 py-2 mt-2 outline-none focus:border-gray-400"
           />
           <input
-            value={jaInput}
-            onChange={(e) => setJaInput(e.target.value)}
+            value={newJa}
+            onChange={(e) => setNewJa(e.target.value)}
             placeholder="訳(任意)"
             className="w-full text-sm border-b border-gray-200 py-2 mt-2 outline-none focus:border-gray-400"
           />
           <button
-            onClick={handleSave}
-            disabled={!enInput.trim()}
+            onClick={handleAdd}
+            disabled={!newEn.trim()}
             className="mt-3 w-full h-11 rounded-full bg-gray-900 text-white text-sm font-medium flex items-center justify-center gap-1.5 disabled:opacity-30 active:scale-[0.98] transition-transform"
           >
             <Plus size={15} />
-            {editingId ? "更新して保存" : "保存"}
+            保存
           </button>
         </div>
 
@@ -415,22 +412,56 @@ export default function ReaderPage({ onHome }) {
             {items.map((it, i) => {
               const isPlaying = current && order[pos] === i;
               const isEditing = editingId === it.id;
-              const rowClass = isEditing
-                ? "bg-amber-50 border-l-4 border-amber-400 pl-2.5"
-                : isPlaying
-                ? "bg-indigo-50 border-l-4 border-indigo-400 pl-2.5"
-                : "border-l-4 border-transparent pl-2.5";
-              return (
-                <div key={it.id} className={`flex items-center gap-2 px-3.5 py-2.5 ${rowClass}`}>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-gray-900 truncate">{it.en}</div>
-                    {it.ja && <div className="text-xs text-gray-400 truncate">{it.ja}</div>}
+
+              if (isEditing) {
+                return (
+                  <div key={it.id} className="bg-amber-50 border-l-4 border-amber-400 px-3.5 py-3">
+                    <input
+                      value={editEn}
+                      onChange={(e) => setEditEn(e.target.value)}
+                      placeholder="フレーズ"
+                      autoFocus
+                      className="w-full text-sm border-b border-amber-200 bg-transparent py-1.5 outline-none"
+                    />
+                    <input
+                      value={editJa}
+                      onChange={(e) => setEditJa(e.target.value)}
+                      placeholder="訳(任意)"
+                      className="w-full text-sm border-b border-amber-200 bg-transparent py-1.5 mt-2 outline-none"
+                    />
+                    <div className="flex gap-2 mt-2.5">
+                      <button
+                        onClick={cancelEdit}
+                        className="flex-1 h-9 rounded-full border border-gray-300 text-xs font-medium text-gray-600 flex items-center justify-center gap-1"
+                      >
+                        <X size={13} /> キャンセル
+                      </button>
+                      <button
+                        onClick={saveEdit}
+                        disabled={!editEn.trim()}
+                        className="flex-1 h-9 rounded-full bg-gray-900 text-white text-xs font-medium disabled:opacity-30"
+                      >
+                        更新
+                      </button>
+                    </div>
                   </div>
-                  <button onClick={() => handleEdit(it)} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 shrink-0">
-                    <Pencil size={14} />
+                );
+              }
+
+              return (
+                <div
+                  key={it.id}
+                  className={`flex items-start gap-2 px-3.5 py-3.5 ${isPlaying ? "bg-indigo-50 border-l-4 border-indigo-400" : "border-l-4 border-transparent"}`}
+                >
+                  <div className="flex-1 min-w-0 pt-0.5">
+                    <div className="text-sm text-gray-900 leading-snug break-words">{it.en}</div>
+                    {it.ja && <div className="text-xs text-gray-400 leading-snug break-words mt-1">{it.ja}</div>}
+                  </div>
+                  <button onClick={() => handleEdit(it)} className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 shrink-0 active:bg-gray-100">
+                    <Pencil size={15} />
                   </button>
-                  <button onClick={() => handleDelete(it.id, it.en)} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 shrink-0">
-                    <Trash2 size={14} />
+                  <button onClick={() => handleDelete(it.id, it.en)} className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 shrink-0 active:bg-gray-100">
+                    <Trash2 size={15} />
                   </button>
                 </div>
               );
