@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ChevronLeft, Play, Square, SkipBack, SkipForward, Shuffle, Repeat } from "lucide-react";
+import { ChevronLeft, Play, Square, SkipBack, SkipForward, Shuffle, Repeat, Upload } from "lucide-react";
 import { useSwipeBack } from "../useSwipeBack";
 
 const STORAGE_KEY = "kikinagashi-list";
@@ -23,8 +23,10 @@ function parseList(text) {
     .map((l) => l.trim())
     .filter((l) => l.length > 0)
     .map((l) => {
-      const parts = l.split("|");
-      return { en: parts[0].trim(), ja: parts[1] ? parts[1].trim() : "" };
+      const sep = l.includes("|") ? "|" : l.includes(",") ? "," : null;
+      if (!sep) return { en: l, ja: "" };
+      const idx = l.indexOf(sep);
+      return { en: l.slice(0, idx).trim(), ja: l.slice(idx + 1).trim() };
     });
 }
 
@@ -231,6 +233,26 @@ export default function ReaderPage({ onHome }) {
     setSettings((s) => ({ ...s, ...patch }));
   }
 
+  const fileInputRef = useRef(null);
+
+  function handleFilePicked(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const content = String(ev.target.result || "");
+      setText((prev) => {
+        if (!prev.trim()) return content.trim();
+        return prev.replace(/\s+$/, "") + "\n" + content.trim();
+      });
+    };
+    reader.onerror = () => {
+      alert("ファイルを読み込めませんでした。テキスト形式(.txt / .csv)のファイルを選んでください。");
+    };
+    reader.readAsText(file, "UTF-8");
+    e.target.value = "";
+  }
+
   return (
     <div className="min-h-screen bg-white relative">
       <button
@@ -247,6 +269,23 @@ export default function ReaderPage({ onHome }) {
       </header>
 
       <main className="px-5 pb-32">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-xs text-gray-400">リスト</span>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 px-2.5 py-1.5 rounded-full border border-indigo-100 bg-indigo-50 active:scale-95 transition-transform"
+          >
+            <Upload size={13} />
+            ファイルから読み込む
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt,.csv,text/plain,text/csv"
+            onChange={handleFilePicked}
+            className="hidden"
+          />
+        </div>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -255,7 +294,7 @@ export default function ReaderPage({ onHome }) {
           }
           className="w-full min-h-[140px] rounded-2xl border border-gray-200 p-4 text-sm leading-relaxed text-gray-800 outline-none focus:border-gray-400"
         />
-        <p className="mt-1.5 text-xs text-gray-400 px-1">形式: 英語 | 日本語(訳は省略可)</p>
+        <p className="mt-1.5 text-xs text-gray-400 px-1">形式: 英語 | 日本語、またはCSVの「英語,日本語」形式(訳は省略可)</p>
 
         <div className="mt-5 rounded-2xl border border-gray-200 p-4">
           <div className="flex items-center gap-3 mb-3">
