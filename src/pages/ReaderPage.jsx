@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  ChevronLeft, Play, Square, SkipBack, SkipForward, Shuffle, Repeat, Upload, Plus, Trash2, Pencil, X,
+  ChevronLeft, Play, Square, SkipBack, SkipForward, Shuffle, Repeat, Upload, Plus, Trash2, X,
 } from "lucide-react";
 import { useSwipeBack } from "../useSwipeBack";
 
@@ -335,6 +335,21 @@ export default function ReaderPage({ onHome }) {
     if (playingRef.current) speakCurrent();
   }
 
+  // リストの項目をタップして「これを読んで」と選択・即再生する
+  function playFrom(index) {
+    speechSynthesis.cancel();
+    clearTimeout(pauseTimerRef.current);
+    const newOrder = itemsRef.current.map((_, i) => i);
+    orderRef.current = newOrder;
+    setOrder(newOrder);
+    posRef.current = index;
+    setPos(index);
+    repeatCountRef.current = 0;
+    playingRef.current = true;
+    setPlaying(true);
+    speakCurrent();
+  }
+
   useEffect(() => {
     return () => {
       speechSynthesis.cancel();
@@ -348,6 +363,59 @@ export default function ReaderPage({ onHome }) {
 
   return (
     <div className="min-h-screen bg-white relative">
+      {editingId && (
+        <div className="fixed inset-0 z-50 bg-white flex flex-col">
+          <div className="flex items-center justify-between px-5 pt-14 pb-3 border-b border-gray-100">
+            <h2 className="text-lg font-semibold">フレーズを編集</h2>
+            <button
+              onClick={cancelEdit}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 active:bg-gray-100"
+              aria-label="閉じる"
+            >
+              <X size={18} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6">
+            <div>
+              <label className="text-xs font-medium text-gray-400">フレーズ</label>
+              <textarea
+                value={editEn}
+                onChange={(e) => setEditEn(e.target.value)}
+                placeholder="フレーズ"
+                autoFocus
+                rows={4}
+                className="w-full text-base border-b border-gray-200 py-2 mt-1 outline-none focus:border-gray-400 resize-none"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-400">訳(任意)</label>
+              <textarea
+                value={editJa}
+                onChange={(e) => setEditJa(e.target.value)}
+                placeholder="訳(任意)"
+                rows={3}
+                className="w-full text-base border-b border-gray-200 py-2 mt-1 outline-none focus:border-gray-400 resize-none"
+              />
+            </div>
+          </div>
+          <div className="px-5 pb-8 pt-3 border-t border-gray-100 flex gap-3">
+            <button
+              onClick={cancelEdit}
+              className="flex-1 h-12 rounded-full border border-gray-300 text-sm font-medium text-gray-600"
+            >
+              キャンセル
+            </button>
+            <button
+              onClick={saveEdit}
+              disabled={!editEn.trim()}
+              className="flex-1 h-12 rounded-full bg-gray-900 text-white text-sm font-medium disabled:opacity-30"
+            >
+              更新
+            </button>
+          </div>
+        </div>
+      )}
+
       <button
         onClick={onHome}
         className="fixed bottom-6 right-5 z-30 w-11 h-11 rounded-full bg-sky-100/90 backdrop-blur border border-sky-200 flex items-center justify-center shadow-sm"
@@ -438,51 +506,28 @@ export default function ReaderPage({ onHome }) {
               }
 
               if (isEditing) {
-                return (
-                  <div key={it.id} className="bg-amber-50 border-l-4 border-amber-400 px-3.5 py-3">
-                    <input
-                      value={editEn}
-                      onChange={(e) => setEditEn(e.target.value)}
-                      placeholder="フレーズ"
-                      autoFocus
-                      className="w-full text-sm border-b border-amber-200 bg-transparent py-1.5 outline-none"
-                    />
-                    <input
-                      value={editJa}
-                      onChange={(e) => setEditJa(e.target.value)}
-                      placeholder="訳(任意)"
-                      className="w-full text-sm border-b border-amber-200 bg-transparent py-1.5 mt-2 outline-none"
-                    />
-                    <div className="flex gap-2 mt-2.5">
-                      <button
-                        onClick={cancelEdit}
-                        className="flex-1 h-9 rounded-full border border-gray-300 text-xs font-medium text-gray-600 flex items-center justify-center gap-1"
-                      >
-                        <X size={13} /> キャンセル
-                      </button>
-                      <button
-                        onClick={saveEdit}
-                        disabled={!editEn.trim()}
-                        className="flex-1 h-9 rounded-full bg-gray-900 text-white text-xs font-medium disabled:opacity-30"
-                      >
-                        更新
-                      </button>
-                    </div>
-                  </div>
-                );
+                // フルスクリーン編集モーダル側で表示するので、リスト内には何も出さない
+                return null;
               }
 
               return (
                 <div
                   key={it.id}
-                  className={`flex items-start gap-2 px-3.5 py-3.5 ${isPlaying ? "bg-indigo-50 border-l-4 border-indigo-400" : "border-l-4 border-transparent"}`}
+                  className={`flex items-center gap-2 px-3.5 py-3.5 ${isPlaying ? "bg-indigo-50 border-l-4 border-indigo-400" : "border-l-4 border-transparent"}`}
                 >
-                  <div className="flex-1 min-w-0 pt-0.5">
+                  <button
+                    onClick={() => playFrom(i)}
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 shrink-0 active:bg-gray-100"
+                    aria-label="この項目を再生"
+                  >
+                    <Play size={15} />
+                  </button>
+                  <button
+                    onClick={() => handleEdit(it)}
+                    className="flex-1 min-w-0 text-left pt-0.5"
+                  >
                     <div className="text-sm text-gray-900 leading-snug break-words">{it.en}</div>
                     {it.ja && <div className="text-xs text-gray-400 leading-snug break-words mt-1">{it.ja}</div>}
-                  </div>
-                  <button onClick={() => handleEdit(it)} className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 shrink-0 active:bg-gray-100">
-                    <Pencil size={15} />
                   </button>
                   <button onClick={() => setDeletingId(it.id)} className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 shrink-0 active:bg-gray-100">
                     <Trash2 size={15} />
