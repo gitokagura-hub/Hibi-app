@@ -372,13 +372,13 @@ export default function ReaderPage({ onHome }) {
           <input
             value={enInput}
             onChange={(e) => setEnInput(e.target.value)}
-            placeholder="英語フレーズ"
+            placeholder="フレーズ"
             className="w-full text-sm border-b border-gray-200 py-2 outline-none focus:border-gray-400"
           />
           <input
             value={jaInput}
             onChange={(e) => setJaInput(e.target.value)}
-            placeholder="日本語訳(省略可)"
+            placeholder="訳(任意)"
             className="w-full text-sm border-b border-gray-200 py-2 mt-2 outline-none focus:border-gray-400"
           />
           <button
