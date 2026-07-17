@@ -3,6 +3,7 @@ import {
   ChevronLeft, Play, Square, SkipBack, SkipForward, Shuffle, Repeat, Upload, Plus, Trash2, Pencil, X,
 } from "lucide-react";
 import { useSwipeBack } from "../useSwipeBack";
+import { useConfirm } from "../components/ConfirmModal";
 
 const STORAGE_KEY = "kikinagashi-items";
 const LEGACY_STORAGE_KEY = "kikinagashi-list"; // 旧・textarea一括版のデータ(移行用)
@@ -65,6 +66,7 @@ function loadSavedItems() {
 
 export default function ReaderPage({ onHome }) {
   useSwipeBack(onHome);
+  const confirm = useConfirm();
 
   const [items, setItems] = useState(loadSavedItems);
   const [enInput, setEnInput] = useState("");
@@ -163,7 +165,8 @@ export default function ReaderPage({ onHome }) {
     setJaInput("");
   }
 
-  function handleDelete(id) {
+  async function handleDelete(id, en) {
+    if (!(await confirm(`「${en}」を削除しますか？`))) return;
     setItems((prev) => prev.filter((it) => it.id !== id));
     if (editingId === id) cancelEdit();
   }
@@ -195,10 +198,22 @@ export default function ReaderPage({ onHome }) {
   const repeatCountRef = useRef(0);
   const playingRef = useRef(false);
   const pauseTimerRef = useRef(null);
+  const settingsRef = useRef(settings);
+  const allVoicesRef = useRef(allVoices);
 
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
+  // 再生ループはsetTimeoutで自己再帰するため、settings/allVoicesを直接
+  // クロージャで参照すると「再生開始時点の値」に固定されてしまう。
+  // refに常に最新値を反映し、ループ内はrefから読むことでスライダー等の
+  // 変更が再生中もすぐ反映されるようにする。
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+  useEffect(() => {
+    allVoicesRef.current = allVoices;
+  }, [allVoices]);
 
   const current = order.length > 0 && itemsRef.current[order[pos]] ? itemsRef.current[order[pos]] : null;
 
@@ -213,19 +228,21 @@ export default function ReaderPage({ onHome }) {
     if (!playingRef.current) return;
     const item = itemsRef.current[orderRef.current[posRef.current]];
     if (!item) return;
+    const s = settingsRef.current;
 
     const utter = new SpeechSynthesisUtterance(item.en);
-    const voice = allVoices.find((v) => v.name === settings.voiceName);
+    const voice = allVoicesRef.current.find((v) => v.name === s.voiceName);
     if (voice) utter.voice = voice;
-    utter.rate = settings.rate;
+    utter.rate = s.rate;
 
     utter.onend = () => {
       if (!playingRef.current) return;
-      if (settings.readJa && item.ja) {
+      const s2 = settingsRef.current;
+      if (s2.readJa && item.ja) {
         const jaVoice = findJaVoice();
         const jaUtter = new SpeechSynthesisUtterance(item.ja);
         if (jaVoice) jaUtter.voice = jaVoice;
-        jaUtter.rate = settings.rate;
+        jaUtter.rate = s2.rate;
         jaUtter.onend = () => afterOneRepeat();
         speechSynthesis.speak(jaUtter);
       } else {
@@ -233,21 +250,23 @@ export default function ReaderPage({ onHome }) {
       }
     };
     speechSynthesis.speak(utter);
-  }, [allVoices, settings, findJaVoice]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [findJaVoice]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function afterOneRepeat() {
     if (!playingRef.current) return;
     repeatCountRef.current++;
+    const s = settingsRef.current;
     pauseTimerRef.current = setTimeout(() => {
       if (!playingRef.current) return;
-      if (repeatCountRef.current < settings.repeat) {
+      const s2 = settingsRef.current;
+      if (repeatCountRef.current < s2.repeat) {
         speakCurrent();
       } else {
         repeatCountRef.current = 0;
         let next = posRef.current + 1;
         if (next >= orderRef.current.length) {
-          if (settings.loopAll) {
-            const newOrder = settings.shuffle
+          if (s2.loopAll) {
+            const newOrder = s2.shuffle
               ? shuffleArr(itemsRef.current.map((_, i) => i))
               : itemsRef.current.map((_, i) => i);
             orderRef.current = newOrder;
@@ -262,7 +281,7 @@ export default function ReaderPage({ onHome }) {
         setPos(next);
         speakCurrent();
       }
-    }, settings.pause * 1000);
+    }, s.pause * 1000);
   }
 
   function handlePlay() {
@@ -374,20 +393,29 @@ export default function ReaderPage({ onHome }) {
         {/* --- 保存済みリスト --- */}
         {items.length > 0 && (
           <div className="mt-4 rounded-2xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
-            {items.map((it, i) => (
-              <div key={it.id} className={`flex items-center gap-2 px-3.5 py-2.5 ${current && order[pos] === i ? "bg-indigo-50" : ""}`}>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm text-gray-900 truncate">{it.en}</div>
-                  {it.ja && <div className="text-xs text-gray-400 truncate">{it.ja}</div>}
+            {items.map((it, i) => {
+              const isPlaying = current && order[pos] === i;
+              const isEditing = editingId === it.id;
+              const rowClass = isEditing
+                ? "bg-amber-50 border-l-4 border-amber-400 pl-2.5"
+                : isPlaying
+                ? "bg-indigo-50 border-l-4 border-indigo-400 pl-2.5"
+                : "border-l-4 border-transparent pl-2.5";
+              return (
+                <div key={it.id} className={`flex items-center gap-2 px-3.5 py-2.5 ${rowClass}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-gray-900 truncate">{it.en}</div>
+                    {it.ja && <div className="text-xs text-gray-400 truncate">{it.ja}</div>}
+                  </div>
+                  <button onClick={() => handleEdit(it)} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 shrink-0">
+                    <Pencil size={14} />
+                  </button>
+                  <button onClick={() => handleDelete(it.id, it.en)} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 shrink-0">
+                    <Trash2 size={14} />
+                  </button>
                 </div>
-                <button onClick={() => handleEdit(it)} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 shrink-0">
-                  <Pencil size={14} />
-                </button>
-                <button onClick={() => handleDelete(it.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 shrink-0">
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
