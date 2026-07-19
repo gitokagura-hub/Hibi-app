@@ -17,6 +17,7 @@ import NotesPage from "./pages/NotesPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import SearchPage from "./pages/SearchPage";
 import SettingsPage from "./pages/SettingsPage";
+import ReaderPage from "./pages/ReaderPage";
 
 // Daily Brains（既存5画面）用のルーター。中身は元のApp.jsxのRouterと同一。
 function DailyBrainsRouter({ onHome }) {
@@ -46,11 +47,11 @@ function DailyBrainsRouter({ onHome }) {
       {/* Homeへ戻るボタン。既存Layout/pagesは一切変更せず、上に浮かせるだけ */}
       <button
         onClick={onHome}
-        className="fixed right-4 z-30 w-12 h-12 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-lg"
+        className="fixed right-4 z-30 w-12 h-12 rounded-full bg-sky-100 border border-sky-200 flex items-center justify-center shadow-lg"
         style={{ bottom: "calc(env(safe-area-inset-bottom) + 96px)" }}
         aria-label="Homeへ戻る"
       >
-        <ChevronLeft size={22} className="text-gray-700" />
+        <ChevronLeft size={22} className="text-sky-700" />
       </button>
       {page}
     </div>
@@ -100,6 +101,9 @@ function AppRouter() {
   }
   if (app === "library") {
     return <LibraryPage onHome={() => setApp("home")} />;
+  }
+  if (app === "reader") {
+    return <ReaderPage onHome={() => setApp("home")} />;
   }
   return <HomePage onSelect={setApp} />;
 }
