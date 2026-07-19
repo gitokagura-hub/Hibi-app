@@ -12,7 +12,7 @@ function deriveTitle(text) {
 // Fullscreen single-photo viewer. Tap the backdrop or × to close.
 function PhotoViewer({ src, onClose }) {
   return (
-    <div className="fixed inset-0 z-[90] bg-black/95 flex items-center justify-center p-8" onClick={(e) => { e.stopPropagation(); onClose(); }}>
+    <div className="fixed inset-0 z-[90] bg-black/95 flex items-center justify-center p-8" onClick={(e) => e.stopPropagation()}>
       <img src={src} alt="" className="max-w-full max-h-full object-contain rounded-2xl" />
       <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="absolute top-14 right-5 w-9 h-9 rounded-full bg-white/20 text-white text-lg flex items-center justify-center">×</button>
     </div>

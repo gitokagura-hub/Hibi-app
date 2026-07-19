@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ChevronLeft, Image as ImageIcon } from "lucide-react";
 import { useData } from "../dataStore";
 import { useSwipeBack } from "../useSwipeBack";
@@ -6,6 +6,7 @@ import { useSwipeBack } from "../useSwipeBack";
 export default function LibraryPage({ onHome }) {
   useSwipeBack(onHome);
   const { data } = useData();
+  const [viewerSrc, setViewerSrc] = useState(null);
 
   // Daily Brains内の3つの保存場所（Notes / Calendar memos / Projects）を横断して画像を集約
   const images = useMemo(() => {
@@ -60,17 +61,28 @@ export default function LibraryPage({ onHome }) {
         ) : (
           <div className="grid grid-cols-3 gap-2">
             {images.map((img, i) => (
-              <div
+              <button
                 key={i}
+                onClick={() => setViewerSrc(img.src)}
                 className="aspect-square rounded-lg overflow-hidden bg-gray-100"
                 title={img.source}
               >
                 <img src={img.src} alt={img.source} className="w-full h-full object-cover" />
-              </div>
+              </button>
             ))}
           </div>
         )}
       </main>
+
+      {viewerSrc && (
+        <div className="fixed inset-0 z-[90] bg-black/95 flex items-center justify-center p-8" onClick={(e) => e.stopPropagation()}>
+          <img src={viewerSrc} alt="" className="max-w-full max-h-full object-contain rounded-2xl" />
+          <button
+            onClick={(e) => { e.stopPropagation(); setViewerSrc(null); }}
+            className="absolute top-14 right-5 w-9 h-9 rounded-full bg-white/20 text-white text-lg flex items-center justify-center"
+          >×</button>
+        </div>
+      )}
     </div>
   );
 }
