@@ -239,7 +239,18 @@ function FullScreenComposer({
 }) {
   const photoInputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
   const [copied, setCopied] = useState(false);
+
+  // When opening an existing note, the browser sometimes scrolls the
+  // textarea to wherever the cursor/selection last was instead of the top.
+  // Force it back to the very start on mount.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.scrollTop = 0;
+    el.setSelectionRange(0, 0);
+  }, []);
 
   async function handleCopy() {
     try {
@@ -274,7 +285,8 @@ function FullScreenComposer({
       </div>
 
       <textarea
-        autoFocus
+        ref={textareaRef}
+        autoFocus={!isEditing}
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="思いつきやアイデアを書き出す（壁打ち）..."
