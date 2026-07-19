@@ -234,8 +234,13 @@ export function DataProvider({ children }) {
   function deleteNote(id) {
     setData(prev => ({ ...prev, notes: prev.notes.filter(n => n.id !== id) }));
   }
-  function updateNote(id, text) {
-    setData(prev => ({ ...prev, notes: prev.notes.map(n => n.id === id ? { ...n, text } : n) }));
+  function updateNote(id, text, images, files) {
+    setData(prev => ({
+      ...prev,
+      notes: prev.notes.map(n => n.id === id
+        ? { ...n, text, images: images !== undefined ? images : n.images, files: files !== undefined ? files : n.files }
+        : n),
+    }));
   }
   function addProject(name) {
     const project = { id: uid(), name, items: [], driveFolderId: '', driveFiles: [], createdAt: Date.now() };
