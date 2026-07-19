@@ -9,6 +9,56 @@ function deriveTitle(text) {
   return firstLine.length > 28 ? firstLine.slice(0, 28) + "…" : firstLine;
 }
 
+// Fullscreen single-photo viewer. Tap the backdrop or × to close.
+function PhotoViewer({ src, onClose }) {
+  return (
+    <div className="fixed inset-0 z-[90] bg-black flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onClose(); }}>
+      <img src={src} alt="" className="max-w-full max-h-full object-contain" />
+      <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="absolute top-14 right-5 w-9 h-9 rounded-full bg-white/20 text-white text-lg flex items-center justify-center">×</button>
+    </div>
+  );
+}
+
+// A tappable thumbnail: tap opens the fullscreen viewer, long-press (600ms)
+// asks for confirmation and deletes if onDelete is provided. Used for both
+// the note-list preview (no delete) and the composer preview (deletable).
+function PhotoThumb({ src, onDelete, confirm, size = "w-24 h-24" }) {
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const pressTimer = useRef(null);
+  const longPressed = useRef(false);
+
+  function handleTouchStart(e) {
+    e.stopPropagation();
+    longPressed.current = false;
+    if (!onDelete) return;
+    pressTimer.current = setTimeout(async () => {
+      longPressed.current = true;
+      if (await confirm("この写真を削除しますか？")) onDelete();
+    }, 600);
+  }
+  function handleTouchEnd(e) {
+    e.stopPropagation();
+    if (pressTimer.current) clearTimeout(pressTimer.current);
+    if (!longPressed.current) setViewerOpen(true);
+  }
+
+  return (
+    <>
+      <img
+        src={src}
+        alt=""
+        className={`${size} object-cover rounded-xl border flex-shrink-0`}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleTouchStart}
+        onMouseUp={handleTouchEnd}
+        onClick={(e) => e.stopPropagation()}
+      />
+      {viewerOpen && <PhotoViewer src={src} onClose={() => setViewerOpen(false)} />}
+    </>
+  );
+}
+
 function VoiceCapture({ onClose, onSave }) {
   const [stage, setStage] = useState("listening");
   const [seconds, setSeconds] = useState(0);
@@ -185,7 +235,7 @@ function AIAssistSheet({ provider, apiKeyMissing, onClose, onRun, onApply }) {
 
 function FullScreenComposer({
   text, setText, pendingImages, setPendingImages, pendingFiles, setPendingFiles,
-  uploading, onPickPhoto, onPickFile, onVoice, onSave, onSend, onClose, isEditing, onAIAssist,
+  uploading, onPickPhoto, onPickFile, onVoice, onSave, onSend, onClose, isEditing, onAIAssist, confirm,
 }) {
   const photoInputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -235,10 +285,12 @@ function FullScreenComposer({
         {pendingImages.length > 0 && (
           <div className="flex gap-2 overflow-x-auto mb-2">
             {pendingImages.map((src, i) => (
-              <div key={i} className="relative flex-shrink-0">
-                <img src={src} alt="" className="w-24 h-24 object-cover rounded-xl border" />
-                <button onClick={() => setPendingImages((p) => p.filter((_, idx) => idx !== i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black text-white text-xs flex items-center justify-center">×</button>
-              </div>
+              <PhotoThumb
+                key={i}
+                src={src}
+                confirm={confirm}
+                onDelete={() => setPendingImages((p) => p.filter((_, idx) => idx !== i))}
+              />
             ))}
           </div>
         )}
@@ -434,7 +486,7 @@ export default function NotesPage({ setTab }) {
                 {n.images && n.images.length > 0 && (
                   <div className="flex gap-2 overflow-x-auto mb-3">
                     {n.images.map((src, i) => (
-                      <img key={i} src={src} alt="" className="w-24 h-24 object-cover rounded-xl border flex-shrink-0" />
+                      <PhotoThumb key={i} src={src} />
                     ))}
                   </div>
                 )}
@@ -484,6 +536,7 @@ export default function NotesPage({ setTab }) {
           onClose={handleCloseComposer}
           isEditing={!!editingNoteId}
           onAIAssist={() => setAiAssistOpen(true)}
+          confirm={confirm}
         />
       )}
       {aiAssistOpen && (
