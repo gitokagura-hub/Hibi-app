@@ -12,8 +12,8 @@ function deriveTitle(text) {
 // Fullscreen single-photo viewer. Tap the backdrop or × to close.
 function PhotoViewer({ src, onClose }) {
   return (
-    <div className="fixed inset-0 z-[90] bg-black flex items-center justify-center" onClick={(e) => { e.stopPropagation(); onClose(); }}>
-      <img src={src} alt="" className="max-w-full max-h-full object-contain" />
+    <div className="fixed inset-0 z-[90] bg-black/95 flex items-center justify-center p-8" onClick={(e) => { e.stopPropagation(); onClose(); }}>
+      <img src={src} alt="" className="max-w-full max-h-full object-contain rounded-2xl" />
       <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="absolute top-14 right-5 w-9 h-9 rounded-full bg-white/20 text-white text-lg flex items-center justify-center">×</button>
     </div>
   );
@@ -356,6 +356,18 @@ export default function NotesPage({ setTab }) {
     return () => clearInterval(t);
   }, []);
 
+  // Reopen the last-viewed note when returning to Notes (Personal only —
+  // Team notes are keyed against a list that loads asynchronously, so we
+  // only restore for Personal to avoid opening a stale/missing note).
+  useEffect(() => {
+    if (isTeam) return;
+    const lastId = localStorage.getItem("hibi-last-note-id");
+    if (!lastId) return;
+    const found = data.notes.find((n) => n.id === lastId);
+    if (found) handleOpenNote(found);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function resetComposer() {
     setText("");
     setPendingImages([]);
@@ -376,6 +388,7 @@ export default function NotesPage({ setTab }) {
       resetComposer();
       setEditingNoteId(null);
       setComposerOpen(false);
+      localStorage.removeItem("hibi-last-note-id");
       return;
     }
     if (!text.trim() && pendingImages.length === 0 && pendingFiles.length === 0) return;
@@ -390,12 +403,14 @@ export default function NotesPage({ setTab }) {
     setPendingImages(n.images || []);
     setPendingFiles(n.files || []);
     setComposerOpen(true);
+    if (!isTeam) localStorage.setItem("hibi-last-note-id", n.id);
   }
 
   function handleOpenNewComposer() {
     setEditingNoteId(null);
     resetComposer();
     setComposerOpen(true);
+    localStorage.removeItem("hibi-last-note-id");
   }
 
   function handleCloseComposer() {
@@ -514,7 +529,7 @@ export default function NotesPage({ setTab }) {
                       <button onClick={() => { setPasteTarget(n); setPasteMode("projects"); }} className="bg-white border border-gray-300 text-gray-700 rounded-lg px-2.5 py-1 text-xs font-medium">To Project</button>
                     </>
                   )}
-                  <button onClick={async () => { if (await confirm("このノートを削除しますか？")) (isTeam ? deleteTeamNoteAction(n.id) : deleteNote(n.id)); }} className="text-gray-400 text-xs px-1">Delete</button>
+                  <button onClick={async () => { if (await confirm("このノートを削除しますか？")) { if (isTeam) deleteTeamNoteAction(n.id); else { deleteNote(n.id); if (localStorage.getItem("hibi-last-note-id") === n.id) localStorage.removeItem("hibi-last-note-id"); } } }} className="text-gray-400 text-xs px-1">Delete</button>
                 </div>
               </div>
             </div>
