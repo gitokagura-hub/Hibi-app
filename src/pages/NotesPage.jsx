@@ -236,7 +236,7 @@ function FullScreenComposer({
           <div className="flex gap-2 overflow-x-auto mb-2">
             {pendingImages.map((src, i) => (
               <div key={i} className="relative flex-shrink-0">
-                <img src={src} alt="" className="w-16 h-16 object-cover rounded-xl border" />
+                <img src={src} alt="" className="w-24 h-24 object-cover rounded-xl border" />
                 <button onClick={() => setPendingImages((p) => p.filter((_, idx) => idx !== i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black text-white text-xs flex items-center justify-center">×</button>
               </div>
             ))}
@@ -320,7 +320,7 @@ export default function NotesPage({ setTab }) {
       return;
     }
     if (editingNoteId) {
-      updateNote(editingNoteId, text.trim());
+      updateNote(editingNoteId, text.trim(), pendingImages, pendingFiles);
       resetComposer();
       setEditingNoteId(null);
       setComposerOpen(false);
@@ -434,7 +434,7 @@ export default function NotesPage({ setTab }) {
                 {n.images && n.images.length > 0 && (
                   <div className="flex gap-2 overflow-x-auto mb-3">
                     {n.images.map((src, i) => (
-                      <img key={i} src={src} alt="" className="w-16 h-16 object-cover rounded-xl border flex-shrink-0" />
+                      <img key={i} src={src} alt="" className="w-24 h-24 object-cover rounded-xl border flex-shrink-0" />
                     ))}
                   </div>
                 )}
