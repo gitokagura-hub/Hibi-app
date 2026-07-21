@@ -76,7 +76,18 @@ function TagPickerSheet({ selected, available, onAddCategory, onClose, onSave })
           />
           <button onClick={handleAddNew} disabled={!newCat.trim()} className="rounded-xl bg-black text-white px-4 text-sm font-semibold disabled:opacity-30">追加</button>
         </div>
-        <button onClick={() => onSave(picked)} className="w-full rounded-2xl bg-black text-white p-3.5 font-semibold mb-2">保存</button>
+        <button
+          onClick={() => {
+            const trimmed = newCat.trim();
+            if (trimmed) {
+              onAddCategory(trimmed);
+              onSave(picked.includes(trimmed) ? picked : [...picked, trimmed]);
+            } else {
+              onSave(picked);
+            }
+          }}
+          className="w-full rounded-2xl bg-black text-white p-3.5 font-semibold mb-2"
+        >保存</button>
         <button onClick={onClose} className="w-full text-center text-gray-400 text-sm">キャンセル</button>
       </div>
     </div>
