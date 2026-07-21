@@ -523,7 +523,7 @@ export default function NotesPage({ setTab }) {
           isEditing={!!editingNoteId}
           onAIAssist={() => setAiAssistOpen(true)}
           confirm={confirm}
-          availableCategories={data.settings.photoCategories}
+          availableCategories={data?.settings?.photoCategories || []}
         />
       )}
       {aiAssistOpen && (

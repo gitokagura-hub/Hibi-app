@@ -430,7 +430,7 @@ export default function CalendarPage({ setTab }) {
                   img={src}
                   size="w-20 h-20"
                   confirm={confirm}
-                  availableCategories={data.settings.photoCategories}
+                  availableCategories={data?.settings?.photoCategories || []}
                   onDelete={() => (isTeam ? removeTeamMemoImageAction(selectedDate, i) : removeMemoImage(selectedDate, i))}
                   onCategoriesChange={isTeam ? undefined : (cats) => updateMemoImageCategories(selectedDate, i, cats)}
                 />

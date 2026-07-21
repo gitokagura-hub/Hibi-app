@@ -93,7 +93,7 @@ export default function TodayPage({ setTab }) {
                 img={src}
                 size="w-16 h-16"
                 confirm={confirm}
-                availableCategories={data.settings.photoCategories}
+                availableCategories={data?.settings?.photoCategories || []}
                 onDelete={() => removeMemoImage(today, i)}
                 onCategoriesChange={(cats) => updateMemoImageCategories(today, i, cats)}
               />
