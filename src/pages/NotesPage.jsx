@@ -4,6 +4,7 @@ import { useData, todayStr, fileToCompressedDataUrl, fileToDataUrl, formatDateTi
 import { runAIOnNote } from "../aiAssist";
 import { useConfirm } from "../components/ConfirmModal";
 import { PhotoViewer, PhotoThumb, CategoryPickerSheet } from "../components/PhotoViewer";
+import { isDriveConnected, ensureAppFolder, uploadFileToProjectFolder, deleteProjectFile } from "../googleDrive";
 
 function deriveTitle(text) {
   const firstLine = text.split("\n")[0];
@@ -254,11 +255,17 @@ function FullScreenComposer({
                 img={src}
                 confirm={confirm}
                 availableCategories={availableCategories}
-                onDelete={() => setPendingImages((p) => p.filter((_, idx) => idx !== i))}
+                onDelete={async () => {
+                  const im = pendingImages[i];
+                  if (im && typeof im === "object" && im.driveFileId) {
+                    try { await deleteProjectFile(im.driveFileId); } catch {}
+                  }
+                  setPendingImages((p) => p.filter((_, idx) => idx !== i));
+                }}
                 onCategoriesChange={(cats) => setPendingImages((p) => p.map((im, idx) => {
                   if (idx !== i) return im;
-                  const curSrc = typeof im === "object" ? im.src : im;
-                  return { src: curSrc, categories: cats };
+                  const isObj = typeof im === "object";
+                  return { src: isObj ? im.src : im, driveFileId: isObj ? im.driveFileId : undefined, categories: cats };
                 }))}
               />
             ))}
@@ -401,12 +408,22 @@ export default function NotesPage({ setTab }) {
     const files = Array.from(e.target.files || []);
     e.target.value = "";
     if (!files.length) return;
+    if (!isDriveConnected()) {
+      window.alert("写真の保存にはGoogle Drive連携が必要です。Settings画面で連携してください。");
+      return;
+    }
     setUploading(true);
     try {
-      const dataUrls = await Promise.all(files.map((f) => fileToCompressedDataUrl(f)));
-      const withCategories = dataUrls.map((src) => ({ src, categories: [] }));
-      setPendingImages((prev) => [...prev, ...withCategories]);
-    } catch {} finally { setUploading(false); }
+      const folderId = await ensureAppFolder("Notes写真");
+      const uploaded = [];
+      for (const file of files) {
+        const result = await uploadFileToProjectFolder(file, folderId);
+        uploaded.push({ src: result.thumbnailLink || result.webViewLink, driveFileId: result.id, categories: [] });
+      }
+      setPendingImages((prev) => [...prev, ...uploaded]);
+    } catch {
+      window.alert("写真のアップロードに失敗しました。通信状況を確認してもう一度お試しください。");
+    } finally { setUploading(false); }
   }
 
   async function handlePickFile(e) {

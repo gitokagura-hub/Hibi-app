@@ -4,6 +4,7 @@ import BottomNavigation from "../components/BottomNavigation";
 import SpaceSwitcher from "../components/SpaceSwitcher";
 import { useConfirm } from "../components/ConfirmModal";
 import { PhotoThumb } from "../components/PhotoViewer";
+import { isDriveConnected, ensureAppFolder, uploadFileToProjectFolder, deleteProjectFile } from "../googleDrive";
 
 function pad(n) { return String(n).padStart(2, "0"); }
 function fmt(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
@@ -167,12 +168,30 @@ export default function CalendarPage({ setTab }) {
     const files = Array.from(e.target.files || []);
     e.target.value = "";
     if (!files.length) return;
+    if (isTeam) {
+      setUploadingPhoto(true);
+      try {
+        const dataUrls = await Promise.all(files.map((f) => fileToCompressedDataUrl(f)));
+        await addTeamMemoImagesAction(selectedDate, dataUrls);
+      } catch {} finally { setUploadingPhoto(false); }
+      return;
+    }
+    if (!isDriveConnected()) {
+      window.alert("写真の保存にはGoogle Drive連携が必要です。Settings画面で連携してください。");
+      return;
+    }
     setUploadingPhoto(true);
     try {
-      const dataUrls = await Promise.all(files.map((f) => fileToCompressedDataUrl(f)));
-      if (isTeam) await addTeamMemoImagesAction(selectedDate, dataUrls);
-      else addMemoImages(selectedDate, dataUrls.map((src) => ({ src, categories: [] })));
-    } catch {} finally { setUploadingPhoto(false); }
+      const folderId = await ensureAppFolder("Calendar写真");
+      const uploaded = [];
+      for (const file of files) {
+        const result = await uploadFileToProjectFolder(file, folderId);
+        uploaded.push({ src: result.thumbnailLink || result.webViewLink, driveFileId: result.id, categories: [] });
+      }
+      addMemoImages(selectedDate, uploaded);
+    } catch {
+      window.alert("写真のアップロードに失敗しました。通信状況を確認してもう一度お試しください。");
+    } finally { setUploadingPhoto(false); }
   }
 
   async function handlePickFile(e) {
@@ -431,7 +450,14 @@ export default function CalendarPage({ setTab }) {
                   size="w-20 h-20"
                   confirm={confirm}
                   availableCategories={data.settings.photoCategories}
-                  onDelete={() => (isTeam ? removeTeamMemoImageAction(selectedDate, i) : removeMemoImage(selectedDate, i))}
+                  onDelete={async () => {
+                    if (isTeam) { removeTeamMemoImageAction(selectedDate, i); return; }
+                    const im = memo.images[i];
+                    if (im && typeof im === "object" && im.driveFileId) {
+                      try { await deleteProjectFile(im.driveFileId); } catch {}
+                    }
+                    removeMemoImage(selectedDate, i);
+                  }}
                   onCategoriesChange={isTeam ? undefined : (cats) => updateMemoImageCategories(selectedDate, i, cats)}
                 />
               ))}

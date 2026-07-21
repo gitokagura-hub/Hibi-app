@@ -220,8 +220,8 @@ export function DataProvider({ children }) {
       const existing = prev.memos[date] || { text: '', images: [], files: [] };
       const images = existing.images.map((img, i) => {
         if (i !== index) return img;
-        const src = typeof img === 'object' ? img.src : img;
-        return { src, categories };
+        const isObj = typeof img === 'object';
+        return { src: isObj ? img.src : img, driveFileId: isObj ? img.driveFileId : undefined, categories };
       });
       return { ...prev, memos: { ...prev.memos, [date]: { ...existing, images } } };
     });
