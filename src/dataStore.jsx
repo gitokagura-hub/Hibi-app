@@ -73,7 +73,7 @@ function emptyData() {
     memos: {},     // { [date]: { text, images: [], files: [] } }
     notes: [],     // { id, text, images: [], files: [], source: 'text'|'voice', createdAt }
     projects: [],  // { id, name, items: [{id, text, images, files, createdAt}], driveFolderId: '', driveFiles: [], createdAt }
-    settings: { geminiKey: '', chatgptKey: '', claudeKey: '' },
+    settings: { geminiKey: '', chatgptKey: '', claudeKey: '', photoCategories: [] },
   };
 }
 
@@ -317,6 +317,17 @@ export function DataProvider({ children }) {
   function setSettings(patch) {
     setData(prev => ({ ...prev, settings: { ...prev.settings, ...patch } }));
   }
+  function addPhotoCategory(name) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setData(prev => {
+      if (prev.settings.photoCategories.includes(trimmed)) return prev;
+      return { ...prev, settings: { ...prev.settings, photoCategories: [...prev.settings.photoCategories, trimmed] } };
+    });
+  }
+  function removePhotoCategory(name) {
+    setData(prev => ({ ...prev, settings: { ...prev.settings, photoCategories: prev.settings.photoCategories.filter(c => c !== name) } }));
+  }
   // ---- Team space actions (mirror the personal ones above, but go through Sheets) ----
   async function addTeamNoteAction(text) {
     const author = getAuthorName() || '名無し';
@@ -549,7 +560,7 @@ export function DataProvider({ children }) {
     addNote, deleteNote, updateNote,
     addProject, setProjectDriveFolderId, setProjectDriveFiles, addProjectDriveFile, removeProjectDriveFile, updateProjectItem, addProjectItem, deleteProject, deleteProjectItem, sendToProject,
     pasteNoteToCalendar, pasteNoteToProject,
-    setSettings, replaceAllData,
+    setSettings, addPhotoCategory, removePhotoCategory, replaceAllData,
     // Space switching + Team data
     space, switchSpace, teamData, teamLoading, teamError, refreshTeamData,
     addTeamNoteAction, updateTeamNoteAction, deleteTeamNoteAction,

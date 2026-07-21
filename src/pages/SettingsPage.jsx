@@ -12,9 +12,10 @@ function GroupHeader({ children }) {
 }
 
 export default function SettingsPage({ setTab }) {
-  const { data, setSettings, replaceAllData, refreshTeamData } = useData();
+  const { data, setSettings, addPhotoCategory, removePhotoCategory, replaceAllData, refreshTeamData } = useData();
   const confirm = useConfirm();
   const [driveConnected, setDriveConnected] = useState(isDriveConnected());
+  const [newCategory, setNewCategory] = useState("");
   const [driveBusy, setDriveBusy] = useState(false);
   const [driveError, setDriveError] = useState("");
   const [backupBusy, setBackupBusy] = useState(false);
@@ -195,6 +196,42 @@ export default function SettingsPage({ setTab }) {
                 className="w-full rounded-xl border p-2.5 text-sm"
               />
               <p className="text-xs text-gray-400 mt-1.5">Teamスペースに書いたノートやタスクに、この名前が表示されます。</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Group 1.4: Photo Categories */}
+        <div className="mb-7">
+          <GroupHeader>写真のカテゴリー</GroupHeader>
+          <div className="rounded-2xl border border-gray-200 overflow-hidden">
+            <div className="p-4">
+              <p className="text-xs text-gray-500 mb-3">
+                写真をアップロードする時に選べるカテゴリーです（例：人、料理、名刺、日本酒）。複数選択できます。
+              </p>
+              {data.settings.photoCategories.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {data.settings.photoCategories.map((cat) => (
+                    <span key={cat} className="flex items-center gap-1.5 rounded-full bg-gray-100 pl-3 pr-2 py-1.5 text-sm">
+                      {cat}
+                      <button onClick={() => removePhotoCategory(cat)} className="text-gray-400 text-xs w-4 h-4 flex items-center justify-center">×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <input
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { addPhotoCategory(newCategory); setNewCategory(""); } }}
+                  placeholder="新しいカテゴリー名..."
+                  className="flex-1 rounded-xl border p-2.5 text-sm"
+                />
+                <button
+                  onClick={() => { addPhotoCategory(newCategory); setNewCategory(""); }}
+                  disabled={!newCategory.trim()}
+                  className="rounded-xl bg-black text-white px-4 text-sm font-semibold disabled:opacity-30"
+                >追加</button>
+              </div>
             </div>
           </div>
         </div>
