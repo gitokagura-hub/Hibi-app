@@ -1,8 +1,6 @@
 import { useState, useRef } from "react";
 import { Layout } from "../components";
 import { useData, todayStr, fileToCompressedDataUrl } from "../dataStore";
-import { useConfirm } from "../components/ConfirmModal";
-import { PhotoThumb } from "../components/PhotoViewer";
 
 const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -13,8 +11,7 @@ function formatToday() {
 }
 
 export default function TodayPage({ setTab }) {
-  const { data, toggleTask, getMemo, setMemo, addMemoImages, removeMemoImage, updateMemoImageCategories } = useData();
-  const confirm = useConfirm();
+  const { data, toggleTask, getMemo, setMemo, addMemoImages, removeMemoImage } = useData();
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
   const today = todayStr();
@@ -29,7 +26,7 @@ export default function TodayPage({ setTab }) {
     setUploading(true);
     try {
       const dataUrls = await Promise.all(files.map((f) => fileToCompressedDataUrl(f)));
-      addMemoImages(today, dataUrls.map((src) => ({ src, categories: [] })));
+      addMemoImages(today, dataUrls);
     } catch {
       // ignore unreadable files
     } finally {
@@ -88,15 +85,15 @@ export default function TodayPage({ setTab }) {
         {memo.images.length > 0 && (
           <div className="flex gap-2 overflow-x-auto mb-3">
             {memo.images.map((src, i) => (
-              <PhotoThumb
-                key={i}
-                img={src}
-                size="w-16 h-16"
-                confirm={confirm}
-                availableCategories={data?.settings?.photoCategories || []}
-                onDelete={() => removeMemoImage(today, i)}
-                onCategoriesChange={(cats) => updateMemoImageCategories(today, i, cats)}
-              />
+              <div key={i} className="relative flex-shrink-0">
+                <img src={src} alt="" className="w-16 h-16 object-cover rounded-xl border" />
+                <button
+                  onClick={() => removeMemoImage(today, i)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black text-white text-xs flex items-center justify-center"
+                >
+                  ×
+                </button>
+              </div>
             ))}
           </div>
         )}

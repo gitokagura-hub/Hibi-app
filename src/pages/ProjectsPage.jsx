@@ -3,7 +3,6 @@ import { Layout } from "../components";
 import { useData, formatDateTime } from "../dataStore";
 import { isDriveConnected, ensureAppFolder, ensureProjectFolder, uploadFileToProjectFolder, listProjectFiles, deleteProjectFile, getTeamRootFolderId } from "../googleDrive";
 import { useConfirm } from "../components/ConfirmModal";
-import { PhotoThumb } from "../components/PhotoViewer";
 
 function isImageFile(mimeType) {
   return typeof mimeType === "string" && mimeType.startsWith("image/");
@@ -29,7 +28,7 @@ function FullScreenItemEditor({ item, onChange, onClose }) {
         {item.images && item.images.length > 0 && (
           <div className="flex gap-2 overflow-x-auto mb-2">
             {item.images.map((src, i) => (
-              <PhotoThumb key={i} img={src} size="w-16 h-16" />
+              <img key={i} src={src} alt="" className="w-16 h-16 object-cover rounded-xl border flex-shrink-0" />
             ))}
           </div>
         )}
@@ -329,7 +328,7 @@ export default function ProjectsPage({ setTab }) {
                               {item.images && item.images.length > 0 && (
                                 <div className="flex gap-1.5 overflow-x-auto mt-1.5">
                                   {item.images.map((src, i) => (
-                                    <PhotoThumb key={i} img={src} size="w-12 h-12" />
+                                    <img key={i} src={src} alt="" className="w-12 h-12 object-cover rounded-lg border flex-shrink-0" />
                                   ))}
                                 </div>
                               )}

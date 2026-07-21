@@ -332,12 +332,13 @@ export function DataProvider({ children }) {
     const trimmed = name.trim();
     if (!trimmed) return;
     setData(prev => {
-      if (prev.settings.photoCategories.includes(trimmed)) return prev;
-      return { ...prev, settings: { ...prev.settings, photoCategories: [...prev.settings.photoCategories, trimmed] } };
+      const existing = prev.settings.photoCategories || [];
+      if (existing.includes(trimmed)) return prev;
+      return { ...prev, settings: { ...prev.settings, photoCategories: [...existing, trimmed] } };
     });
   }
   function removePhotoCategory(name) {
-    setData(prev => ({ ...prev, settings: { ...prev.settings, photoCategories: prev.settings.photoCategories.filter(c => c !== name) } }));
+    setData(prev => ({ ...prev, settings: { ...prev.settings, photoCategories: (prev.settings.photoCategories || []).filter(c => c !== name) } }));
   }
   // ---- Team space actions (mirror the personal ones above, but go through Sheets) ----
   async function addTeamNoteAction(text) {

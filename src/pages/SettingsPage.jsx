@@ -12,12 +12,9 @@ function GroupHeader({ children }) {
 }
 
 export default function SettingsPage({ setTab }) {
-  const { data, setSettings, addPhotoCategory, removePhotoCategory, replaceAllData, refreshTeamData } = useData();
-  const settings = data?.settings || {};
-  const photoCategories = settings.photoCategories || [];
+  const { data, setSettings, replaceAllData, refreshTeamData } = useData();
   const confirm = useConfirm();
   const [driveConnected, setDriveConnected] = useState(isDriveConnected());
-  const [newCategory, setNewCategory] = useState("");
   const [driveBusy, setDriveBusy] = useState(false);
   const [driveError, setDriveError] = useState("");
   const [backupBusy, setBackupBusy] = useState(false);
@@ -202,42 +199,6 @@ export default function SettingsPage({ setTab }) {
           </div>
         </div>
 
-        {/* Group 1.4: Photo Categories */}
-        <div className="mb-7">
-          <GroupHeader>写真のカテゴリー</GroupHeader>
-          <div className="rounded-2xl border border-gray-200 overflow-hidden">
-            <div className="p-4">
-              <p className="text-xs text-gray-500 mb-3">
-                写真をアップロードする時に選べるカテゴリーです（例：人、料理、名刺、日本酒）。複数選択できます。
-              </p>
-              {photoCategories.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {photoCategories.map((cat) => (
-                    <span key={cat} className="flex items-center gap-1.5 rounded-full bg-gray-100 pl-3 pr-2 py-1.5 text-sm">
-                      {cat}
-                      <button onClick={() => removePhotoCategory(cat)} className="text-gray-400 text-xs w-4 h-4 flex items-center justify-center">×</button>
-                    </span>
-                  ))}
-                </div>
-              )}
-              <div className="flex gap-2">
-                <input
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { addPhotoCategory(newCategory); setNewCategory(""); } }}
-                  placeholder="新しいカテゴリー名..."
-                  className="flex-1 rounded-xl border p-2.5 text-sm"
-                />
-                <button
-                  onClick={() => { addPhotoCategory(newCategory); setNewCategory(""); }}
-                  disabled={!newCategory.trim()}
-                  className="rounded-xl bg-black text-white px-4 text-sm font-semibold disabled:opacity-30"
-                >追加</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Group 1.5: Backup & Restore */}
         <div className="mb-7">
           <GroupHeader>データのバックアップ</GroupHeader>
@@ -276,13 +237,13 @@ export default function SettingsPage({ setTab }) {
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center justify-between mb-2">
                 <span>Claude（Notes画面のAI処理に使用）</span>
-                <span className={settings.claudeKey ? "text-blue-600 font-semibold text-sm" : "text-gray-400 text-sm"}>
-                  {settings.claudeKey ? "設定済" : "未設定"}
+                <span className={data.settings.claudeKey ? "text-blue-600 font-semibold text-sm" : "text-gray-400 text-sm"}>
+                  {data.settings.claudeKey ? "設定済" : "未設定"}
                 </span>
               </div>
               <input
                 type="password"
-                value={settings.claudeKey}
+                value={data.settings.claudeKey}
                 onChange={(e) => setSettings({ claudeKey: e.target.value })}
                 placeholder="API キーを入力（console.anthropic.com）"
                 className="w-full rounded-xl border p-2.5 text-sm"
@@ -291,13 +252,13 @@ export default function SettingsPage({ setTab }) {
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center justify-between mb-2">
                 <span>Gemini（Notes画面のAI処理に使用）</span>
-                <span className={settings.geminiKey ? "text-blue-600 font-semibold text-sm" : "text-gray-400 text-sm"}>
-                  {settings.geminiKey ? "設定済" : "未設定"}
+                <span className={data.settings.geminiKey ? "text-blue-600 font-semibold text-sm" : "text-gray-400 text-sm"}>
+                  {data.settings.geminiKey ? "設定済" : "未設定"}
                 </span>
               </div>
               <input
                 type="password"
-                value={settings.geminiKey}
+                value={data.settings.geminiKey}
                 onChange={(e) => setSettings({ geminiKey: e.target.value })}
                 placeholder="API キーを入力（aistudio.google.com）"
                 className="w-full rounded-xl border p-2.5 text-sm"
@@ -306,13 +267,13 @@ export default function SettingsPage({ setTab }) {
             <div className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <span>ChatGPT（設計パートナー）</span>
-                <span className={settings.chatgptKey ? "text-blue-600 font-semibold text-sm" : "text-gray-400 text-sm"}>
-                  {settings.chatgptKey ? "設定済" : "未設定"}
+                <span className={data.settings.chatgptKey ? "text-blue-600 font-semibold text-sm" : "text-gray-400 text-sm"}>
+                  {data.settings.chatgptKey ? "設定済" : "未設定"}
                 </span>
               </div>
               <input
                 type="password"
-                value={settings.chatgptKey}
+                value={data.settings.chatgptKey}
                 onChange={(e) => setSettings({ chatgptKey: e.target.value })}
                 placeholder="API キーを入力"
                 className="w-full rounded-xl border p-2.5 text-sm"
