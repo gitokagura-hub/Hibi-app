@@ -16,24 +16,25 @@ export default function LibraryPage({ onHome }) {
   const { data } = useData();
   const [viewerSrc, setViewerSrc] = useState(null);
   const [activeCategory, setActiveCategory] = useState(null); // null = すべて
+  const photoCategories = data?.settings?.photoCategories || [];
 
   // Daily Brains内の3つの保存場所（Notes / Calendar memos / Projects）を横断して画像を集約
   const images = useMemo(() => {
     const items = [];
 
-    (data.notes || []).forEach((n) =>
+    (data?.notes || []).forEach((n) =>
       (n.images || []).forEach((img) =>
         items.push({ ...normalizeImage(img), source: "Notes", createdAt: n.createdAt })
       )
     );
 
-    Object.entries(data.memos || {}).forEach(([date, memo]) =>
+    Object.entries(data?.memos || {}).forEach(([date, memo]) =>
       (memo.images || []).forEach((img) =>
         items.push({ ...normalizeImage(img), source: `Calendar / ${date}`, createdAt: new Date(date).getTime() })
       )
     );
 
-    (data.projects || []).forEach((p) =>
+    (data?.projects || []).forEach((p) =>
       (p.items || []).forEach((it) =>
         (it.images || []).forEach((img) =>
           items.push({ ...normalizeImage(img), source: `Projects / ${p.name}`, createdAt: it.createdAt })
@@ -67,7 +68,7 @@ export default function LibraryPage({ onHome }) {
         </p>
       </header>
 
-      {data.settings.photoCategories.length > 0 && (
+      {photoCategories.length > 0 && (
         <div className="px-5 pb-3 flex gap-2 overflow-x-auto">
           <button
             onClick={() => setActiveCategory(null)}
@@ -75,7 +76,7 @@ export default function LibraryPage({ onHome }) {
           >
             すべて
           </button>
-          {data.settings.photoCategories.map((cat) => (
+          {photoCategories.map((cat) => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
