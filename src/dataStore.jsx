@@ -215,6 +215,17 @@ export function DataProvider({ children }) {
       return { ...prev, memos: { ...prev.memos, [date]: { ...existing, images: existing.images.filter((_, i) => i !== index) } } };
     });
   }
+  function updateMemoImageCategories(date, index, categories) {
+    setData(prev => {
+      const existing = prev.memos[date] || { text: '', images: [], files: [] };
+      const images = existing.images.map((img, i) => {
+        if (i !== index) return img;
+        const src = typeof img === 'object' ? img.src : img;
+        return { src, categories };
+      });
+      return { ...prev, memos: { ...prev.memos, [date]: { ...existing, images } } };
+    });
+  }
   function addMemoFiles(date, files) {
     setData(prev => {
       const existing = prev.memos[date] || { text: '', images: [], files: [] };
@@ -556,7 +567,7 @@ export function DataProvider({ children }) {
     storageError,
     addTask, toggleTask, deleteTask, updateTask,
     addEvent, deleteEvent, updateEvent,
-    getMemo, setMemo, addMemoImages, removeMemoImage, addMemoFiles, removeMemoFile,
+    getMemo, setMemo, addMemoImages, removeMemoImage, updateMemoImageCategories, addMemoFiles, removeMemoFile,
     addNote, deleteNote, updateNote,
     addProject, setProjectDriveFolderId, setProjectDriveFiles, addProjectDriveFile, removeProjectDriveFile, updateProjectItem, addProjectItem, deleteProject, deleteProjectItem, sendToProject,
     pasteNoteToCalendar, pasteNoteToProject,

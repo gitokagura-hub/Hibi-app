@@ -3,6 +3,7 @@ import { useData, todayStr, fileToCompressedDataUrl, fileToDataUrl } from "../da
 import BottomNavigation from "../components/BottomNavigation";
 import SpaceSwitcher from "../components/SpaceSwitcher";
 import { useConfirm } from "../components/ConfirmModal";
+import { PhotoThumb } from "../components/PhotoViewer";
 
 function pad(n) { return String(n).padStart(2, "0"); }
 function fmt(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
@@ -22,7 +23,7 @@ const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "Ju
 export default function CalendarPage({ setTab }) {
   const {
     data, addTask, toggleTask, deleteTask, updateTask, addEvent, deleteEvent, updateEvent,
-    getMemo, setMemo, addMemoImages, removeMemoImage, addMemoFiles, removeMemoFile, addNote,
+    getMemo, setMemo, addMemoImages, removeMemoImage, updateMemoImageCategories, addMemoFiles, removeMemoFile, addNote,
     space, teamData, teamLoading, teamError,
     addTeamTaskAction, toggleTeamTaskAction, updateTeamTaskAction, deleteTeamTaskAction,
     addTeamEventAction, deleteTeamEventAction, updateTeamEventAction,
@@ -170,7 +171,7 @@ export default function CalendarPage({ setTab }) {
     try {
       const dataUrls = await Promise.all(files.map((f) => fileToCompressedDataUrl(f)));
       if (isTeam) await addTeamMemoImagesAction(selectedDate, dataUrls);
-      else addMemoImages(selectedDate, dataUrls);
+      else addMemoImages(selectedDate, dataUrls.map((src) => ({ src, categories: [] })));
     } catch {} finally { setUploadingPhoto(false); }
   }
 
@@ -424,10 +425,15 @@ export default function CalendarPage({ setTab }) {
           {memo.images.length > 0 && (
             <div className="flex gap-2 overflow-x-auto mb-3">
               {memo.images.map((src, i) => (
-                <div key={i} className="relative flex-shrink-0">
-                  <img src={src} alt="" className="w-20 h-20 object-cover rounded-xl border" />
-                  <button onClick={() => (isTeam ? removeTeamMemoImageAction(selectedDate, i) : removeMemoImage(selectedDate, i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black text-white text-xs flex items-center justify-center">×</button>
-                </div>
+                <PhotoThumb
+                  key={i}
+                  img={src}
+                  size="w-20 h-20"
+                  confirm={confirm}
+                  availableCategories={data.settings.photoCategories}
+                  onDelete={() => (isTeam ? removeTeamMemoImageAction(selectedDate, i) : removeMemoImage(selectedDate, i))}
+                  onCategoriesChange={isTeam ? undefined : (cats) => updateMemoImageCategories(selectedDate, i, cats)}
+                />
               ))}
             </div>
           )}
