@@ -312,15 +312,13 @@ export async function ensureProjectFolder(projectId, projectName, cachedFolderId
 }
 
 // Uploads a single File into a project's Drive folder. Returns { fileId, name, mimeType, webViewLink }.
-// Uploads a single file into the given Drive folder. Returns
-// { id, name, mimeType, webViewLink, thumbnailLink }.
 export async function uploadFileToProjectFolder(file, folderId) {
   const token = requireToken();
   const metadata = { name: file.name, parents: [folderId] };
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
   form.append('file', file);
-  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,webViewLink,thumbnailLink', {
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,webViewLink', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: form,

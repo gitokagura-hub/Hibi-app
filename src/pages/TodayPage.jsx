@@ -3,7 +3,6 @@ import { Layout } from "../components";
 import { useData, todayStr, fileToCompressedDataUrl } from "../dataStore";
 import { useConfirm } from "../components/ConfirmModal";
 import { PhotoThumb } from "../components/PhotoViewer";
-import { isDriveConnected, ensureAppFolder, uploadFileToProjectFolder, deleteProjectFile } from "../googleDrive";
 
 const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -27,21 +26,12 @@ export default function TodayPage({ setTab }) {
     const files = Array.from(e.target.files || []);
     e.target.value = "";
     if (!files.length) return;
-    if (!isDriveConnected()) {
-      window.alert("写真の保存にはGoogle Drive連携が必要です。Settings画面で連携してください。");
-      return;
-    }
     setUploading(true);
     try {
-      const folderId = await ensureAppFolder("Calendar写真");
-      const uploaded = [];
-      for (const file of files) {
-        const result = await uploadFileToProjectFolder(file, folderId);
-        uploaded.push({ src: result.thumbnailLink || result.webViewLink, driveFileId: result.id, categories: [] });
-      }
-      addMemoImages(today, uploaded);
+      const dataUrls = await Promise.all(files.map((f) => fileToCompressedDataUrl(f)));
+      addMemoImages(today, dataUrls.map((src) => ({ src, categories: [] })));
     } catch {
-      window.alert("写真のアップロードに失敗しました。通信状況を確認してもう一度お試しください。");
+      // ignore unreadable files
     } finally {
       setUploading(false);
     }
@@ -104,13 +94,7 @@ export default function TodayPage({ setTab }) {
                 size="w-16 h-16"
                 confirm={confirm}
                 availableCategories={data.settings.photoCategories}
-                onDelete={async () => {
-                  const im = memo.images[i];
-                  if (im && typeof im === "object" && im.driveFileId) {
-                    try { await deleteProjectFile(im.driveFileId); } catch {}
-                  }
-                  removeMemoImage(today, i);
-                }}
+                onDelete={() => removeMemoImage(today, i)}
                 onCategoriesChange={(cats) => updateMemoImageCategories(today, i, cats)}
               />
             ))}
