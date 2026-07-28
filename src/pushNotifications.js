@@ -93,3 +93,21 @@ export async function unsubscribeFromPush() {
   }
   localStorage.removeItem(SUBSCRIBED_FLAG);
 }
+
+// Forcibly removes every registered service worker and every Cache Storage
+// entry for this origin, without touching Safari's site data for other
+// sites. Used to recover from a service worker stuck failing to install
+// (e.g. after fixing a bug in the precache manifest) — a normal reload
+// isn't enough because the browser keeps retrying the same broken
+// installation from its own cached copy of the old script.
+export async function resetServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    for (const reg of registrations) await reg.unregister();
+  }
+  if ('caches' in window) {
+    const keys = await caches.keys();
+    for (const key of keys) await caches.delete(key);
+  }
+  localStorage.removeItem(SUBSCRIBED_FLAG);
+}

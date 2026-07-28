@@ -4,7 +4,7 @@ import { useData } from "../dataStore";
 import { isDriveConfigured, isDriveConnected, wasDriveConnectedBefore, connectDrive, disconnectDrive, ensureDriveConnection, backupDataToDrive, restoreDataFromDrive } from "../googleDrive";
 import { isTeamConfigured, isTeamConnected, connectTeam, disconnectTeam, getAuthorName, setAuthorName } from "../googleSheets";
 import { useConfirm } from "../components/ConfirmModal";
-import { isPushSupported, wasPushSubscribedBefore, notificationPermission, subscribeToPush, unsubscribeFromPush } from "../pushNotifications";
+import { isPushSupported, wasPushSubscribedBefore, notificationPermission, subscribeToPush, unsubscribeFromPush, resetServiceWorker } from "../pushNotifications";
 
 function GroupHeader({ children }) {
   return (
@@ -245,7 +245,26 @@ export default function SettingsPage({ setTab }) {
                 {pushBusy ? "設定中…" : pushSubscribed ? "オフにする" : "オンにする"}
               </button>
             </div>
-            {pushError && <p className="px-4 pb-4 text-xs text-red-500">{pushError}</p>}
+            {pushError && (
+              <div className="px-4 pb-4">
+                <p className="text-xs text-red-500 mb-2">{pushError}</p>
+                <button
+                  onClick={async () => {
+                    setPushBusy(true);
+                    try {
+                      await resetServiceWorker();
+                      window.location.reload();
+                    } catch {
+                      setPushError("リセットに失敗しました。もう一度お試しください。");
+                      setPushBusy(false);
+                    }
+                  }}
+                  className="text-xs font-semibold text-red-600 border border-red-200 rounded-lg px-3 py-1.5"
+                >
+                  🔄 通知の仕組みをリセットして再読み込み
+                </button>
+              </div>
+            )}
           </div>
           <p className="text-xs text-gray-400 mt-2 px-2">
             初回はホーム画面に追加したアプリから開いて設定してください。ブラウザから直接開いた場合、iPhoneでは通知が届かないことがあります。
