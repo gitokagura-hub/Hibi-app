@@ -28,6 +28,13 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`TIMEOUT_${label}`)), ms)),
+  ]);
+}
+
 // Requests notification permission, subscribes to Push, and sends the
 // subscription to the Worker so it can send reminders later. Must be
 // called from a direct user gesture (button click) — permission prompts
@@ -38,21 +45,29 @@ export async function subscribeToPush() {
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') throw new Error('PERMISSION_DENIED');
 
-  const registration = await navigator.serviceWorker.ready;
-  let subscription = await registration.pushManager.getSubscription();
+  const registration = await withTimeout(navigator.serviceWorker.ready, 10000, 'SW_READY');
+  let subscription = await withTimeout(registration.pushManager.getSubscription(), 10000, 'GET_SUBSCRIPTION');
   if (!subscription) {
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-    });
+    subscription = await withTimeout(
+      registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      }),
+      10000,
+      'PUSH_SUBSCRIBE'
+    );
   }
 
-  const res = await fetch('/api/push/subscribe', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_TOKEN}` },
-    body: JSON.stringify({ subscription: subscription.toJSON() }),
-  });
-  if (!res.ok) throw new Error('SUBSCRIBE_SAVE_FAILED');
+  const res = await withTimeout(
+    fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_TOKEN}` },
+      body: JSON.stringify({ subscription: subscription.toJSON() }),
+    }),
+    10000,
+    'SAVE_TO_SERVER'
+  );
+  if (!res.ok) throw new Error('SUBSCRIBE_SAVE_FAILED_' + res.status);
 
   localStorage.setItem(SUBSCRIBED_FLAG, '1');
   return subscription;
