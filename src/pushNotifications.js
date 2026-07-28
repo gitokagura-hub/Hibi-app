@@ -45,6 +45,10 @@ export async function subscribeToPush() {
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') throw new Error('PERMISSION_DENIED');
 
+  if (window.__swRegistrationError) {
+    throw new Error('SW_REGISTRATION_FAILED_' + window.__swRegistrationError);
+  }
+
   const registration = await withTimeout(navigator.serviceWorker.ready, 10000, 'SW_READY');
   let subscription = await withTimeout(registration.pushManager.getSubscription(), 10000, 'GET_SUBSCRIPTION');
   if (!subscription) {
