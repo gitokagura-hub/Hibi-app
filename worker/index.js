@@ -3,7 +3,15 @@
  *
  * Daily Brains / Sukima / Timeless Analogue のデータを、
  * D1（クラウドの共有データベース）に保存・読み込みするための最小API。
+ *
+ * Also handles task reminder push notifications for Daily Brains:
+ * - POST /api/push/subscribe    — save a browser's Push subscription
+ * - POST /api/push/unsubscribe  — remove a Push subscription
+ * - PUT  /api/reminders         — sync the current list of {id, date, time, title} reminders
+ * - POST /api/reminders/check   — (called by Cron) send push for any reminder whose time has just passed
  */
+
+import { sendWebPush } from './webpush.js';
 
 const ALLOWED_APPS = new Set(["brains", "sukima", "timeless"]);
 
@@ -32,6 +40,27 @@ async function ensureSchema(db) {
       )`
     )
     .run();
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS push_subscriptions (
+        endpoint TEXT PRIMARY KEY,
+        json TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      )`
+    )
+    .run();
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS task_reminders (
+        id TEXT PRIMARY KEY,
+        date TEXT NOT NULL,
+        time TEXT NOT NULL,
+        title TEXT NOT NULL,
+        completed INTEGER NOT NULL DEFAULT 0,
+        notified INTEGER NOT NULL DEFAULT 0
+      )`
+    )
+    .run();
 }
 
 export default {
@@ -54,6 +83,44 @@ export default {
       return json({ error: "Unauthorized" }, 401);
     }
 
+    await ensureSchema(env.DB);
+
+    // ---- Push subscription management ----
+    if (url.pathname === "/api/push/subscribe" && request.method === "POST") {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: "Invalid JSON body" }, 400);
+      }
+      const sub = body.subscription;
+      if (!sub || !sub.endpoint) return json({ error: "Missing subscription" }, 400);
+      await env.DB.prepare(
+        `INSERT INTO push_subscriptions (endpoint, json, created_at) VALUES (?, ?, ?)
+         ON CONFLICT(endpoint) DO UPDATE SET json = excluded.json`
+      ).bind(sub.endpoint, JSON.stringify(sub), Date.now()).run();
+      return json({ ok: true });
+    }
+
+    if (url.pathname === "/api/push/unsubscribe" && request.method === "POST") {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: "Invalid JSON body" }, 400);
+      }
+      if (!body.endpoint) return json({ error: "Missing endpoint" }, 400);
+      await env.DB.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?").bind(body.endpoint).run();
+      return json({ ok: true });
+    }
+
+    // ---- Manually trigger a reminder check (also called by the Cron Trigger below) ----
+    if (url.pathname === "/api/reminders/check" && request.method === "POST") {
+      const result = await checkAndSendReminders(env);
+      return json(result);
+    }
+
+    // ---- Existing generic app data storage (unchanged) ----
     const match = url.pathname.match(/^\/api\/data\/([a-zA-Z]+)$/);
     const appendMatch = url.pathname.match(/^\/api\/append\/([a-zA-Z]+)$/);
 
@@ -80,7 +147,6 @@ export default {
         }
       }
 
-      await ensureSchema(env.DB);
       const row = await env.DB.prepare("SELECT json FROM app_data WHERE app = ?").bind(app).first();
       const current = row ? JSON.parse(row.json) : { [arrayKey]: [] };
       if (!Array.isArray(current[arrayKey])) current[arrayKey] = [];
@@ -102,8 +168,6 @@ export default {
     if (!ALLOWED_APPS.has(app)) {
       return json({ error: "Unknown app" }, 400);
     }
-
-    await ensureSchema(env.DB);
 
     if (request.method === "GET") {
       const row = await env.DB.prepare("SELECT json FROM app_data WHERE app = ?")
@@ -134,4 +198,69 @@ export default {
 
     return json({ error: "Method not allowed" }, 405);
   },
+
+  // Cloudflare Cron Trigger entry point — configured in wrangler.jsonc to run every minute.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(checkAndSendReminders(env));
+  },
 };
+
+// Finds Personal tasks (from the existing 'brains' app_data blob, which the
+// app already syncs on every change via cloudSync.js) whose reminderTime has
+// just passed, sends a push to every subscribed device, and marks them
+// notified in a small separate table so they don't fire twice.
+async function checkAndSendReminders(env) {
+  await ensureSchema(env.DB);
+
+  const row = await env.DB.prepare("SELECT json FROM app_data WHERE app = 'brains'").first();
+  if (!row) return { ok: true, sent: 0, reason: 'no brains data yet' };
+
+  let brainsData;
+  try {
+    brainsData = JSON.parse(row.json);
+  } catch {
+    return { ok: true, sent: 0, reason: 'unparseable brains data' };
+  }
+  const tasks = Array.isArray(brainsData.tasks) ? brainsData.tasks : [];
+
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const nowDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const nowTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+  const due = tasks.filter((t) => t.reminderTime && t.date === nowDate && t.reminderTime <= nowTime && !t.completed);
+  if (due.length === 0) return { ok: true, sent: 0 };
+
+  const alreadyNotified = await env.DB.prepare("SELECT id FROM task_reminders WHERE notified = 1").all();
+  const notifiedIds = new Set((alreadyNotified.results || []).map((r) => r.id));
+  const toSend = due.filter((t) => !notifiedIds.has(t.id));
+  if (toSend.length === 0) return { ok: true, sent: 0 };
+
+  const subs = await env.DB.prepare("SELECT json FROM push_subscriptions").all();
+  const subscriptions = (subs.results || []).map((r) => JSON.parse(r.json));
+
+  let sent = 0;
+  for (const task of toSend) {
+    for (const sub of subscriptions) {
+      try {
+        await sendWebPush(
+          sub,
+          { title: '🔔 リマインダー', body: task.title, tag: `task-${task.id}`, url: '/' },
+          env.VAPID_PUBLIC_KEY,
+          env.VAPID_PRIVATE_KEY,
+          env.VAPID_SUBJECT || 'mailto:gito.kagura@gmail.com'
+        );
+        sent++;
+      } catch (err) {
+        // A single failed subscription (e.g. expired) shouldn't stop the others.
+        console.error('push send failed', err.message);
+      }
+    }
+    await env.DB.prepare(
+      `INSERT INTO task_reminders (id, date, time, title, completed, notified) VALUES (?, ?, ?, ?, 0, 1)
+       ON CONFLICT(id) DO UPDATE SET notified = 1`
+    ).bind(task.id, task.date, task.reminderTime, task.title || '').run();
+  }
+
+  return { ok: true, sent, reminders: toSend.length };
+}

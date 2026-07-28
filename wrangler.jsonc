@@ -14,7 +14,13 @@
       "database_id": "a9a43626-6c80-44dd-9446-a240bf3a5a02"
     }
   ],
+  "triggers": {
+    "crons": ["*/1 * * * *"]
+  },
   "vars": {
-    "API_TOKEN": "Le9PsVoMj-aiupu8QeMZU0I9i7V9EVtw"
+    "API_TOKEN": "Le9PsVoMj-aiupu8QeMZU0I9i7V9EVtw",
+    "VAPID_PUBLIC_KEY": "BDaMyYPE7uoaqN9DbMoyP36TkDy5PMlBi6eM8gxNCn4DMc-yZv8I9VHfnGo9S4mJL5aP18SNF3cwMnpkCWOT_4Y",
+    "VAPID_PRIVATE_KEY": "UexrCrwZNAvteON8nv48Lar2JPa4srW1mT6z-8Ux00g",
+    "VAPID_SUBJECT": "mailto:gito.kagura@gmail.com"
   }
 }
