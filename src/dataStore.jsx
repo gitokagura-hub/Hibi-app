@@ -174,15 +174,16 @@ export function DataProvider({ children }) {
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [data]);
 
-  function addTask(date, title) {
-    const task = { id: uid(), date, title, completed: false, createdAt: Date.now() };
+  function addTask(date, title, reminderTime) {
+    const task = { id: uid(), date, title, completed: false, reminderTime: reminderTime || '', createdAt: Date.now() };
     setData(prev => ({ ...prev, tasks: [...prev.tasks, task] }));
+    return task;
   }
   function toggleTask(id) {
     setData(prev => ({ ...prev, tasks: prev.tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t) }));
   }
-  function updateTask(id, title) {
-    setData(prev => ({ ...prev, tasks: prev.tasks.map(t => t.id === id ? { ...t, title } : t) }));
+  function updateTask(id, title, reminderTime) {
+    setData(prev => ({ ...prev, tasks: prev.tasks.map(t => t.id === id ? { ...t, title, reminderTime: reminderTime !== undefined ? reminderTime : t.reminderTime } : t) }));
   }
   function deleteTask(id) {
     setData(prev => ({ ...prev, tasks: prev.tasks.filter(t => t.id !== id) }));

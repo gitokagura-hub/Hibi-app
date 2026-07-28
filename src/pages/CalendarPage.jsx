@@ -34,8 +34,10 @@ export default function CalendarPage({ setTab }) {
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [taskInput, setTaskInput] = useState("");
+  const [taskReminderTime, setTaskReminderTime] = useState("");
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskText, setEditingTaskText] = useState("");
+  const [editingTaskReminderTime, setEditingTaskReminderTime] = useState("");
   const [editingEventId, setEditingEventId] = useState(null);
   const [editingEventText, setEditingEventText] = useState("");
   const [editingEventTime, setEditingEventTime] = useState("");
@@ -83,7 +85,7 @@ export default function CalendarPage({ setTab }) {
   function handleAddTask(e) {
     if (e.key === "Enter" && taskInput.trim()) {
       if (isTeam) addTeamTaskAction(selectedDate, taskInput.trim());
-      else addTask(selectedDate, taskInput.trim());
+      else { addTask(selectedDate, taskInput.trim(), taskReminderTime); setTaskReminderTime(""); }
       setTaskInput("");
     }
   }
@@ -99,6 +101,7 @@ export default function CalendarPage({ setTab }) {
   function startEditTask(t) {
     setEditingTaskId(t.id);
     setEditingTaskText(t.title || t.text || "");
+    setEditingTaskReminderTime(t.reminderTime || "");
   }
 
   function saveEditTask() {
@@ -106,15 +109,17 @@ export default function CalendarPage({ setTab }) {
     const task = dayTasks.find((t) => t.id === editingTaskId);
     if (text && task) {
       if (isTeam) updateTeamTaskAction(task, text);
-      else updateTask(editingTaskId, text);
+      else updateTask(editingTaskId, text, editingTaskReminderTime);
     }
     setEditingTaskId(null);
     setEditingTaskText("");
+    setEditingTaskReminderTime("");
   }
 
   function cancelEditTask() {
     setEditingTaskId(null);
     setEditingTaskText("");
+    setEditingTaskReminderTime("");
   }
 
   function startEditEvent(e) {
@@ -357,7 +362,13 @@ export default function CalendarPage({ setTab }) {
                   {t.completed ? "☑" : "☐"}
                 </button>
                 {editingTaskId === t.id ? (
-                  <>
+                  <div className="flex-1 flex items-center gap-2">
+                    <input
+                      type="time"
+                      value={editingTaskReminderTime}
+                      onChange={(e) => setEditingTaskReminderTime(e.target.value)}
+                      className="rounded-lg border p-1.5 text-xs w-24 flex-shrink-0"
+                    />
                     <input
                       autoFocus
                       value={editingTaskText}
@@ -366,12 +377,13 @@ export default function CalendarPage({ setTab }) {
                       className="flex-1 outline-none border-b border-gray-300"
                     />
                     <button onClick={saveEditTask} className="flex-shrink-0 text-xs font-semibold bg-black text-white rounded-lg px-2.5 py-1">保存</button>
-                  </>
+                  </div>
                 ) : (
                   <button
                     onClick={() => startEditTask(t)}
                     className={`flex-1 text-left ${t.completed ? "text-gray-400 line-through" : ""}`}
                   >
+                    {t.reminderTime && <span className="text-xs text-gray-400 mr-1.5">🔔{t.reminderTime}</span>}
                     {t.title || t.text}
                     {isTeam && <span className="block text-[10px] text-blue-500">● {t.author || "名無し"}</span>}
                   </button>
@@ -387,7 +399,21 @@ export default function CalendarPage({ setTab }) {
             placeholder="Add Task..."
             className="w-full h-40 rounded-2xl border p-4 mb-3"
           />
-          <button onClick={() => { if (taskInput.trim()) { if (isTeam) addTeamTaskAction(selectedDate, taskInput.trim()); else addTask(selectedDate, taskInput.trim()); setTaskInput(""); } }} disabled={!taskInput.trim()} className="w-full rounded-2xl bg-black text-white p-3.5 font-semibold mb-10 disabled:opacity-30">
+          {!isTeam && (
+            <label className="flex items-center gap-2 text-sm text-gray-600 mb-3">
+              🔔 リマインダー時刻（任意）
+              <input
+                type="time"
+                value={taskReminderTime}
+                onChange={(e) => setTaskReminderTime(e.target.value)}
+                className="rounded-xl border p-2 text-sm"
+              />
+              {taskReminderTime && (
+                <button onClick={() => setTaskReminderTime("")} className="text-xs text-gray-400">クリア</button>
+              )}
+            </label>
+          )}
+          <button onClick={() => { if (taskInput.trim()) { if (isTeam) addTeamTaskAction(selectedDate, taskInput.trim()); else { addTask(selectedDate, taskInput.trim(), taskReminderTime); setTaskReminderTime(""); } setTaskInput(""); } }} disabled={!taskInput.trim()} className="w-full rounded-2xl bg-black text-white p-3.5 font-semibold mb-10 disabled:opacity-30">
             タスクを追加
           </button>
 
