@@ -1,0 +1,76 @@
+// Web Push subscription helpers for task reminder notifications.
+// The VAPID public key must match the private key configured on the Worker.
+
+export const VAPID_PUBLIC_KEY = 'BDaMyYPE7uoaqN9DbMoyP36TkDy5PMlBi6eM8gxNCn4DMc-yZv8I9VHfnGo9S4mJL5aP18SNF3cwMnpkCWOT_4Y';
+const API_TOKEN = 'Le9PsVoMj-aiupu8QeMZU0I9i7V9EVtw';
+
+const SUBSCRIBED_FLAG = 'hibi-push-subscribed';
+
+export function isPushSupported() {
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+
+export function wasPushSubscribedBefore() {
+  return localStorage.getItem(SUBSCRIBED_FLAG) === '1';
+}
+
+export function notificationPermission() {
+  if (!('Notification' in window)) return 'unsupported';
+  return Notification.permission; // 'default' | 'granted' | 'denied'
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+// Requests notification permission, subscribes to Push, and sends the
+// subscription to the Worker so it can send reminders later. Must be
+// called from a direct user gesture (button click) — permission prompts
+// are blocked otherwise on iOS Safari.
+export async function subscribeToPush() {
+  if (!isPushSupported()) throw new Error('PUSH_NOT_SUPPORTED');
+
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') throw new Error('PERMISSION_DENIED');
+
+  const registration = await navigator.serviceWorker.ready;
+  let subscription = await registration.pushManager.getSubscription();
+  if (!subscription) {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+  }
+
+  const res = await fetch('/api/push/subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_TOKEN}` },
+    body: JSON.stringify({ subscription: subscription.toJSON() }),
+  });
+  if (!res.ok) throw new Error('SUBSCRIBE_SAVE_FAILED');
+
+  localStorage.setItem(SUBSCRIBED_FLAG, '1');
+  return subscription;
+}
+
+export async function unsubscribeFromPush() {
+  if (!isPushSupported()) return;
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.getSubscription();
+  if (subscription) {
+    try {
+      await fetch('/api/push/unsubscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_TOKEN}` },
+        body: JSON.stringify({ endpoint: subscription.endpoint }),
+      });
+    } catch {}
+    await subscription.unsubscribe();
+  }
+  localStorage.removeItem(SUBSCRIBED_FLAG);
+}

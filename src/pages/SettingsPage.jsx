@@ -4,6 +4,7 @@ import { useData } from "../dataStore";
 import { isDriveConfigured, isDriveConnected, wasDriveConnectedBefore, connectDrive, disconnectDrive, ensureDriveConnection, backupDataToDrive, restoreDataFromDrive } from "../googleDrive";
 import { isTeamConfigured, isTeamConnected, connectTeam, disconnectTeam, getAuthorName, setAuthorName } from "../googleSheets";
 import { useConfirm } from "../components/ConfirmModal";
+import { isPushSupported, wasPushSubscribedBefore, notificationPermission, subscribeToPush, unsubscribeFromPush } from "../pushNotifications";
 
 function GroupHeader({ children }) {
   return (
@@ -20,6 +21,10 @@ export default function SettingsPage({ setTab }) {
   const [backupBusy, setBackupBusy] = useState(false);
   const [backupMessage, setBackupMessage] = useState("");
   const driveReady = isDriveConfigured();
+
+  const [pushSubscribed, setPushSubscribed] = useState(wasPushSubscribedBefore() && notificationPermission() === "granted");
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState("");
 
   const [teamConnected, setTeamConnected] = useState(isTeamConnected());
   const [teamBusy, setTeamBusy] = useState(false);
@@ -38,6 +43,30 @@ export default function SettingsPage({ setTab }) {
         .catch(() => setDriveConnected(false));
     }
   }, []);
+
+  async function handlePushToggle() {
+    setPushError("");
+    if (pushSubscribed) {
+      await unsubscribeFromPush();
+      setPushSubscribed(false);
+      return;
+    }
+    setPushBusy(true);
+    try {
+      await subscribeToPush();
+      setPushSubscribed(true);
+    } catch (err) {
+      if (err.message === "PUSH_NOT_SUPPORTED") {
+        setPushError("この端末・ブラウザは通知に対応していません。ホーム画面に追加したアプリから開いてください。");
+      } else if (err.message === "PERMISSION_DENIED") {
+        setPushError("通知が許可されませんでした。iPhoneの設定アプリから通知を許可してください。");
+      } else {
+        setPushError("通知の設定に失敗しました（" + (err?.message || "不明なエラー") + "）");
+      }
+    } finally {
+      setPushBusy(false);
+    }
+  }
 
   async function handleDriveToggle() {
     setDriveError("");
@@ -197,6 +226,30 @@ export default function SettingsPage({ setTab }) {
               <p className="text-xs text-gray-400 mt-1.5">Teamスペースに書いたノートやタスクに、この名前が表示されます。</p>
             </div>
           </div>
+        </div>
+
+        {/* Group 1.4: Task Reminder Notifications */}
+        <div className="mb-7">
+          <GroupHeader>タスクのリマインダー通知</GroupHeader>
+          <div className="rounded-2xl border border-gray-200 overflow-hidden">
+            <div className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">🔔 通知を受け取る</p>
+                <p className="text-xs text-gray-400 mt-0.5">Calendarで時刻を設定したタスクの時間になったら通知します</p>
+              </div>
+              <button
+                onClick={handlePushToggle}
+                disabled={pushBusy}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold flex-shrink-0 ${pushSubscribed ? "bg-gray-100 text-gray-600" : "bg-black text-white"}`}
+              >
+                {pushBusy ? "設定中…" : pushSubscribed ? "オフにする" : "オンにする"}
+              </button>
+            </div>
+            {pushError && <p className="px-4 pb-4 text-xs text-red-500">{pushError}</p>}
+          </div>
+          <p className="text-xs text-gray-400 mt-2 px-2">
+            初回はホーム画面に追加したアプリから開いて設定してください。ブラウザから直接開いた場合、iPhoneでは通知が届かないことがあります。
+          </p>
         </div>
 
         {/* Group 1.5: Backup & Restore */}
