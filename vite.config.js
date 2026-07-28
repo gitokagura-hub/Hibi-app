@@ -11,7 +11,7 @@ export default defineConfig({
       filename: 'sw.js',
       injectRegister: false,
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+        globPatterns: ['**/*.{js,css,html,svg,ico}'],
       },
       manifest: {
         name: 'Dayliy Brains',
