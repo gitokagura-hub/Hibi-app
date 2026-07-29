@@ -115,8 +115,12 @@ export default {
     }
 
     // ---- Manually trigger a reminder check (also called by the Cron Trigger below) ----
-    if (url.pathname === "/api/reminders/check" && request.method === "POST") {
-      const result = await checkAndSendReminders(env);
+    // GET is allowed (in addition to POST) so this can be opened directly in a
+    // browser with ?token=... for quick manual debugging. Add &debug=1 to
+    // bypass the time-window filter and see exactly what would be sent.
+    if (url.pathname === "/api/reminders/check" && (request.method === "POST" || request.method === "GET")) {
+      const debug = url.searchParams.get("debug") === "1";
+      const result = await checkAndSendReminders(env, debug);
       return json(result);
     }
 
@@ -209,7 +213,7 @@ export default {
 // app already syncs on every change via cloudSync.js) whose reminderTime has
 // just passed, sends a push to every subscribed device, and marks them
 // notified in a small separate table so they don't fire twice.
-async function checkAndSendReminders(env) {
+async function checkAndSendReminders(env, debug = false) {
   await ensureSchema(env.DB);
 
   const row = await env.DB.prepare("SELECT json FROM app_data WHERE app = 'brains'").first();
@@ -222,24 +226,59 @@ async function checkAndSendReminders(env) {
     return { ok: true, sent: 0, reason: 'unparseable brains data' };
   }
   const tasks = Array.isArray(brainsData.tasks) ? brainsData.tasks : [];
+  const tasksWithReminder = tasks.filter((t) => t.reminderTime);
 
   const now = new Date();
   const pad = (n) => String(n).padStart(2, '0');
   const nowDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const nowTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
+  const subs = await env.DB.prepare("SELECT json FROM push_subscriptions").all();
+  const subscriptions = (subs.results || []).map((r) => JSON.parse(r.json));
+
   const due = tasks.filter((t) => t.reminderTime && t.date === nowDate && t.reminderTime <= nowTime && !t.completed);
-  if (due.length === 0) return { ok: true, sent: 0 };
+
+  if (debug) {
+    // Bypass the time/notified filters entirely and try sending to whatever
+    // has a reminderTime today, reporting exactly what happens per subscription.
+    const attempts = [];
+    for (const task of tasksWithReminder) {
+      for (const sub of subscriptions) {
+        try {
+          const res = await sendWebPush(
+            sub,
+            { title: '🔔 リマインダー（テスト）', body: task.title, tag: `debug-${task.id}`, url: '/' },
+            env.VAPID_PUBLIC_KEY,
+            env.VAPID_PRIVATE_KEY,
+            env.VAPID_SUBJECT || 'mailto:gito.kagura@gmail.com'
+          );
+          attempts.push({ task: task.title, status: res.status, statusText: res.statusText, body: await res.text().catch(() => '') });
+        } catch (err) {
+          attempts.push({ task: task.title, error: err.message, stack: err.stack });
+        }
+      }
+    }
+    return {
+      ok: true,
+      debug: true,
+      nowDate,
+      nowTime,
+      tasksWithReminder: tasksWithReminder.map((t) => ({ id: t.id, date: t.date, time: t.reminderTime, title: t.title, completed: t.completed })),
+      subscriptionCount: subscriptions.length,
+      dueCount: due.length,
+      attempts,
+    };
+  }
+
+  if (due.length === 0) return { ok: true, sent: 0, nowDate, nowTime, tasksWithReminder: tasksWithReminder.length, subscriptionCount: subscriptions.length };
 
   const alreadyNotified = await env.DB.prepare("SELECT id FROM task_reminders WHERE notified = 1").all();
   const notifiedIds = new Set((alreadyNotified.results || []).map((r) => r.id));
   const toSend = due.filter((t) => !notifiedIds.has(t.id));
-  if (toSend.length === 0) return { ok: true, sent: 0 };
-
-  const subs = await env.DB.prepare("SELECT json FROM push_subscriptions").all();
-  const subscriptions = (subs.results || []).map((r) => JSON.parse(r.json));
+  if (toSend.length === 0) return { ok: true, sent: 0, reason: 'already notified', dueCount: due.length };
 
   let sent = 0;
+  const errors = [];
   for (const task of toSend) {
     for (const sub of subscriptions) {
       try {
@@ -253,6 +292,7 @@ async function checkAndSendReminders(env) {
         sent++;
       } catch (err) {
         // A single failed subscription (e.g. expired) shouldn't stop the others.
+        errors.push(err.message);
         console.error('push send failed', err.message);
       }
     }
@@ -262,5 +302,5 @@ async function checkAndSendReminders(env) {
     ).bind(task.id, task.date, task.reminderTime, task.title || '').run();
   }
 
-  return { ok: true, sent, reminders: toSend.length };
+  return { ok: true, sent, reminders: toSend.length, errors };
 }
