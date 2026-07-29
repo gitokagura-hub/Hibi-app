@@ -20,26 +20,27 @@ function base64UrlDecode(str) {
   return bytes;
 }
 
-async function importVapidPrivateKey(privateKeyB64Url) {
-  const raw = base64UrlDecode(privateKeyB64Url);
-  // Raw VAPID private keys are the 32-byte P-256 scalar (d). Build a PKCS8
-  // wrapper around it so it can be imported as an ECDSA signing key.
-  const pkcs8Prefix = new Uint8Array([
-    0x30, 0x81, 0x87, 0x02, 0x01, 0x00, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
-    0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x04, 0x6d, 0x30, 0x6b, 0x02,
-    0x01, 0x01, 0x04, 0x20,
-  ]);
-  const suffix = new Uint8Array([0xa1, 0x44, 0x03, 0x42, 0x00]);
-  const pkcs8 = new Uint8Array(pkcs8Prefix.length + raw.length + suffix.length);
-  pkcs8.set(pkcs8Prefix, 0);
-  pkcs8.set(raw, pkcs8Prefix.length);
-  // The public key point isn't strictly required for signing, but WebCrypto's
-  // PKCS8 parser for EC keys expects a well-formed structure; omit gracefully
-  // isn't reliable across runtimes, so this minimal prefix/suffix works for
-  // V8 (Workers) which only needs the private scalar to sign.
+// Imports the VAPID private key for signing. Rather than hand-building a
+// PKCS8 DER structure (error-prone — the previous attempt omitted the
+// public key point, which the WebCrypto PKCS8 parser requires and rejected
+// with "Invalid PKCS8 input"), build a JWK instead. JWK just needs the raw
+// coordinates, which Web Crypto is happy to import directly and correctly.
+async function importVapidPrivateKey(privateKeyB64Url, publicKeyB64Url) {
+  const publicKeyBytes = base64UrlDecode(publicKeyB64Url);
+  // An uncompressed P-256 public key point is 0x04 || x(32 bytes) || y(32 bytes).
+  const x = publicKeyBytes.slice(1, 33);
+  const y = publicKeyBytes.slice(33, 65);
+  const jwk = {
+    kty: 'EC',
+    crv: 'P-256',
+    d: privateKeyB64Url,
+    x: base64UrlEncode(x),
+    y: base64UrlEncode(y),
+    ext: true,
+  };
   return crypto.subtle.importKey(
-    'pkcs8',
-    pkcs8.buffer,
+    'jwk',
+    jwk,
     { name: 'ECDSA', namedCurve: 'P-256' },
     false,
     ['sign']
@@ -58,7 +59,7 @@ async function buildVapidJwt(audience, subject, publicKeyB64Url, privateKeyB64Ur
   const payloadB64 = base64UrlEncode(encoder.encode(JSON.stringify(payload)));
   const unsigned = `${headerB64}.${payloadB64}`;
 
-  const key = await importVapidPrivateKey(privateKeyB64Url);
+  const key = await importVapidPrivateKey(privateKeyB64Url, publicKeyB64Url);
   const signature = await crypto.subtle.sign(
     { name: 'ECDSA', hash: 'SHA-256' },
     key,
