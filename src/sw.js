@@ -2,10 +2,24 @@
 // strategy). Handles Web Push notifications for task reminders, in addition
 // to the standard Workbox precaching that `injectManifest` wires up below.
 
-import { precacheAndRoute } from 'workbox-precaching';
+import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
+import { NavigationRoute, registerRoute } from 'workbox-routing';
 
 // Injected by vite-plugin-pwa at build time with the list of files to precache.
 precacheAndRoute(self.__WB_MANIFEST);
+
+// By default, Workbox's precaching sets up an implicit navigation fallback
+// to index.html for any page-navigation request that isn't in the precache
+// list — this is what makes a PWA work offline/SPA-style. But it also meant
+// that opening /api/reminders/check directly in the browser (a navigation)
+// was being redirected to index.html instead of hitting the Worker's API
+// route. Explicitly deny the fallback for /api/ paths so those requests go
+// straight to the network (and therefore to the Worker).
+registerRoute(
+  new NavigationRoute(createHandlerBoundToURL('/index.html'), {
+    denylist: [/^\/api\//],
+  })
+);
 
 self.addEventListener('install', () => {
   self.skipWaiting();
