@@ -114,6 +114,18 @@ export default {
       return json({ ok: true });
     }
 
+    // ---- View the log of the last automatic Cron Trigger runs ----
+    if (url.pathname === "/api/reminders/log" && request.method === "GET") {
+      await env.DB.prepare(
+        `CREATE TABLE IF NOT EXISTS cron_log (id INTEGER PRIMARY KEY AUTOINCREMENT, ran_at INTEGER NOT NULL, result TEXT NOT NULL)`
+      ).run();
+      const rows = await env.DB.prepare("SELECT ran_at, result FROM cron_log ORDER BY ran_at DESC LIMIT 20").all();
+      return json({
+        ok: true,
+        entries: (rows.results || []).map((r) => ({ ranAt: new Date(r.ran_at).toISOString(), result: JSON.parse(r.result) })),
+      });
+    }
+
     // ---- Manually trigger a reminder check (also called by the Cron Trigger below) ----
     // GET is allowed (in addition to POST) so this can be opened directly in a
     // browser with ?token=... for quick manual debugging. Add &debug=1 to
@@ -205,9 +217,32 @@ export default {
 
   // Cloudflare Cron Trigger entry point — configured in wrangler.jsonc to run every minute.
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(checkAndSendReminders(env));
+    ctx.waitUntil(runScheduledCheck(env));
   },
 };
+
+// Wraps checkAndSendReminders with logging to D1, since a Cron Trigger's
+// return value isn't otherwise visible anywhere — this is the only way to
+// see what actually happened on each automatic run (as opposed to a manual
+// debug request, which we can already see the response of).
+async function runScheduledCheck(env) {
+  await ensureSchema(env.DB);
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS cron_log (id INTEGER PRIMARY KEY AUTOINCREMENT, ran_at INTEGER NOT NULL, result TEXT NOT NULL)`
+  ).run();
+  let result;
+  try {
+    result = await checkAndSendReminders(env);
+  } catch (err) {
+    result = { ok: false, error: err.message, stack: err.stack };
+  }
+  await env.DB.prepare(`INSERT INTO cron_log (ran_at, result) VALUES (?, ?)`).bind(Date.now(), JSON.stringify(result)).run();
+  // Keep only the most recent 50 log rows.
+  await env.DB.prepare(
+    `DELETE FROM cron_log WHERE id NOT IN (SELECT id FROM cron_log ORDER BY ran_at DESC LIMIT 50)`
+  ).run();
+  return result;
+}
 
 // Finds Personal tasks (from the existing 'brains' app_data blob, which the
 // app already syncs on every change via cloudSync.js) whose reminderTime has
