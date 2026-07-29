@@ -242,6 +242,7 @@ export function DataProvider({ children }) {
   function addNote(text, source, images, files) {
     const note = { id: uid(), text, source: source || 'text', images: images || [], files: files || [], createdAt: Date.now() };
     setData(prev => ({ ...prev, notes: [...prev.notes, note] }));
+    return note;
   }
   function deleteNote(id) {
     setData(prev => ({ ...prev, notes: prev.notes.filter(n => n.id !== id) }));

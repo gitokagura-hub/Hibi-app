@@ -388,13 +388,14 @@ export default function NotesPage({ setTab }) {
       resetComposer();
       setEditingNoteId(null);
       setComposerOpen(false);
-      localStorage.removeItem("hibi-last-note-id");
+      localStorage.setItem("hibi-last-note-id", editingNoteId);
       return;
     }
     if (!text.trim() && pendingImages.length === 0 && pendingFiles.length === 0) return;
-    addNote(text.trim(), "text", pendingImages, pendingFiles);
+    const newNote = addNote(text.trim(), "text", pendingImages, pendingFiles);
     resetComposer();
     setComposerOpen(false);
+    if (newNote) localStorage.setItem("hibi-last-note-id", newNote.id);
   }
 
   function handleOpenNote(n) {
