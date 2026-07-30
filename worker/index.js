@@ -263,10 +263,14 @@ async function checkAndSendReminders(env, debug = false) {
   const tasks = Array.isArray(brainsData.tasks) ? brainsData.tasks : [];
   const tasksWithReminder = tasks.filter((t) => t.reminderTime);
 
-  const now = new Date();
+  // Cloudflare Workers run in UTC — the app's dates/times (and what the
+  // person types into the reminder time field) are always JST, so convert
+  // explicitly here rather than using the server's local getHours()/etc.
+  const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+  const now = new Date(Date.now() + JST_OFFSET_MS);
   const pad = (n) => String(n).padStart(2, '0');
-  const nowDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  const nowTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const nowDate = `${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())}`;
+  const nowTime = `${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}`;
 
   const subs = await env.DB.prepare("SELECT json FROM push_subscriptions").all();
   const subscriptions = (subs.results || []).map((r) => JSON.parse(r.json));
