@@ -1,35 +1,26 @@
-import { useMemo, useState, useEffect } from "react";
-import { ChevronLeft, Image as ImageIcon } from "lucide-react";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { ChevronLeft, Image as ImageIcon, Tag } from "lucide-react";
 import { useData } from "../dataStore";
 import { useSwipeBack } from "../useSwipeBack";
 
-// Library-only tagging: kept entirely separate from Notes/Calendar/Projects
-// data so tagging can never affect those screens. Keyed by the image's src
-// (the data URL itself acts as a stable identifier for a given photo).
+// Library-only tagging & captions: kept entirely separate from
+// Notes/Calendar/Projects data so this can never affect those screens.
+// Keyed by the image's src (the data URL itself acts as a stable
+// identifier for a given photo).
 const TAGS_KEY = "hibi-library-tags"; // { [src]: string[] }
 const CATEGORIES_KEY = "hibi-library-categories"; // string[]
+const COMMENTS_KEY = "hibi-library-comments"; // { [src]: string }
 
-function loadTagMap() {
+function loadJSON(key, fallback) {
   try {
-    const raw = localStorage.getItem(TAGS_KEY);
-    return raw ? JSON.parse(raw) : {};
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
   } catch {
-    return {};
+    return fallback;
   }
 }
-function saveTagMap(map) {
-  try { localStorage.setItem(TAGS_KEY, JSON.stringify(map)); } catch {}
-}
-function loadCategories() {
-  try {
-    const raw = localStorage.getItem(CATEGORIES_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-function saveCategories(list) {
-  try { localStorage.setItem(CATEGORIES_KEY, JSON.stringify(list)); } catch {}
+function saveJSON(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
 }
 
 // Bottom sheet for picking (multiple) categories for one photo, and for
@@ -94,16 +85,79 @@ function TagPickerSheet({ selected, available, onAddCategory, onClose, onSave })
   );
 }
 
+// Fullscreen photo viewer for one section's photo list. Swipe left/right
+// (or use the arrow buttons) to move through the same list the photo was
+// opened from. Includes a one-line comment field for the current photo.
+function PhotoViewer({ list, startIndex, comments, onSaveComment, onClose }) {
+  const [index, setIndex] = useState(startIndex);
+  const [draft, setDraft] = useState(comments[list[startIndex]?.src] || "");
+  const touchStartX = useRef(null);
+  const current = list[index];
+
+  useEffect(() => {
+    setDraft(comments[current?.src] || "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
+
+  function commitDraft() {
+    if (current && draft !== (comments[current.src] || "")) onSaveComment(current.src, draft);
+  }
+  function goTo(newIndex) {
+    commitDraft();
+    if (newIndex >= 0 && newIndex < list.length) setIndex(newIndex);
+  }
+  function handleTouchStart(e) {
+    touchStartX.current = e.touches[0].clientX;
+  }
+  function handleTouchEnd(e) {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(dx) < 40) return;
+    if (dx < 0) goTo(index + 1); // swiped left -> next
+    else goTo(index - 1); // swiped right -> previous
+  }
+
+  if (!current) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[90] bg-black/95 flex flex-col items-center justify-center p-8"
+      onClick={(e) => e.stopPropagation()}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      <img src={current.src} alt="" className="max-w-full max-h-[70vh] object-contain rounded-2xl" />
+      <input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commitDraft}
+        placeholder="コメントを追加..."
+        className="mt-4 w-full max-w-sm rounded-xl bg-white/10 text-white placeholder-white/40 border border-white/20 px-4 py-2.5 text-sm text-center"
+      />
+      {list.length > 1 && (
+        <p className="mt-3 text-white/50 text-xs">{index + 1} / {list.length}</p>
+      )}
+      <button
+        onClick={(e) => { e.stopPropagation(); commitDraft(); onClose(); }}
+        className="absolute top-14 right-5 w-9 h-9 rounded-full bg-white/20 text-white text-lg flex items-center justify-center"
+      >×</button>
+    </div>
+  );
+}
+
 export default function LibraryPage({ onHome }) {
   useSwipeBack(onHome);
   const { data } = useData();
-  const [viewerSrc, setViewerSrc] = useState(null);
-  const [tagMap, setTagMap] = useState(() => loadTagMap());
-  const [categories, setCategories] = useState(() => loadCategories());
+  const [viewer, setViewer] = useState(null); // { list, startIndex }
+  const [tagMap, setTagMap] = useState(() => loadJSON(TAGS_KEY, {}));
+  const [categories, setCategories] = useState(() => loadJSON(CATEGORIES_KEY, []));
+  const [comments, setComments] = useState(() => loadJSON(COMMENTS_KEY, {}));
   const [taggingSrc, setTaggingSrc] = useState(null);
 
-  useEffect(() => { saveTagMap(tagMap); }, [tagMap]);
-  useEffect(() => { saveCategories(categories); }, [categories]);
+  useEffect(() => { saveJSON(TAGS_KEY, tagMap); }, [tagMap]);
+  useEffect(() => { saveJSON(CATEGORIES_KEY, categories); }, [categories]);
+  useEffect(() => { saveJSON(COMMENTS_KEY, comments); }, [comments]);
 
   function addCategory(name) {
     setCategories((prev) => (prev.includes(name) ? prev : [...prev, name]));
@@ -111,6 +165,9 @@ export default function LibraryPage({ onHome }) {
   function saveTagsFor(src, tags) {
     setTagMap((prev) => ({ ...prev, [src]: tags }));
     setTaggingSrc(null);
+  }
+  function saveCommentFor(src, text) {
+    setComments((prev) => ({ ...prev, [src]: text }));
   }
 
   // Daily Brains内の3つの保存場所（Notes / Calendar memos / Projects）を横断して画像を集約
@@ -149,7 +206,7 @@ export default function LibraryPage({ onHome }) {
         {list.map((img, i) => (
           <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
             <button
-              onClick={() => setViewerSrc(img.src)}
+              onClick={() => setViewer({ list, startIndex: i })}
               className="w-full h-full block"
               title={img.source}
             >
@@ -157,8 +214,11 @@ export default function LibraryPage({ onHome }) {
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); setTaggingSrc(img.src); }}
-              className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center"
-            >🏷️</button>
+              className="absolute bottom-1.5 right-1.5 w-8 h-8 rounded-full bg-white/40 backdrop-blur-sm border border-white/60 flex items-center justify-center"
+              aria-label="タグを編集"
+            >
+              <Tag size={15} className="text-white drop-shadow" />
+            </button>
           </div>
         ))}
       </div>
@@ -210,14 +270,14 @@ export default function LibraryPage({ onHome }) {
         )}
       </main>
 
-      {viewerSrc && (
-        <div className="fixed inset-0 z-[90] bg-black/95 flex items-center justify-center p-8" onClick={(e) => e.stopPropagation()}>
-          <img src={viewerSrc} alt="" className="max-w-full max-h-full object-contain rounded-2xl" />
-          <button
-            onClick={(e) => { e.stopPropagation(); setViewerSrc(null); }}
-            className="absolute top-14 right-5 w-9 h-9 rounded-full bg-white/20 text-white text-lg flex items-center justify-center"
-          >×</button>
-        </div>
+      {viewer && (
+        <PhotoViewer
+          list={viewer.list}
+          startIndex={viewer.startIndex}
+          comments={comments}
+          onSaveComment={saveCommentFor}
+          onClose={() => setViewer(null)}
+        />
       )}
 
       {taggingSrc && (
