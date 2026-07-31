@@ -381,7 +381,7 @@ export default function ReaderPage({ onHome }) {
 
   // --- ChatGPTまとめの貼り付け→AI分類→一括登録 ---
   const aiProvider = data?.settings?.claudeKey ? "claude" : data?.settings?.geminiKey ? "gemini" : null;
-  const aiApiKey = aiProvider === "claude" ? data.settings.claudeKey : aiProvider === "gemini" ? data.settings.geminiKey : "";
+  const aiApiKey = aiProvider === "claude" ? data?.settings?.claudeKey : aiProvider === "gemini" ? data?.settings?.geminiKey : "";
 
   async function handleClassifyPaste() {
     if (!pasteText.trim()) return;
