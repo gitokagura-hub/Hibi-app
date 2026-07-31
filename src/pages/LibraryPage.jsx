@@ -174,19 +174,19 @@ export default function LibraryPage({ onHome }) {
   const images = useMemo(() => {
     const items = [];
 
-    (data.notes || []).forEach((n) =>
+    (data?.notes || []).forEach((n) =>
       (n.images || []).forEach((src) =>
         items.push({ src, source: "Notes", createdAt: n.createdAt })
       )
     );
 
-    Object.entries(data.memos || {}).forEach(([date, memo]) =>
+    Object.entries(data?.memos || {}).forEach(([date, memo]) =>
       (memo.images || []).forEach((src) =>
         items.push({ src, source: `Calendar / ${date}`, createdAt: new Date(date).getTime() })
       )
     );
 
-    (data.projects || []).forEach((p) =>
+    (data?.projects || []).forEach((p) =>
       (p.items || []).forEach((it) =>
         (it.images || []).forEach((src) =>
           items.push({ src, source: `Projects / ${p.name}`, createdAt: it.createdAt })
