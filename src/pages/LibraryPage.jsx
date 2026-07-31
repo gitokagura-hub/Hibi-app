@@ -100,7 +100,6 @@ export default function LibraryPage({ onHome }) {
   const [viewerSrc, setViewerSrc] = useState(null);
   const [tagMap, setTagMap] = useState(() => loadTagMap());
   const [categories, setCategories] = useState(() => loadCategories());
-  const [activeCategory, setActiveCategory] = useState(null); // null = すべて
   const [taggingSrc, setTaggingSrc] = useState(null);
 
   useEffect(() => { saveTagMap(tagMap); }, [tagMap]);
@@ -142,10 +141,29 @@ export default function LibraryPage({ onHome }) {
   }, [data]);
 
   const imagesWithTags = images.map((img) => ({ ...img, tags: tagMap[img.src] || [] }));
-  const filteredImages = activeCategory
-    ? imagesWithTags.filter((img) => img.tags.includes(activeCategory))
-    : imagesWithTags;
-  const untaggedCount = imagesWithTags.filter((img) => img.tags.length === 0).length;
+  const untagged = imagesWithTags.filter((img) => img.tags.length === 0);
+
+  function PhotoGrid({ list }) {
+    return (
+      <div className="grid grid-cols-4 gap-2">
+        {list.map((img, i) => (
+          <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
+            <button
+              onClick={() => setViewerSrc(img.src)}
+              className="w-full h-full block"
+              title={img.source}
+            >
+              <img src={img.src} alt={img.source} className="w-full h-full object-cover" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setTaggingSrc(img.src); }}
+              className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center"
+            >🏷️</button>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white relative">
@@ -160,62 +178,35 @@ export default function LibraryPage({ onHome }) {
       <header className="px-5 pt-14 pb-3">
         <h1 className="text-3xl font-semibold tracking-tight">Library</h1>
         <p className="mt-1 text-sm text-gray-500">
-          {filteredImages.length}件の画像（Daily Brains内 / Notes・Calendar・Projects横断）
+          {images.length}件の画像（Daily Brains内 / Notes・Calendar・Projects横断）
         </p>
       </header>
 
-      {categories.length > 0 && (
-        <div className="px-5 pb-3 flex gap-2 overflow-x-auto">
-          <button
-            onClick={() => setActiveCategory(null)}
-            className={`flex-shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold border ${!activeCategory ? "bg-black text-white border-black" : "bg-white text-gray-600 border-gray-200"}`}
-          >
-            すべて
-          </button>
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`flex-shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold border ${activeCategory === cat ? "bg-black text-white border-black" : "bg-white text-gray-600 border-gray-200"}`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      )}
-
       <main className="px-5 pb-24">
-        {filteredImages.length === 0 ? (
+        {images.length === 0 ? (
           <div className="mt-20 flex flex-col items-center text-center text-gray-400">
             <ImageIcon size={32} />
-            <p className="mt-3 text-sm">{activeCategory ? "このタグの画像はまだありません" : "まだ画像がありません"}</p>
+            <p className="mt-3 text-sm">まだ画像がありません</p>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-2">
-            {filteredImages.map((img, i) => (
-              <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
-                <button
-                  onClick={() => setViewerSrc(img.src)}
-                  className="w-full h-full block"
-                  title={img.source}
-                >
-                  <img src={img.src} alt={img.source} className="w-full h-full object-cover" />
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setTaggingSrc(img.src); }}
-                  className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center"
-                >🏷️</button>
-                {img.tags.length > 0 && (
-                  <span className="absolute bottom-1 left-1 max-w-[65%] truncate rounded-full bg-black/60 text-white text-[9px] px-1.5 py-0.5">
-                    {img.tags.join(" / ")}
-                  </span>
-                )}
+          <div className="space-y-6">
+            {categories.map((cat) => {
+              const list = imagesWithTags.filter((img) => img.tags.includes(cat));
+              if (list.length === 0) return null;
+              return (
+                <div key={cat}>
+                  <h2 className="text-lg font-semibold mb-2">{cat}</h2>
+                  <PhotoGrid list={list} />
+                </div>
+              );
+            })}
+            {untagged.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold mb-2 text-gray-400">未分類</h2>
+                <PhotoGrid list={untagged} />
               </div>
-            ))}
+            )}
           </div>
-        )}
-        {!activeCategory && untaggedCount > 0 && (
-          <p className="mt-4 text-xs text-gray-400 text-center">未分類の写真: {untaggedCount}件</p>
         )}
       </main>
 
