@@ -12,7 +12,17 @@ if ('serviceWorker' in navigator) {
   window.__swRegistrationError = null;
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(
-      (reg) => { window.__swRegistration = reg; },
+      (reg) => {
+        window.__swRegistration = reg;
+        // Poll for new deploys while the app is open / when it comes back to
+        // the foreground. The page never reloads itself here — the new SW's
+        // activate handler reloads clients exactly once, so no loop risk.
+        reg.update();
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') reg.update();
+        });
+        setInterval(() => reg.update(), 60 * 1000);
+      },
       (err) => { window.__swRegistrationError = err?.message || String(err); }
     );
   });

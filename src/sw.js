@@ -2,8 +2,16 @@
 // strategy). Handles Web Push notifications for task reminders, in addition
 // to the standard Workbox precaching that `injectManifest` wires up below.
 
-import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
+import { precacheAndRoute, createHandlerBoundToURL, cleanupOutdatedCaches } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
+
+// Bump this string to force every installed device to pick up a new service
+// worker on next app open (the byte change is what triggers the update).
+// 2026-08-05: recovery release — old SWs were serving a stale broken bundle
+// forever, causing a persistent white screen that code reverts couldn't fix.
+const SW_VERSION = '2026-08-05-recovery-1';
+
+cleanupOutdatedCaches();
 
 // Injected by vite-plugin-pwa at build time with the list of files to precache.
 precacheAndRoute(self.__WB_MANIFEST);
@@ -22,11 +30,26 @@ registerRoute(
 );
 
 self.addEventListener('install', () => {
+  console.log('[sw] installing', SW_VERSION);
   self.skipWaiting();
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    (async () => {
+      await self.clients.claim();
+      // Recovery: any page currently open (including a white-screened one
+      // whose JS never ran) gets force-reloaded so it's served the fresh
+      // precache from this new worker. activate runs exactly once per SW
+      // version, so this cannot loop.
+      const clients = await self.clients.matchAll({ type: 'window' });
+      await Promise.all(clients.map((c) => c.navigate(c.url).catch(() => {})));
+    })()
+  );
 });
 
 // Fired when a push message arrives from the server (task reminder time reached).
