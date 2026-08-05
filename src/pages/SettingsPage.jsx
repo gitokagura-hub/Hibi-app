@@ -398,6 +398,10 @@ export default function SettingsPage({ setTab }) {
             </UsageItem>
           </div>
         </div>
+
+        <p className="text-center text-[10px] text-gray-300 mt-6 pb-6">
+          Build: {typeof __BUILD_TIME__ !== "undefined" ? new Date(__BUILD_TIME__).toLocaleString("ja-JP") : "unknown"}
+        </p>
       </div>
     </Layout>
   );
