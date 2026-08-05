@@ -72,7 +72,19 @@ export default {
     }
 
     if (!url.pathname.startsWith("/api/")) {
-      return env.ASSETS.fetch(request);
+      const assetResponse = await env.ASSETS.fetch(request);
+      // sw.js and index.html must never be cached by the browser/CDN — if
+      // they are, the browser has no way to notice a new deploy exists, so
+      // it keeps running whatever service worker (and bundle) it already
+      // has forever, even after every subsequent deploy succeeds. This is
+      // what caused deploys to stop reaching phones despite Cloudflare
+      // reporting each build as successful.
+      if (url.pathname === "/sw.js" || url.pathname === "/" || url.pathname === "/index.html") {
+        const headers = new Headers(assetResponse.headers);
+        headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+        return new Response(assetResponse.body, { status: assetResponse.status, headers });
+      }
+      return assetResponse;
     }
 
     const auth = request.headers.get("Authorization") || "";
