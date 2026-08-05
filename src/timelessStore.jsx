@@ -95,7 +95,7 @@ export function TimelessProvider({ children }) {
 
   useEffect(() => {
     let cancelled = false;
-    reconcileOnStartup("timeless", data).then((result) => {
+    reconcileOnStartup("timeless", data, (d) => !d || !Array.isArray(d.articles) || d.articles.length === 0).then((result) => {
       if (!cancelled && JSON.stringify(result) !== JSON.stringify(data)) {
         setData(result);
       }

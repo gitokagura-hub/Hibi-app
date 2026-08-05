@@ -154,7 +154,13 @@ export function DataProvider({ children }) {
   // ---- クラウド同期（Phase 0: D1経由でDaily Brainsのデータを端末間共有）----
   useEffect(() => {
     let cancelled = false;
-    reconcileOnStartup('brains', data).then((result) => {
+    reconcileOnStartup('brains', data, (d) => {
+      if (!d) return true;
+      const noTasks = !Array.isArray(d.tasks) || d.tasks.length === 0;
+      const noEvents = !Array.isArray(d.events) || d.events.length === 0;
+      const noMemos = !d.memos || Object.keys(d.memos).length === 0;
+      return noTasks && noEvents && noMemos;
+    }).then((result) => {
       if (!cancelled && JSON.stringify(result) !== JSON.stringify(data)) {
         setData(result);
       }

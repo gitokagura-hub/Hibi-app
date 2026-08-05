@@ -87,7 +87,7 @@ export function SukimaProvider({ children }) {
 
   useEffect(() => {
     let cancelled = false;
-    reconcileOnStartup("sukima", data).then((result) => {
+    reconcileOnStartup("sukima", data, (d) => !d || !Array.isArray(d.entries) || d.entries.length === 0).then((result) => {
       if (!cancelled && JSON.stringify(result) !== JSON.stringify(data)) {
         setData(result);
       }

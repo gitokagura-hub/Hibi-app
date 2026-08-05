@@ -36,14 +36,20 @@ export async function saveCloud(app, data) {
  * アップロードした上でローカルデータを返す。どちらもエラー時はローカルデータのまま進む
  * （オフラインでも壊れないように）。
  */
-export async function reconcileOnStartup(app, localData) {
+export async function reconcileOnStartup(app, localData, isEmpty) {
   try {
     const cloud = await fetchCloud(app);
-    if (cloud.found && cloud.data) {
+    const cloudEmpty = !cloud.found || !cloud.data || (isEmpty ? isEmpty(cloud.data) : false);
+    const localEmpty = isEmpty ? isEmpty(localData) : false;
+    if (!cloudEmpty) {
       return cloud.data;
     }
-    // クラウドが空 → 端末内の既存データを移行としてアップロード
-    await saveCloud(app, localData);
+    if (!localEmpty) {
+      // データ保護ガード: クラウドが空でローカルに中身がある場合、
+      // 空のクラウドでローカルを潰すのではなく、ローカルをクラウドへ
+      // アップロードして守る（2026-08-05のSukima消失インシデント対策）。
+      await saveCloud(app, localData);
+    }
     return localData;
   } catch {
     // オフライン等。ローカルデータのまま続行し、次の保存時に再度同期を試みる
