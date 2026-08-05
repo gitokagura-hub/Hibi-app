@@ -156,13 +156,13 @@ export default function CalendarPage({ setTab }) {
   }
 
   async function handleDeleteTask(id) {
-    if (!(await confirm("このタスクを削除しますか？"))) return;
+    if (!(await confirm("このタスクを削除しますか？", { confirmLabel: "削除する", danger: true }))) return;
     if (isTeam) deleteTeamTaskAction(id);
     else deleteTask(id);
   }
 
   async function handleDeleteEvent(id) {
-    if (!(await confirm("この予定を削除しますか？"))) return;
+    if (!(await confirm("この予定を削除しますか？", { confirmLabel: "削除する", danger: true }))) return;
     if (isTeam) deleteTeamEventAction(id);
     else deleteEvent(id);
   }

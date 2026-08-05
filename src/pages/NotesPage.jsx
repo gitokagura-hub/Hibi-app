@@ -33,7 +33,7 @@ function PhotoThumb({ src, onDelete, confirm, size = "w-24 h-24" }) {
     if (!onDelete) return;
     pressTimer.current = setTimeout(async () => {
       longPressed.current = true;
-      if (await confirm("この写真を削除しますか？")) onDelete();
+      if (await confirm("この写真を削除しますか？", { confirmLabel: "削除する", danger: true })) onDelete();
     }, 600);
   }
   function handleTouchEnd(e) {
@@ -438,7 +438,7 @@ export default function NotesPage({ setTab }) {
   // matching key from Settings. ChatGPT isn't wired up to aiAssist yet.
   const aiProviderMap = { Claude: "claude", Gemini: "gemini" };
   const aiProvider = aiProviderMap[selectedAI] || null;
-  const aiApiKey = aiProvider === "claude" ? data.settings.claudeKey : aiProvider === "gemini" ? data.settings.geminiKey : "";
+  const aiApiKey = aiProvider === "claude" ? data?.settings?.claudeKey : aiProvider === "gemini" ? data?.settings?.geminiKey : "";
   const aiKeyMissing = !aiProvider || !aiApiKey;
 
   async function handleAIRun(instruction) {
@@ -508,13 +508,14 @@ export default function NotesPage({ setTab }) {
                   )}
                 </span>
                 <div className="flex items-center gap-1.5">
+                  <button onClick={() => handleOpenNote(n)} className="bg-white border border-gray-300 text-gray-700 rounded-lg px-2.5 py-1 text-xs font-medium">Edit</button>
                   {!isTeam && (
                     <>
                       <button onClick={() => { setPasteTarget(n); setPasteMode("calendar"); }} className="bg-white border border-gray-300 text-gray-700 rounded-lg px-2.5 py-1 text-xs font-medium">To Calendar</button>
                       <button onClick={() => { setPasteTarget(n); setPasteMode("projects"); }} className="bg-white border border-gray-300 text-gray-700 rounded-lg px-2.5 py-1 text-xs font-medium">To Project</button>
                     </>
                   )}
-                  <button onClick={async () => { if (await confirm("このノートを削除しますか？")) (isTeam ? deleteTeamNoteAction(n.id) : deleteNote(n.id)); }} className="text-gray-400 text-xs px-1">Delete</button>
+                  <button onClick={async () => { if (await confirm("このノートを削除しますか？", { confirmLabel: "削除する", danger: true })) (isTeam ? deleteTeamNoteAction(n.id) : deleteNote(n.id)); }} className="text-gray-400 text-xs px-1">Delete</button>
                 </div>
               </div>
             </div>

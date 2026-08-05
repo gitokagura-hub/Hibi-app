@@ -145,7 +145,7 @@ export default function SettingsPage({ setTab }) {
       setBackupMessage("先にGoogle Driveと連携してください");
       return;
     }
-    if (!(await confirm("Driveに保存されているバックアップで、現在のデータを上書きします。よろしいですか？"))) return;
+    if (!(await confirm("Driveに保存されているバックアップで、現在のデータを上書きします。よろしいですか？", { confirmLabel: "復元する" }))) return;
     setBackupBusy(true);
     try {
       const { data: restored, modifiedTime } = await restoreDataFromDrive();

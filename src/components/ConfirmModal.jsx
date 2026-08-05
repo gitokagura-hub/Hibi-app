@@ -9,11 +9,12 @@ import { useState, createContext, useContext } from "react";
 const ConfirmContext = createContext(null);
 
 export function ConfirmProvider({ children }) {
-  const [state, setState] = useState(null); // { message, resolve }
+  const [state, setState] = useState(null); // { message, resolve, confirmLabel, danger }
 
-  function confirm(message) {
+  function confirm(message, options = {}) {
+    const { confirmLabel = "OK", danger = false } = typeof options === "string" ? { confirmLabel: options } : options;
     return new Promise((resolve) => {
-      setState({ message, resolve });
+      setState({ message, resolve, confirmLabel, danger });
     });
   }
 
@@ -38,9 +39,9 @@ export function ConfirmProvider({ children }) {
               </button>
               <button
                 onClick={() => handleChoice(true)}
-                className="flex-1 rounded-xl bg-red-600 text-white px-4 py-3 text-sm font-semibold"
+                className={`flex-1 rounded-xl text-white px-4 py-3 text-sm font-semibold ${state.danger ? "bg-red-600" : "bg-black"}`}
               >
-                削除する
+                {state.confirmLabel}
               </button>
             </div>
           </div>

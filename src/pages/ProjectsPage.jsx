@@ -126,7 +126,7 @@ export default function ProjectsPage({ setTab }) {
   }
 
   async function handleGalleryDelete(p, file) {
-    if (!(await confirm(`「${file.name}」をDriveから削除しますか？`))) return;
+    if (!(await confirm(`「${file.name}」をDriveから削除しますか？`, { confirmLabel: "削除する", danger: true }))) return;
     try {
       await deleteProjectFile(file.id);
       if (isTeam) {
@@ -170,7 +170,7 @@ export default function ProjectsPage({ setTab }) {
 
   async function handleDeleteProject(e, p) {
     e.stopPropagation();
-    if (await confirm(`「${p.name}」を削除しますか？中の項目もすべて削除されます。`)) {
+    if (await confirm(`「${p.name}」を削除しますか？中の項目もすべて削除されます。`, { confirmLabel: "削除する", danger: true })) {
       if (isTeam) deleteTeamProjectAction(p.id);
       else deleteProject(p.id);
       if (openId === p.id) setOpenId(null);
@@ -323,7 +323,7 @@ export default function ProjectsPage({ setTab }) {
                                   {item.text || <span className="text-gray-400">（空のメモ）</span>}
                                   {isTeam && <span className="block text-[10px] text-blue-500 mt-1">● {item.author || "名無し"}</span>}
                                 </button>
-                                <button onClick={async () => { if (await confirm("このメモを削除しますか？")) (isTeam ? deleteTeamProjectItemAction(item.id) : deleteProjectItem(p.id, item.id)); }} className="text-gray-400 text-sm flex-shrink-0">🗑</button>
+                                <button onClick={async () => { if (await confirm("このメモを削除しますか？", { confirmLabel: "削除する", danger: true })) (isTeam ? deleteTeamProjectItemAction(item.id) : deleteProjectItem(p.id, item.id)); }} className="text-gray-400 text-sm flex-shrink-0">🗑</button>
                               </div>
                               {item.images && item.images.length > 0 && (
                                 <div className="flex gap-1.5 overflow-x-auto mt-1.5">
