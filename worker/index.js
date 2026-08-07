@@ -73,6 +73,32 @@ export default {
 
     if (!url.pathname.startsWith("/api/")) {
       const assetResponse = await env.ASSETS.fetch(request);
+      // Zombie service-worker kill switch (2026-08-05 incident):
+      // not_found_handling=single-page-application means any unknown path —
+      // including a service worker URL from an old build (e.g.
+      // /service-worker.js, /registerSW.js) — returns index.html with 200.
+      // The browser then treats the SW update as a parse failure and keeps
+      // the old (broken) service worker alive forever, so no deploy ever
+      // reaches the device. Instead, answer any unknown *.js path with a
+      // valid self-destructing service worker: when the zombie re-checks its
+      // script URL it installs this, which unregisters itself, wipes caches,
+      // and reloads every open page — recovering white-screened devices with
+      // zero user action. Harmless for non-SW js requests (they were getting
+      // useless HTML before anyway).
+      if (
+        url.pathname.endsWith(".js") &&
+        (assetResponse.headers.get("Content-Type") || "").includes("text/html")
+      ) {
+        const killSw = `self.addEventListener('install',()=>self.skipWaiting());\nself.addEventListener('activate',e=>{e.waitUntil((async()=>{try{const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)));}catch(_){}try{await self.registration.unregister();}catch(_){}try{const cs=await self.clients.matchAll({type:'window'});cs.forEach(c=>c.navigate(c.url).catch(()=>{}));}catch(_){}})());});\n`;
+        return new Response(killSw, {
+          status: 200,
+          headers: {
+            "Content-Type": "application/javascript; charset=utf-8",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Service-Worker-Allowed": "/",
+          },
+        });
+      }
       // sw.js and index.html must never be cached by the browser/CDN — if
       // they are, the browser has no way to notice a new deploy exists, so
       // it keeps running whatever service worker (and bundle) it already
