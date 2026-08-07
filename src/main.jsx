@@ -28,4 +28,5 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+try { sessionStorage.removeItem('__stale_heal'); } catch (_) { /* noop */ }
 createRoot(document.getElementById('root')).render(<App />);

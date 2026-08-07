@@ -89,15 +89,24 @@ export default {
         url.pathname.endsWith(".js") &&
         (assetResponse.headers.get("Content-Type") || "").includes("text/html")
       ) {
-        const killSw = `self.addEventListener('install',()=>self.skipWaiting());\nself.addEventListener('activate',e=>{e.waitUntil((async()=>{try{const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)));}catch(_){}try{await self.registration.unregister();}catch(_){}try{const cs=await self.clients.matchAll({type:'window'});cs.forEach(c=>c.navigate(c.url).catch(()=>{}));}catch(_){}})());});\n`;
-        return new Response(killSw, {
-          status: 200,
-          headers: {
-            "Content-Type": "application/javascript; charset=utf-8",
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Service-Worker-Allowed": "/",
-          },
-        });
+        const jsHeaders = {
+          "Content-Type": "application/javascript; charset=utf-8",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Service-Worker-Allowed": "/",
+        };
+        // 旧ビルド由来のservice worker URLにのみ自爆SWを返す。
+        const isLegacySwPath = /^\/(service-worker|registerSW|workbox|sw)[\w.-]*\.js$/.test(url.pathname);
+        if (isLegacySwPath) {
+          const killSw = `self.addEventListener('install',()=>self.skipWaiting());\nself.addEventListener('activate',e=>{e.waitUntil((async()=>{try{const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)));}catch(_){}try{await self.registration.unregister();}catch(_){}try{const cs=await self.clients.matchAll({type:'window'});cs.forEach(c=>c.navigate(c.url).catch(()=>{}));}catch(_){}})());});\n`;
+          return new Response(killSw, { status: 200, headers: jsHeaders });
+        }
+        // それ以外の未知の.js = 古いindex.htmlが既に存在しない旧ハッシュの
+        // バンドルを要求しているケース(デプロイでハッシュが変わった直後など)。
+        // 2026-08-07の再発白画面の原因: ここで自爆SWを返すと「エラーなし・
+        // 描画なし」の静かな白画面になる。代わりに1回だけキャッシュバスター
+        // 付きで再読み込みする自己修復JSを返し、最新のindex.htmlを取り直させる。
+        const selfHeal = `try{if(!sessionStorage.getItem('__stale_heal')){sessionStorage.setItem('__stale_heal','1');location.replace('/?fresh='+Date.now());}else{document.body.innerHTML='<div style="padding:24px;font:14px -apple-system"><b>更新の取得に失敗しました</b><br>タブを閉じて開き直してください。</div>';}}catch(_){}`;
+        return new Response(selfHeal, { status: 200, headers: jsHeaders });
       }
       // sw.js and index.html must never be cached by the browser/CDN — if
       // they are, the browser has no way to notice a new deploy exists, so
