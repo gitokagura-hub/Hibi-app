@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef } from "react";
 import { reconcileOnStartup, saveCloud } from "./cloudSync";
+import { scheduleAutoBackup } from "./driveAutoBackup";
+import { backupNamedDataToDrive } from "./googleDrive";
 
 /* =========================================================================
    Timeless Analogue 専用データストア
@@ -113,6 +115,7 @@ export function TimelessProvider({ children }) {
     if (!hydrated.current) return;
     saveData(data);
     saveCloud("timeless", data).catch(() => {});
+    scheduleAutoBackup("timeless", data, (d) => backupNamedDataToDrive("timeless-backup.json", "hibi-drive-timeless-file-id", d));
   }, [data]);
 
   function addArticle(title, category) {

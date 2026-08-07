@@ -270,7 +270,78 @@ export async function restoreDataFromDrive() {
   return { data, modifiedTime: searchData.files[0].modifiedTime };
 }
 
-// Finds or creates a per-project subfolder inside the app's main Drive folder.
+// Generic version of the above two functions, parameterized by filename and
+// the localStorage key used to cache the file's Drive ID. Used so each
+// sub-app (Sukima, Timeless Analogue, English learning, ...) gets its own
+// separate backup file instead of being silently left out of the main
+// dayliybrains-backup.json — that gap is exactly what caused Sukima's data
+// to go missing on 2026-08-05, since it was never included in any backup.
+export async function backupNamedDataToDrive(fileName, fileIdCacheKey, data) {
+  const token = requireToken();
+  const folderId = await getOrCreateFolder();
+  const json = JSON.stringify(data);
+  const blob = new Blob([json], { type: 'application/json' });
+
+  let fileId = localStorage.getItem(fileIdCacheKey);
+  if (fileId) {
+    const check = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,trashed`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!check.ok) fileId = null;
+    else {
+      const checkData = await check.json();
+      if (checkData.trashed) fileId = null;
+    }
+  }
+  if (!fileId) {
+    const q = encodeURIComponent(`name='${fileName}' and '${folderId}' in parents and trashed=false`);
+    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const searchData = await searchRes.json();
+    if (searchData.files && searchData.files.length > 0) fileId = searchData.files[0].id;
+  }
+
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(
+    fileId ? { name: fileName } : { name: fileName, parents: [folderId] }
+  )], { type: 'application/json' }));
+  form.append('file', blob);
+
+  const url = fileId
+    ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart&fields=id,modifiedTime`
+    : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,modifiedTime`;
+  const res = await fetch(url, {
+    method: fileId ? 'PATCH' : 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) throw new Error('BACKUP_FAILED');
+  const resData = await res.json();
+  localStorage.setItem(fileIdCacheKey, resData.id);
+  return resData.modifiedTime;
+}
+
+export async function restoreNamedDataFromDrive(fileName, fileIdCacheKey) {
+  const token = requireToken();
+  const folderId = await getOrCreateFolder();
+  const q = encodeURIComponent(`name='${fileName}' and '${folderId}' in parents and trashed=false`);
+  const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,modifiedTime)&orderBy=modifiedTime desc`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const searchData = await searchRes.json();
+  if (!searchData.files || searchData.files.length === 0) throw new Error('NO_BACKUP');
+  const fileId = searchData.files[0].id;
+  localStorage.setItem(fileIdCacheKey, fileId);
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error('RESTORE_FAILED');
+  const data = await res.json();
+  return { data, modifiedTime: searchData.files[0].modifiedTime };
+}
+
+
 // folderId is cached on the project object itself (driveFolderId) so repeated
 // calls don't need to search every time — caller passes it in and stores
 // whatever this returns back onto the project.

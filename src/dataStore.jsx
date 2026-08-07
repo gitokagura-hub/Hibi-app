@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { reconcileOnStartup, saveCloud } from './cloudSync';
+import { scheduleAutoBackup } from './driveAutoBackup';
+import { backupDataToDrive } from './googleDrive';
 import {
   isTeamConnected, getAuthorName, ensureTeamSheetReady,
   fetchTeamNotes, addTeamNote, updateTeamNote, deleteTeamNote,
@@ -177,6 +179,9 @@ export function DataProvider({ children }) {
       setStorageError(!ok);
       saveCloud('brains', data).catch(() => {}); // オフライン時は無視、次回保存時に再挑戦
     }, 400);
+    // Driveへの自動バックアップ(1分間操作が止まったら)。D1保存とは別のタイマーで、
+    // 頻繁なDrive API呼び出しを避ける。Drive未連携時は何もしない。
+    scheduleAutoBackup('brains', data, backupDataToDrive);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [data]);
 

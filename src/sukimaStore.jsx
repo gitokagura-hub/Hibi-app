@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef } from "react";
 import { reconcileOnStartup, saveCloud } from "./cloudSync";
+import { scheduleAutoBackup } from "./driveAutoBackup";
+import { backupNamedDataToDrive } from "./googleDrive";
 
 /* =========================================================================
    Sukima専用データストア
@@ -107,6 +109,7 @@ export function SukimaProvider({ children }) {
     if (!hydrated.current) return;
     saveData(data);
     saveCloud("sukima", data).catch(() => {});
+    scheduleAutoBackup("sukima", data, (d) => backupNamedDataToDrive("sukima-backup.json", "hibi-drive-sukima-file-id", d));
   }, [data]);
 
   function addEntry(type, name) {
