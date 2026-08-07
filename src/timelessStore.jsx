@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useRef } from "react";
 import { reconcileOnStartup, saveCloud } from "./cloudSync";
 
 /* =========================================================================
@@ -92,12 +92,17 @@ const TimelessContext = createContext(null);
 
 export function TimelessProvider({ children }) {
   const [data, setData] = useState(loadData);
+  // データ保護ロック: reconcile完了までは保存を発動させない(空上書き防止)
+  const hydrated = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     reconcileOnStartup("timeless", data, (d) => !d || !Array.isArray(d.articles) || d.articles.length === 0).then((result) => {
-      if (!cancelled && JSON.stringify(result) !== JSON.stringify(data)) {
-        setData(result);
+      if (!cancelled) {
+        hydrated.current = true;
+        if (JSON.stringify(result) !== JSON.stringify(data)) {
+          setData(result);
+        }
       }
     });
     return () => { cancelled = true; };
@@ -105,6 +110,7 @@ export function TimelessProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    if (!hydrated.current) return;
     saveData(data);
     saveCloud("timeless", data).catch(() => {});
   }, [data]);

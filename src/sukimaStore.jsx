@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useRef } from "react";
 import { reconcileOnStartup, saveCloud } from "./cloudSync";
 
 /* =========================================================================
@@ -84,12 +84,19 @@ const SukimaContext = createContext(null);
 
 export function SukimaProvider({ children }) {
   const [data, setData] = useState(loadData);
+  // データ保護ロック: クラウド照合(reconcile)が終わるまでは保存を発動させない。
+  // これが無いと、起動直後のuseEffect([data])が空データをクラウドへ保存し、
+  // クラウド側の本物のデータを空で上書きしてしまう(2026-08-05 Sukima消失の真因)。
+  const hydrated = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     reconcileOnStartup("sukima", data, (d) => !d || !Array.isArray(d.entries) || d.entries.length === 0).then((result) => {
-      if (!cancelled && JSON.stringify(result) !== JSON.stringify(data)) {
-        setData(result);
+      if (!cancelled) {
+        hydrated.current = true;
+        if (JSON.stringify(result) !== JSON.stringify(data)) {
+          setData(result);
+        }
       }
     });
     return () => { cancelled = true; };
@@ -97,6 +104,7 @@ export function SukimaProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    if (!hydrated.current) return;
     saveData(data);
     saveCloud("sukima", data).catch(() => {});
   }, [data]);
