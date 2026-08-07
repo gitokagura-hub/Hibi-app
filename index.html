@@ -11,6 +11,44 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // 白画面診断オーバーレイ (2026-08-05):
+      // アプリが何らかの理由で描画に失敗した場合、白画面の代わりに
+      // エラー内容を画面に直接表示する。バンドルの読み込み失敗・
+      // 実行時クラッシュ・Promise未処理エラーをすべて捕捉する。
+      (function () {
+        var errors = [];
+        function show() {
+          var root = document.getElementById("root");
+          if (root && root.children.length > 0) return; // アプリは生きている
+          var box = document.createElement("div");
+          box.style.cssText =
+            "position:fixed;inset:0;background:#fff;color:#b91c1c;font:13px/1.6 -apple-system,monospace;padding:24px 16px;overflow:auto;z-index:99999;-webkit-user-select:text;user-select:text";
+          var msg = errors.length
+            ? errors.join("\n\n")
+            : "バンドルは読み込まれましたが、エラーも画面描画も発生していません(またはJSファイル自体の取得に失敗)。";
+          box.innerHTML =
+            "<b>Dayliy Brains 起動エラー診断</b><br><br>" +
+            "この画面をスクショしてClaudeに送ってください。<br><br>" +
+            "<pre style='white-space:pre-wrap;word-break:break-all'>" +
+            msg.replace(/&/g, "&amp;").replace(/</g, "&lt;") +
+            "</pre><br>UA: " + navigator.userAgent;
+          document.body.appendChild(box);
+        }
+        window.addEventListener("error", function (e) {
+          var s = (e.message || "unknown error");
+          if (e.filename) s += "\n at " + e.filename + ":" + e.lineno + ":" + e.colno;
+          if (e.error && e.error.stack) s += "\n" + String(e.error.stack).slice(0, 600);
+          if (e.target && e.target.src) s = "リソース読み込み失敗: " + e.target.src;
+          errors.push(s);
+        }, true);
+        window.addEventListener("unhandledrejection", function (e) {
+          var r = e.reason || {};
+          errors.push("Unhandled rejection: " + (r.message || String(r)) + "\n" + String(r.stack || "").slice(0, 600));
+        });
+        setTimeout(show, 6000);
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
