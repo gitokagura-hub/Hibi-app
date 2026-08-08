@@ -487,7 +487,7 @@ export default function ReaderPage({ onHome }) {
       </button>
 
       <header className="px-5 pt-14 pb-3">
-        <h1 className="text-3xl font-semibold tracking-tight">聞き流し</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">English Manager</h1>
         <p className="mt-1 text-sm text-gray-500">{items.length}件のフレーズを保存中</p>
       </header>
 

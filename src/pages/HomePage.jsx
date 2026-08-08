@@ -44,7 +44,7 @@ const apps = [
   },
   {
     id: "reader",
-    title: "聞き流し",
+    title: "English Manager",
     icon: Headphones,
     description: "英語フレーズ・単語をループ再生",
     status: "ACTIVE",
