@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  ChevronLeft, Play, Square, SkipBack, SkipForward, Shuffle, Repeat, Upload, Plus, Trash2, X, FolderPlus, ClipboardPaste,
+  ChevronLeft, Play, Square, SkipBack, SkipForward, Shuffle, Repeat, Upload, Plus, Trash2, X, ClipboardPaste,
 } from "lucide-react";
 import { useSwipeBack } from "../useSwipeBack";
 import { useKikinagashi } from "../kikinagashiStore";
@@ -51,21 +51,19 @@ export default function ReaderPage({ onHome }) {
   const { items, addItem, addItems, updateItem, deleteItem } = useKikinagashi();
   const { data } = useData();
 
-  const [view, setView] = useState("categories"); // categories | category | paste | newCategory
-  const [activeCategory, setActiveCategory] = useState(null);
-  const [newCategoryName, setNewCategoryName] = useState("");
-
-  const [pasteText, setPasteText] = useState("");
-  const [analysing, setAnalysing] = useState(null); // null | エラーメッセージ文字列
-  const [justAdded, setJustAdded] = useState(null);
-
   const [newEn, setNewEn] = useState("");
   const [newJa, setNewJa] = useState("");
+  const [newCategory, setNewCategory] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("すべて");
   const [editingId, setEditingId] = useState(null);
   const [editEn, setEditEn] = useState("");
   const [editJa, setEditJa] = useState("");
   const [editCategory, setEditCategory] = useState("");
   const [deletingId, setDeletingId] = useState(null);
+
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [analysing, setAnalysing] = useState(null); // null | "running" | エラーメッセージ
 
   const [settings, setSettings] = useState(() => {
     try {
@@ -90,17 +88,6 @@ export default function ReaderPage({ onHome }) {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     } catch {}
   }, [settings]);
-
-  // カテゴリー一覧(件数付き)。作成直後でまだ0件のカテゴリーも表示され続けるよう、
-  // activeCategoryが空カテゴリーの場合も一覧に含める。
-  const categoryList = (() => {
-    const counts = {};
-    items.forEach((it) => { counts[it.category || "未分類"] = (counts[it.category || "未分類"] || 0) + 1; });
-    if (activeCategory && !(activeCategory in counts)) counts[activeCategory] = 0;
-    return Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
-  })();
-
-  const categoryItems = activeCategory ? items.filter((it) => (it.category || "未分類") === activeCategory) : [];
 
   const [allVoices, setAllVoices] = useState([]);
   const [langs, setLangs] = useState([]);
@@ -138,21 +125,22 @@ export default function ReaderPage({ onHome }) {
     return allVoices.find((v) => v.lang.toLowerCase().startsWith("ja")) || null;
   }, [allVoices]);
 
-  // --- 新規追加(カテゴリー詳細画面内のフォーム専用) ---
+  // --- 新規追加(上のフォーム専用) ---
   function handleAdd() {
     const en = newEn.trim();
     if (!en) return;
-    addItem(en, newJa, activeCategory);
+    addItem(en, newJa, newCategory);
     setNewEn("");
     setNewJa("");
+    setNewCategory("");
   }
 
-  // --- 既存項目の編集(下からのモーダル) ---
+  // --- 既存項目の編集(リスト内でインライン) ---
   function handleEdit(item) {
     setEditingId(item.id);
     setEditEn(item.en);
     setEditJa(item.ja);
-    setEditCategory(item.category || "未分類");
+    setEditCategory(item.category || "");
   }
 
   function cancelEdit() {
@@ -165,7 +153,7 @@ export default function ReaderPage({ onHome }) {
   function saveEdit() {
     const en = editEn.trim();
     if (!en) return;
-    updateItem(editingId, { en, ja: editJa.trim(), category: editCategory.trim() || "未分類" });
+    updateItem(editingId, { en, ja: editJa.trim(), category: editCategory.trim() });
     cancelEdit();
   }
 
@@ -188,7 +176,7 @@ export default function ReaderPage({ onHome }) {
       const reader = new FileReader();
       reader.onload = (ev) => {
         const content = String(ev.target.result || "");
-        collected.push(...parseLines(content).map((it) => ({ ...it, category: activeCategory || "未分類" })));
+        collected.push(...parseLines(content));
         pendingCount--;
         if (pendingCount === 0) finish();
       };
@@ -210,15 +198,9 @@ export default function ReaderPage({ onHome }) {
     e.target.value = "";
   }
 
-  function createCategory() {
-    const name = newCategoryName.trim();
-    if (!name) return;
-    setActiveCategory(name);
-    setNewCategoryName("");
-    setView("category");
-  }
+  // --- Paste & AI自動分類(既存フォームの隣に小さく追加した機能) ---
+  const existingCategories = [...new Set(items.map((it) => it.category).filter(Boolean))];
 
-  // --- Paste & AI自動分類 ---
   async function handleAnalyse() {
     const text = pasteText.trim();
     if (!text) return;
@@ -230,14 +212,11 @@ export default function ReaderPage({ onHome }) {
     }
     setAnalysing("running");
     try {
-      const existing = categoryList.map((c) => c.name);
-      const classified = await classifyPhrases({ provider, apiKey, rawText: text, existingCategories: existing });
+      const classified = await classifyPhrases({ provider, apiKey, rawText: text, existingCategories });
       if (classified.length === 0) throw new Error("EMPTY_RESULT");
       addItems(classified);
-      const counts = {};
-      classified.forEach((it) => { counts[it.category] = (counts[it.category] || 0) + 1; });
-      setJustAdded({ total: classified.length, byCategory: Object.entries(counts).map(([name, count]) => ({ name, count })) });
       setPasteText("");
+      setPasteOpen(false);
       setAnalysing(null);
     } catch (err) {
       const msg = err.message === "CLASSIFY_PARSE_FAILED" || err.message === "EMPTY_RESULT"
@@ -260,9 +239,13 @@ export default function ReaderPage({ onHome }) {
   const settingsRef = useRef(settings);
   const allVoicesRef = useRef(allVoices);
 
+  // カテゴリーフィルター(「すべて」なら全件、それ以外は絞り込み)。
+  // 再生・一覧表示ともにこのfilteredItemsを使う。
+  const filteredItems = categoryFilter === "すべて" ? items : items.filter((it) => (it.category || "未分類") === categoryFilter);
+
   useEffect(() => {
-    itemsRef.current = categoryItems;
-  }, [categoryItems]); // eslint-disable-line react-hooks/exhaustive-deps
+    itemsRef.current = filteredItems;
+  }, [filteredItems]); // eslint-disable-line react-hooks/exhaustive-deps
   // 再生ループはsetTimeoutで自己再帰するため、settings/allVoicesを直接
   // クロージャで参照すると「再生開始時点の値」に固定されてしまう。
   // refに常に最新値を反映し、ループ内はrefから読むことでスライダー等の
@@ -348,9 +331,9 @@ export default function ReaderPage({ onHome }) {
       stopAll();
       return;
     }
-    if (categoryItems.length === 0) return;
-    itemsRef.current = categoryItems;
-    const newOrder = settings.shuffle ? shuffleArr(categoryItems.map((_, i) => i)) : categoryItems.map((_, i) => i);
+    if (filteredItems.length === 0) return;
+    itemsRef.current = filteredItems;
+    const newOrder = settings.shuffle ? shuffleArr(filteredItems.map((_, i) => i)) : filteredItems.map((_, i) => i);
     orderRef.current = newOrder;
     setOrder(newOrder);
     posRef.current = 0;
@@ -399,18 +382,39 @@ export default function ReaderPage({ onHome }) {
     setSettings((s) => ({ ...s, ...patch }));
   }
 
-  function goBack() {
-    stopAll();
-    if (view === "category") {
-      setView("categories");
-      setActiveCategory(null);
-    } else if (view === "paste" || view === "newCategory") {
-      setView("categories");
-    }
-  }
-
   return (
     <div className="min-h-screen bg-white relative">
+      {pasteOpen && (
+        <div className="fixed inset-0 z-[55] flex items-end bg-black/30" onClick={() => { setPasteOpen(false); setAnalysing(null); }}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full bg-white rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold">Paste ChatGPT Summary</h2>
+              <button onClick={() => { setPasteOpen(false); setAnalysing(null); }} className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 active:bg-gray-100">
+                <X size={18} />
+              </button>
+            </div>
+            <textarea
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder={"英文 | 訳 の形式で1行ずつ貼り付け\n\n例:\nCould you pass me the level? | 水準器を取ってもらえますか。"}
+              rows={8}
+              autoFocus
+              className="w-full rounded-2xl border border-gray-200 p-4 text-sm outline-none focus:border-gray-400 resize-none placeholder:text-gray-300"
+            />
+            <button
+              onClick={handleAnalyse}
+              disabled={!pasteText.trim() || analysing === "running"}
+              className="mt-3 w-full h-12 rounded-full bg-gray-900 text-white text-sm font-medium disabled:opacity-30"
+            >
+              {analysing === "running" ? "Analysing..." : "Analyse(AIで自動分類)"}
+            </button>
+            {analysing && analysing !== "running" && (
+              <p className="mt-3 text-sm text-red-500">{analysing}</p>
+            )}
+          </div>
+        </div>
+      )}
+
       {editingId && (
         <div className="fixed inset-0 z-50 bg-white flex flex-col">
           <div className="flex items-center justify-between px-5 pt-14 pb-3 border-b border-gray-100">
@@ -446,23 +450,17 @@ export default function ReaderPage({ onHome }) {
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-400">カテゴリー</label>
+              <label className="text-xs font-medium text-gray-400">カテゴリー(任意)</label>
               <input
                 value={editCategory}
                 onChange={(e) => setEditCategory(e.target.value)}
-                placeholder="カテゴリー"
+                placeholder="カテゴリー(任意)"
+                list="kikinagashi-category-list"
                 className="w-full text-base border-b border-gray-200 py-2 mt-1 outline-none focus:border-gray-400"
               />
             </div>
           </div>
           <div className="px-5 pb-8 pt-3 border-t border-gray-100 flex gap-3">
-            <button
-              onClick={() => setDeletingId(editingId)}
-              className="w-12 h-12 rounded-full border border-red-200 text-red-500 flex items-center justify-center shrink-0"
-              aria-label="削除"
-            >
-              <Trash2 size={17} />
-            </button>
             <button
               onClick={cancelEdit}
               className="flex-1 h-12 rounded-full border border-gray-300 text-sm font-medium text-gray-600"
@@ -480,139 +478,19 @@ export default function ReaderPage({ onHome }) {
         </div>
       )}
 
-      {deletingId && (
-        <div className="fixed inset-0 z-[60] flex items-end bg-black/30" onClick={() => setDeletingId(null)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full bg-white rounded-t-3xl p-6">
-            <p className="text-sm text-gray-700 mb-5">このフレーズを削除しますか？</p>
-            <div className="flex gap-2">
-              <button onClick={() => setDeletingId(null)} className="flex-1 h-11 rounded-full border border-gray-300 text-sm font-medium text-gray-600">
-                キャンセル
-              </button>
-              <button onClick={() => confirmDelete(deletingId)} className="flex-1 h-11 rounded-full bg-red-600 text-white text-sm font-medium">
-                削除する
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <button
-        onClick={view === "categories" ? onHome : goBack}
+        onClick={onHome}
         className="fixed bottom-6 right-5 z-30 w-11 h-11 rounded-full bg-sky-100/90 backdrop-blur border border-sky-200 flex items-center justify-center shadow-sm"
-        aria-label={view === "categories" ? "Homeへ戻る" : "戻る"}
+        aria-label="Homeへ戻る"
       >
         <ChevronLeft size={18} className="text-sky-700" />
       </button>
 
       <header className="px-5 pt-14 pb-3">
-        <h1 className="text-3xl font-semibold tracking-tight">
-          {view === "categories" ? "聞き流し" : view === "paste" ? "Paste ChatGPT Summary" : view === "newCategory" ? "新しいカテゴリー" : activeCategory}
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          {view === "categories" ? `${items.length}件のフレーズを保存中`
-            : view === "category" ? `${categoryItems.length}件`
-            : view === "paste" ? "貼り付けて自動でカテゴリー分け"
-            : "名前は自由に決められます"}
-        </p>
+        <h1 className="text-3xl font-semibold tracking-tight">聞き流し</h1>
+        <p className="mt-1 text-sm text-gray-500">{items.length}件のフレーズを保存中</p>
       </header>
 
-      {view === "categories" && (
-        <main className="px-5 pb-32">
-          <div className="flex gap-2">
-            <button
-              onClick={() => { setView("paste"); setJustAdded(null); setAnalysing(null); }}
-              className="flex-1 h-12 rounded-2xl bg-gray-900 text-white text-sm font-medium flex items-center justify-center gap-1.5"
-            >
-              <ClipboardPaste size={15} />
-              Paste ChatGPT Summary
-            </button>
-            <button
-              onClick={() => setView("newCategory")}
-              className="w-12 h-12 rounded-2xl border border-gray-300 text-gray-600 flex items-center justify-center"
-              aria-label="新しいカテゴリーを作る"
-            >
-              <FolderPlus size={17} />
-            </button>
-          </div>
-
-          {categoryList.length > 0 ? (
-            <div className="mt-5 rounded-2xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
-              {categoryList.map((c) => (
-                <button
-                  key={c.name}
-                  onClick={() => { setActiveCategory(c.name); setView("category"); }}
-                  className="w-full flex items-center justify-between px-5 py-4 active:bg-gray-50"
-                >
-                  <span className="text-[15px] text-gray-800">{c.name}</span>
-                  <span className="text-[15px] text-gray-300 tabular-nums">{c.count}</span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-8 text-sm text-gray-400 text-center">
-              まだフレーズがありません。「Paste ChatGPT Summary」か、カテゴリーを新規作成して始めましょう。
-            </p>
-          )}
-        </main>
-      )}
-
-      {view === "newCategory" && (
-        <main className="px-5 pb-32">
-          <p className="text-sm text-gray-500 mb-3">カテゴリーの名前は自由に決められます。あとで自動分類にも反映されます。</p>
-          <input
-            value={newCategoryName}
-            onChange={(e) => setNewCategoryName(e.target.value)}
-            placeholder="例: 現場での指示出し"
-            autoFocus
-            className="w-full text-base border-b border-gray-200 py-2 outline-none focus:border-gray-400"
-          />
-          <button
-            onClick={createCategory}
-            disabled={!newCategoryName.trim()}
-            className="mt-5 w-full h-12 rounded-full bg-gray-900 text-white text-sm font-medium disabled:opacity-30"
-          >
-            作成する
-          </button>
-        </main>
-      )}
-
-      {view === "paste" && (
-        <main className="px-5 pb-32">
-          <textarea
-            value={pasteText}
-            onChange={(e) => setPasteText(e.target.value)}
-            placeholder={"英文 | 訳 の形式で1行ずつ貼り付け\n\n例:\nCould you pass me the level? | 水準器を取ってもらえますか。"}
-            rows={9}
-            autoFocus
-            className="w-full rounded-2xl border border-gray-200 p-4 text-sm outline-none focus:border-gray-400 resize-none placeholder:text-gray-300"
-          />
-          <button
-            onClick={handleAnalyse}
-            disabled={!pasteText.trim() || analysing === "running"}
-            className="mt-3 w-full h-12 rounded-full bg-gray-900 text-white text-sm font-medium disabled:opacity-30"
-          >
-            {analysing === "running" ? "Analysing..." : "Analyse"}
-          </button>
-          {analysing && analysing !== "running" && (
-            <p className="mt-3 text-sm text-red-500">{analysing}</p>
-          )}
-          {justAdded && (
-            <div className="mt-5 rounded-2xl border border-gray-200 p-5">
-              <p className="text-sm font-semibold text-gray-900 mb-3">✓ {justAdded.total}件を追加しました</p>
-              {justAdded.byCategory.map((c) => (
-                <div key={c.name} className="flex justify-between text-sm text-gray-500 py-0.5">
-                  <span>{c.name}</span><span>{c.count}</span>
-                </div>
-              ))}
-              <button onClick={() => { setView("categories"); setJustAdded(null); }} className="mt-4 w-full h-11 rounded-full border border-gray-300 text-sm font-medium text-gray-600">
-                一覧へ戻る
-              </button>
-            </div>
-          )}
-        </main>
-      )}
-
-      {view === "category" && (
       <main className="px-5 pb-32">
         {/* --- 新しいフレーズを追加 --- */}
         <div className="rounded-2xl border border-gray-200 p-4">
@@ -629,6 +507,16 @@ export default function ReaderPage({ onHome }) {
             placeholder="訳(任意)"
             className="w-full text-sm border-b border-gray-200 py-2 mt-2 outline-none focus:border-gray-400"
           />
+          <input
+            value={newCategory}
+            onChange={(e) => setNewCategory(e.target.value)}
+            placeholder="カテゴリー(任意、自由入力)"
+            list="kikinagashi-category-list"
+            className="w-full text-sm border-b border-gray-200 py-2 mt-2 outline-none focus:border-gray-400"
+          />
+          <datalist id="kikinagashi-category-list">
+            {existingCategories.map((c) => <option key={c} value={c} />)}
+          </datalist>
           <button
             onClick={handleAdd}
             disabled={!newEn.trim()}
@@ -639,7 +527,14 @@ export default function ReaderPage({ onHome }) {
           </button>
         </div>
 
-        <div className="flex items-center justify-end mt-2">
+        <div className="flex items-center justify-end gap-2 mt-2">
+          <button
+            onClick={() => setPasteOpen(true)}
+            className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 px-2.5 py-1.5 rounded-full border border-indigo-100 bg-indigo-50 active:scale-95 transition-transform"
+          >
+            <ClipboardPaste size={13} />
+            Paste
+          </button>
           <button
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 px-2.5 py-1.5 rounded-full border border-indigo-100 bg-indigo-50 active:scale-95 transition-transform"
@@ -657,11 +552,59 @@ export default function ReaderPage({ onHome }) {
           />
         </div>
 
+        {/* --- カテゴリーフィルター --- */}
+        {existingCategories.length > 0 && (
+          <div className="flex gap-1.5 mt-3 overflow-x-auto pb-1">
+            {["すべて", ...existingCategories].map((c) => (
+              <button
+                key={c}
+                onClick={() => setCategoryFilter(c)}
+                className={`shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border ${
+                  categoryFilter === c ? "bg-gray-900 text-white border-gray-900" : "text-gray-500 border-gray-200"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* --- 保存済みリスト --- */}
-        {categoryItems.length > 0 && (
+        {filteredItems.length > 0 && (
           <div className="mt-4 rounded-2xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
-            {categoryItems.map((it, i) => {
+            {filteredItems.map((it, i) => {
               const isPlaying = current && order[pos] === i;
+              const isEditing = editingId === it.id;
+              const isDeleting = deletingId === it.id;
+
+              if (isDeleting) {
+                return (
+                  <div key={it.id} className="bg-red-50 border-l-4 border-red-400 px-3.5 py-3.5">
+                    <div className="text-sm text-gray-800 leading-snug break-words mb-3">
+                      「{it.en}」を削除しますか？
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setDeletingId(null)}
+                        className="flex-1 h-9 rounded-full border border-gray-300 text-xs font-medium text-gray-600 flex items-center justify-center gap-1"
+                      >
+                        <X size={13} /> キャンセル
+                      </button>
+                      <button
+                        onClick={() => confirmDelete(it.id)}
+                        className="flex-1 h-9 rounded-full bg-red-600 text-white text-xs font-medium"
+                      >
+                        削除する
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (isEditing) {
+                // フルスクリーン編集モーダル側で表示するので、リスト内には何も出さない
+                return null;
+              }
 
               return (
                 <div
@@ -681,6 +624,9 @@ export default function ReaderPage({ onHome }) {
                   >
                     <div className="text-sm text-gray-900 leading-snug break-words line-clamp-2">{it.en}</div>
                     {it.ja && <div className="text-xs text-gray-400 leading-snug break-words mt-1 line-clamp-1">{it.ja}</div>}
+                    {categoryFilter === "すべて" && it.category && (
+                      <span className="inline-block mt-1 text-[10px] text-indigo-500 bg-indigo-50 rounded px-1.5 py-0.5">{it.category}</span>
+                    )}
                   </button>
                   <button onClick={() => setDeletingId(it.id)} className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 shrink-0 active:bg-gray-100">
                     <Trash2 size={15} />
@@ -788,7 +734,7 @@ export default function ReaderPage({ onHome }) {
           </button>
           <button
             onClick={handlePlay}
-            disabled={categoryItems.length === 0}
+            disabled={filteredItems.length === 0}
             className="flex-1 h-12 rounded-full bg-gray-900 text-white flex items-center justify-center gap-2 disabled:opacity-30 active:scale-[0.98] transition-transform"
           >
             {playing ? <Square size={16} /> : <Play size={16} />}
@@ -806,7 +752,6 @@ export default function ReaderPage({ onHome }) {
           端末の音声合成機能(Web Speech API)を使用。APIキー不要・無料。画面を閉じる/ロックすると再生は止まる場合があります。
         </p>
       </main>
-      )}
     </div>
   );
 }
