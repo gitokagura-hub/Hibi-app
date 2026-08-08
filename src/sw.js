@@ -9,24 +9,35 @@ import { NavigationRoute, registerRoute } from 'workbox-routing';
 // worker on next app open (the byte change is what triggers the update).
 // 2026-08-05: recovery release — old SWs were serving a stale broken bundle
 // forever, causing a persistent white screen that code reverts couldn't fix.
-const SW_VERSION = '2026-08-05-recovery-1';
+const SW_VERSION = '2026-08-07-networkfirst-1';
 
 cleanupOutdatedCaches();
 
 // Injected by vite-plugin-pwa at build time with the list of files to precache.
 precacheAndRoute(self.__WB_MANIFEST);
 
-// By default, Workbox's precaching sets up an implicit navigation fallback
-// to index.html for any page-navigation request that isn't in the precache
-// list — this is what makes a PWA work offline/SPA-style. But it also meant
-// that opening /api/reminders/check directly in the browser (a navigation)
-// was being redirected to index.html instead of hitting the Worker's API
-// route. Explicitly deny the fallback for /api/ paths so those requests go
-// straight to the network (and therefore to the Worker).
+// ナビゲーション(ページ表示)はネットワーク優先 (2026-08-07):
+// 以前は precache 内の index.html をナビゲーションに固定していたため、
+// デプロイでバンドルのハッシュが変わるたびに「古いHTML+もう存在しない
+// 旧ハッシュJS」の組み合わせが発生し、サーバー側の修正が端末に一切
+// 届かない白画面が繰り返し起きた(今週のインシデントの構造的本体)。
+// 常に最新のindex.htmlをネットワークから取得し、オフライン時のみ
+// precacheのindex.htmlにフォールバックする。index.htmlは数KBなので
+// 通信コストは無視できる。
 registerRoute(
-  new NavigationRoute(createHandlerBoundToURL('/index.html'), {
-    denylist: [/^\/api\//],
-  })
+  new NavigationRoute(
+    async ({ request }) => {
+      try {
+        return await fetch(request);
+      } catch {
+        // オフライン時のみキャッシュのindex.htmlで起動
+        return createHandlerBoundToURL('/index.html')({ request });
+      }
+    },
+    {
+      denylist: [/^\/api\//],
+    }
+  )
 );
 
 self.addEventListener('install', () => {
