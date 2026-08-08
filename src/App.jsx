@@ -18,6 +18,7 @@ import ProjectsPage from "./pages/ProjectsPage";
 import SearchPage from "./pages/SearchPage";
 import SettingsPage from "./pages/SettingsPage";
 import ReaderPage from "./pages/ReaderPage";
+import { KikinagashiProvider } from "./kikinagashiStore";
 
 // Daily Brains（既存5画面）用のルーター。中身は元のApp.jsxのRouterと同一。
 function DailyBrainsRouter({ onHome }) {
@@ -103,7 +104,11 @@ function AppRouter() {
     return <LibraryPage onHome={() => setApp("home")} />;
   }
   if (app === "reader") {
-    return <ReaderPage onHome={() => setApp("home")} />;
+    return (
+      <KikinagashiProvider>
+        <ReaderPage onHome={() => setApp("home")} />
+      </KikinagashiProvider>
+    );
   }
   return <HomePage onSelect={setApp} />;
 }
