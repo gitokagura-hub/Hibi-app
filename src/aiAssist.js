@@ -17,6 +17,43 @@ export async function runAIOnNote({ provider, apiKey, noteText, instruction }) {
   throw new Error('UNSUPPORTED_PROVIDER');
 }
 
+// Classify pasted English-learning phrases into categories using the same
+// AI provider/key setup as runAIOnNote. Categories are NOT a fixed list —
+// the model is free to invent new category names, and is told about the
+// categories that already exist so it reuses them instead of creating near-
+// duplicates (e.g. "Business" vs "ビジネス").
+export async function classifyPhrases({ provider, apiKey, rawText, existingCategories }) {
+  if (!apiKey) throw new Error('NO_API_KEY');
+  if (!rawText || !rawText.trim()) throw new Error('NO_TEXT');
+
+  const categoryHint = existingCategories?.length
+    ? `既存のカテゴリー: ${existingCategories.join('、')}。内容が合えばこれらを再利用してください。合うものがなければ新しいカテゴリー名を自分で作ってください。`
+    : '既存のカテゴリーはまだありません。内容に応じて適切なカテゴリー名を自分で作ってください。';
+
+  const prompt = `以下は英語学習用に集めたフレーズです。1行が1フレーズで、"英語 | 日本語訳" の形式(訳が無い行もある)。各行をカテゴリー分けしてください。${categoryHint}\n\n出力は必ず次のJSON配列のみ(前置き・説明・コードブロック記号は一切不要):\n[{"en":"英語フレーズ","ja":"日本語訳","category":"カテゴリー名"}, ...]\n\n---フレーズ---\n${rawText.trim()}`;
+
+  const raw = provider === 'gemini' ? await callGemini(apiKey, prompt)
+    : provider === 'claude' ? await callClaude(apiKey, prompt)
+    : (() => { throw new Error('UNSUPPORTED_PROVIDER'); })();
+
+  const jsonText = raw.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '');
+  let parsed;
+  try {
+    parsed = JSON.parse(jsonText);
+  } catch {
+    throw new Error('CLASSIFY_PARSE_FAILED');
+  }
+  if (!Array.isArray(parsed)) throw new Error('CLASSIFY_PARSE_FAILED');
+
+  return parsed
+    .filter((it) => it && typeof it.en === 'string' && it.en.trim())
+    .map((it) => ({
+      en: it.en.trim(),
+      ja: typeof it.ja === 'string' ? it.ja.trim() : '',
+      category: typeof it.category === 'string' && it.category.trim() ? it.category.trim() : '未分類',
+    }));
+}
+
 async function callGemini(apiKey, prompt) {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
