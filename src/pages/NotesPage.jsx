@@ -447,11 +447,26 @@ export default function NotesPage({ setTab }) {
   } = useData();
   const isTeam = space === "team";
   const confirm = useConfirm();
-  const [text, setText] = useState("");
-  const [pendingImages, setPendingImages] = useState([]);
-  const [pendingFiles, setPendingFiles] = useState([]);
+  const DRAFT_KEY = "notes-composer-draft";
+  const [text, setText] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || "null")?.text || ""; } catch { return ""; }
+  });
+  const [pendingImages, setPendingImages] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || "null")?.images || []; } catch { return []; }
+  });
+  const [pendingFiles, setPendingFiles] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || "null")?.files || []; } catch { return []; }
+  });
   const [uploading, setUploading] = useState(false);
-  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(() => {
+    // 下書きに何か残っていれば、次回起動時に自動でComposerを開いて
+    // 気づけるようにする(カメラ起動→アプリ再読み込みで消えたように
+    // 見えていた写真も、ここで復元されて再表示される)。
+    try {
+      const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
+      return !!(d && (d.text?.trim() || (d.images || []).length || (d.files || []).length));
+    } catch { return false; }
+  });
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [projectPickerOpen, setProjectPickerOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
@@ -473,7 +488,22 @@ export default function NotesPage({ setTab }) {
     setText("");
     setPendingImages([]);
     setPendingFiles([]);
+    try { localStorage.removeItem(DRAFT_KEY); } catch {}
   }
+
+  // 下書きを自動保存(カメラ起動でアプリが裏に回っている間に再読み込みされても、
+  // 撮った写真や入力中の文章が消えないようにする)。編集中の既存ノート
+  // (editingNoteId有り)は下書き扱いにしない。
+  useEffect(() => {
+    if (editingNoteId) return;
+    if (!text.trim() && pendingImages.length === 0 && pendingFiles.length === 0) {
+      try { localStorage.removeItem(DRAFT_KEY); } catch {}
+      return;
+    }
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ text, images: pendingImages, files: pendingFiles }));
+    } catch {}
+  }, [text, pendingImages, pendingFiles, editingNoteId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSaveNote() {
     if (isTeam) {
