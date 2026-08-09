@@ -307,7 +307,7 @@ function FullScreenComposer({
                     src={f.dataUrl}
                     title={f.name}
                     className="w-full rounded-lg border mt-1"
-                    style={{ height: "70vh" }}
+                    style={{ height: "45vh" }}
                   />
                 )}
               </div>
