@@ -295,11 +295,21 @@ function FullScreenComposer({
           </div>
         )}
         {pendingFiles.length > 0 && (
-          <div className="space-y-1.5 mb-2">
+          <div className="space-y-2 mb-2">
             {pendingFiles.map((f, i) => (
-              <div key={i} className="flex items-center justify-between rounded-lg border p-2 text-xs">
-                <span className="truncate">📄 {f.name}</span>
-                <button onClick={() => setPendingFiles((p) => p.filter((_, idx) => idx !== i))} className="text-gray-400 ml-2">×</button>
+              <div key={i}>
+                <div className="flex items-center justify-between rounded-lg border p-2 text-xs">
+                  <span className="truncate">📄 {f.name}</span>
+                  <button onClick={() => setPendingFiles((p) => p.filter((_, idx) => idx !== i))} className="text-gray-400 ml-2">×</button>
+                </div>
+                {f.type === "application/pdf" && (
+                  <iframe
+                    src={f.dataUrl}
+                    title={f.name}
+                    className="w-full rounded-lg border mt-1"
+                    style={{ height: "70vh" }}
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -493,7 +503,15 @@ export default function NotesPage({ setTab }) {
                 {n.files && n.files.length > 0 && (
                   <div className="space-y-1.5 mb-3">
                     {n.files.map((f, i) => (
-                      <div key={i} className="text-xs rounded-lg border p-2 truncate">📄 {f.name}</div>
+                      <a
+                        key={i}
+                        href={f.dataUrl}
+                        download={f.name}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1.5 text-xs rounded-lg border p-2 truncate text-indigo-600 active:bg-gray-50"
+                      >
+                        📄 {f.name}
+                      </a>
                     ))}
                   </div>
                 )}
