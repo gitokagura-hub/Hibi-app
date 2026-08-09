@@ -11,9 +11,75 @@ function deriveTitle(text) {
 
 // Fullscreen single-photo viewer. Tap the backdrop or × to close.
 function PhotoViewer({ src, onClose }) {
+  const [scale, setScale] = useState(1);
+  const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  const pinchState = useRef(null); // { startDist, startScale }
+  const panState = useRef(null); // { startX, startY, startTx, startTy }
+  const lastTapRef = useRef(0);
+
+  function dist(touches) {
+    const [a, b] = touches;
+    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  }
+
+  function handleTouchStart(e) {
+    if (e.touches.length === 2) {
+      pinchState.current = { startDist: dist(e.touches), startScale: scale };
+    } else if (e.touches.length === 1 && scale > 1) {
+      panState.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, startTx: translate.x, startTy: translate.y };
+    }
+  }
+
+  function handleTouchMove(e) {
+    if (e.touches.length === 2 && pinchState.current) {
+      e.preventDefault();
+      const newScale = Math.min(4, Math.max(1, pinchState.current.startScale * (dist(e.touches) / pinchState.current.startDist)));
+      setScale(newScale);
+    } else if (e.touches.length === 1 && panState.current) {
+      e.preventDefault();
+      const dx = e.touches[0].clientX - panState.current.startX;
+      const dy = e.touches[0].clientY - panState.current.startY;
+      setTranslate({ x: panState.current.startTx + dx, y: panState.current.startTy + dy });
+    }
+  }
+
+  function handleTouchEnd(e) {
+    pinchState.current = null;
+    panState.current = null;
+    if (scale <= 1.05) {
+      setScale(1);
+      setTranslate({ x: 0, y: 0 });
+    }
+    // ダブルタップで2倍/等倍を切り替え
+    if (e.touches.length === 0) {
+      const now = Date.now();
+      if (now - lastTapRef.current < 300) {
+        if (scale > 1) {
+          setScale(1);
+          setTranslate({ x: 0, y: 0 });
+        } else {
+          setScale(2);
+        }
+      }
+      lastTapRef.current = now;
+    }
+  }
+
   return (
-    <div className="fixed inset-0 z-[90] bg-black/95 flex items-center justify-center p-8" onClick={(e) => e.stopPropagation()}>
-      <img src={src} alt="" className="max-w-full max-h-full object-contain rounded-2xl" />
+    <div
+      className="fixed inset-0 z-[90] bg-black/95 flex items-center justify-center p-8 overflow-hidden touch-none"
+      onClick={(e) => e.stopPropagation()}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <img
+        src={src}
+        alt=""
+        className="max-w-full max-h-full object-contain rounded-2xl"
+        style={{ transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`, transition: pinchState.current ? "none" : "transform 0.15s" }}
+        draggable={false}
+      />
       <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="absolute top-14 right-5 w-9 h-9 rounded-full bg-white/20 text-white text-lg flex items-center justify-center">×</button>
     </div>
   );
