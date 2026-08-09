@@ -59,6 +59,50 @@ function PhotoThumb({ src, onDelete, confirm, size = "w-24 h-24" }) {
   );
 }
 
+function PdfPreview({ file }) {
+  const [blobUrl, setBlobUrl] = useState(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let url = null;
+    setFailed(false);
+    setBlobUrl(null);
+    try {
+      // data:application/pdf;base64,xxxx... をBlobに変換してobject URLを作る。
+      // iOS Safariはiframe src への巨大なdata: URLの直渡しが不安定
+      // (静かに描画が止まることがある)なため、Blob URL経由にする。
+      const res = fetch(file.dataUrl);
+      res
+        .then((r) => r.blob())
+        .then((blob) => {
+          url = URL.createObjectURL(blob);
+          setBlobUrl(url);
+        })
+        .catch(() => setFailed(true));
+    } catch {
+      setFailed(true);
+    }
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [file.dataUrl]);
+
+  if (failed) {
+    return <p className="text-xs text-gray-400 mt-1">プレビューを表示できませんでした。上のファイル名をタップして開いてください。</p>;
+  }
+  if (!blobUrl) {
+    return <div className="w-full rounded-lg border mt-1 flex items-center justify-center text-xs text-gray-400" style={{ height: "45vh" }}>読み込み中...</div>;
+  }
+  return (
+    <iframe
+      src={blobUrl}
+      title={file.name}
+      className="w-full rounded-lg border mt-1"
+      style={{ height: "45vh" }}
+    />
+  );
+}
+
 function VoiceCapture({ onClose, onSave }) {
   const [stage, setStage] = useState("listening");
   const [seconds, setSeconds] = useState(0);
@@ -302,14 +346,7 @@ function FullScreenComposer({
                   <span className="truncate">📄 {f.name}</span>
                   <button onClick={() => setPendingFiles((p) => p.filter((_, idx) => idx !== i))} className="text-gray-400 ml-2">×</button>
                 </div>
-                {f.type === "application/pdf" && (
-                  <iframe
-                    src={f.dataUrl}
-                    title={f.name}
-                    className="w-full rounded-lg border mt-1"
-                    style={{ height: "45vh" }}
-                  />
-                )}
+                {f.type === "application/pdf" && <PdfPreview file={f} />}
               </div>
             ))}
           </div>
