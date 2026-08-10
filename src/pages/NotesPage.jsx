@@ -44,7 +44,7 @@ function PhotoViewer({ src, onClose }) {
     function handleTouchMove(e) {
       if (e.touches.length === 2 && pinchState.current) {
         e.preventDefault();
-        const newScale = Math.min(4, Math.max(1, pinchState.current.startScale * (dist(e.touches) / pinchState.current.startDist)));
+        const newScale = Math.min(4, Math.max(0.5, pinchState.current.startScale * (dist(e.touches) / pinchState.current.startDist)));
         setScale(newScale);
       } else if (e.touches.length === 1 && panState.current) {
         e.preventDefault();
@@ -57,14 +57,10 @@ function PhotoViewer({ src, onClose }) {
     function handleTouchEnd(e) {
       pinchState.current = null;
       panState.current = null;
-      if (stateRef.current.scale <= 1.05) {
-        setScale(1);
-        setTranslate({ x: 0, y: 0 });
-      }
       if (e.touches.length === 0) {
         const now = Date.now();
         if (now - lastTapRef.current < 300) {
-          if (stateRef.current.scale > 1) {
+          if (Math.abs(stateRef.current.scale - 1) > 0.05) {
             setScale(1);
             setTranslate({ x: 0, y: 0 });
           } else {
