@@ -67,8 +67,11 @@ function PhotoViewer({ images, initialIndex = 0, onClose }) {
         const dx = e.touches[0].clientX - swipeState.current.startX;
         const dy = e.touches[0].clientY - swipeState.current.startY;
         // 横方向の動きが縦より明確に大きい場合のみ、ページ送りジェスチャーとして
-        // preventDefaultする(縦スクロール等と誤判定しないため)
-        if (Math.abs(dx) > Math.abs(dy) + 10) e.preventDefault();
+        // preventDefaultし、指の動きに合わせて画像を追従させる
+        if (Math.abs(dx) > Math.abs(dy) + 10) {
+          e.preventDefault();
+          setTranslate({ x: dx, y: 0 });
+        }
       }
     }
 
@@ -76,14 +79,21 @@ function PhotoViewer({ images, initialIndex = 0, onClose }) {
       pinchState.current = null;
       panState.current = null;
 
-      if (swipeState.current && e.changedTouches?.length === 1) {
+      if (swipeState.current && e.changedTouches && e.changedTouches.length > 0) {
         const dx = e.changedTouches[0].clientX - swipeState.current.startX;
         const dy = e.changedTouches[0].clientY - swipeState.current.startY;
         if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
-          setIndex((i) => {
-            if (dx < 0) return Math.min(list.length - 1, i + 1); // 左スワイプ→次
-            return Math.max(0, i - 1); // 右スワイプ→前
-          });
+          const newIndex = dx < 0 ? Math.min(list.length - 1, stateRef.current.index + 1) : Math.max(0, stateRef.current.index - 1);
+          if (newIndex !== stateRef.current.index) {
+            setIndex(newIndex);
+          } else {
+            // 端(最初/最後の写真)でこれ以上進めない場合は、その場でスッと戻す
+            setTranslate({ x: 0, y: 0 });
+          }
+        } else {
+          // 閾値に届かなかった(スワイプとして確定しなかった)場合も、
+          // ずれた位置のままにせず元に戻す
+          setTranslate({ x: 0, y: 0 });
         }
       }
       swipeState.current = null;
