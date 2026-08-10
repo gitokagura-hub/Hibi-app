@@ -16,62 +16,83 @@ function PhotoViewer({ src, onClose }) {
   const pinchState = useRef(null); // { startDist, startScale }
   const panState = useRef(null); // { startX, startY, startTx, startTy }
   const lastTapRef = useRef(0);
+  const containerRef = useRef(null);
+  // タッチハンドラ内から常に最新のscale/translateを読めるようにrefへ複製。
+  // (addEventListenerはマウント時の一度きりの登録なので、クロージャの
+  // 値が古いまま固定されるのを避けるため)
+  const stateRef = useRef({ scale, translate });
+  useEffect(() => { stateRef.current = { scale, translate }; }, [scale, translate]);
 
   function dist(touches) {
     const [a, b] = touches;
     return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
   }
 
-  function handleTouchStart(e) {
-    if (e.touches.length === 2) {
-      pinchState.current = { startDist: dist(e.touches), startScale: scale };
-    } else if (e.touches.length === 1 && scale > 1) {
-      panState.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, startTx: translate.x, startTy: translate.y };
-    }
-  }
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
 
-  function handleTouchMove(e) {
-    if (e.touches.length === 2 && pinchState.current) {
-      e.preventDefault();
-      const newScale = Math.min(4, Math.max(1, pinchState.current.startScale * (dist(e.touches) / pinchState.current.startDist)));
-      setScale(newScale);
-    } else if (e.touches.length === 1 && panState.current) {
-      e.preventDefault();
-      const dx = e.touches[0].clientX - panState.current.startX;
-      const dy = e.touches[0].clientY - panState.current.startY;
-      setTranslate({ x: panState.current.startTx + dx, y: panState.current.startTy + dy });
-    }
-  }
-
-  function handleTouchEnd(e) {
-    pinchState.current = null;
-    panState.current = null;
-    if (scale <= 1.05) {
-      setScale(1);
-      setTranslate({ x: 0, y: 0 });
-    }
-    // ダブルタップで2倍/等倍を切り替え
-    if (e.touches.length === 0) {
-      const now = Date.now();
-      if (now - lastTapRef.current < 300) {
-        if (scale > 1) {
-          setScale(1);
-          setTranslate({ x: 0, y: 0 });
-        } else {
-          setScale(2);
-        }
+    function handleTouchStart(e) {
+      if (e.touches.length === 2) {
+        pinchState.current = { startDist: dist(e.touches), startScale: stateRef.current.scale };
+      } else if (e.touches.length === 1 && stateRef.current.scale > 1) {
+        const t = stateRef.current.translate;
+        panState.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, startTx: t.x, startTy: t.y };
       }
-      lastTapRef.current = now;
     }
-  }
+
+    function handleTouchMove(e) {
+      if (e.touches.length === 2 && pinchState.current) {
+        e.preventDefault();
+        const newScale = Math.min(4, Math.max(1, pinchState.current.startScale * (dist(e.touches) / pinchState.current.startDist)));
+        setScale(newScale);
+      } else if (e.touches.length === 1 && panState.current) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - panState.current.startX;
+        const dy = e.touches[0].clientY - panState.current.startY;
+        setTranslate({ x: panState.current.startTx + dx, y: panState.current.startTy + dy });
+      }
+    }
+
+    function handleTouchEnd(e) {
+      pinchState.current = null;
+      panState.current = null;
+      if (stateRef.current.scale <= 1.05) {
+        setScale(1);
+        setTranslate({ x: 0, y: 0 });
+      }
+      if (e.touches.length === 0) {
+        const now = Date.now();
+        if (now - lastTapRef.current < 300) {
+          if (stateRef.current.scale > 1) {
+            setScale(1);
+            setTranslate({ x: 0, y: 0 });
+          } else {
+            setScale(2);
+          }
+        }
+        lastTapRef.current = now;
+      }
+    }
+
+    // { passive: false } が肝: これが無いとブラウザによっては
+    // preventDefault()が無視され、ピンチ操作がSafari標準のページ
+    // ズームや意図しないジェスチャーとして処理されてしまう。
+    el.addEventListener("touchstart", handleTouchStart, { passive: false });
+    el.addEventListener("touchmove", handleTouchMove, { passive: false });
+    el.addEventListener("touchend", handleTouchEnd, { passive: false });
+    return () => {
+      el.removeEventListener("touchstart", handleTouchStart);
+      el.removeEventListener("touchmove", handleTouchMove);
+      el.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, []);
 
   return (
     <div
+      ref={containerRef}
       className="fixed inset-0 z-[90] bg-black/95 flex items-center justify-center p-8 overflow-hidden touch-none"
       onClick={(e) => e.stopPropagation()}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
     >
       <img
         src={src}
@@ -159,13 +180,17 @@ function PdfPreview({ file }) {
   if (!blobUrl) {
     return <div className="w-full rounded-lg border mt-1 flex items-center justify-center text-xs text-gray-400" style={{ height: "45vh" }}>読み込み中...</div>;
   }
+  // iOS Safariは<iframe>自体に指定したCSSの高さを無視し、中身(PDF)の
+  // 高さに合わせて自分で広がってしまう。ラッパーdivの方に高さと
+  // overflow:autoを持たせ、iframe自体には高さを指定しないことで、
+  // 「枠は45vh、その中をスクロールしてPDF全体を見る」形にする。
   return (
-    <iframe
-      src={blobUrl}
-      title={file.name}
-      className="w-full rounded-lg border mt-1"
-      style={{ height: "45vh" }}
-    />
+    <div
+      className="w-full rounded-lg border mt-1 overflow-auto"
+      style={{ height: "45vh", WebkitOverflowScrolling: "touch" }}
+    >
+      <iframe src={blobUrl} title={file.name} className="w-full" style={{ minHeight: "100%" }} />
+    </div>
   );
 }
 
@@ -412,7 +437,7 @@ function FullScreenComposer({
                   <span className="truncate">📄 {f.name}</span>
                   <button onClick={() => setPendingFiles((p) => p.filter((_, idx) => idx !== i))} className="text-gray-400 ml-2">×</button>
                 </div>
-                {f.type === "application/pdf" && <PdfPreview file={f} />}
+                {(f.type === "application/pdf" || f.name?.toLowerCase().endsWith(".pdf")) && <PdfPreview file={f} />}
               </div>
             ))}
           </div>
