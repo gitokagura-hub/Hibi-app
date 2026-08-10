@@ -207,7 +207,7 @@ export default function CalendarPage({ setTab }) {
   return (
     <div className="h-[100dvh] bg-white flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-white px-5 pt-8 pb-1">
+      <header className="bg-white px-5 pt-8 pb-1">
         <div className="mb-2">
           <h1 className="text-lg font-bold text-center">Dayliy Brains</h1>
         </div>
