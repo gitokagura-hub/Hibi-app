@@ -54,7 +54,7 @@ function PhotoViewer({ images, initialIndex = 0, onClose }) {
     function setStripX(x, withTransition) {
       const strip = stripRef.current;
       if (!strip) return;
-      strip.style.transition = withTransition ? "transform 0.38s cubic-bezier(0.22, 1, 0.36, 1)" : "none";
+      strip.style.transition = withTransition ? "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)" : "none";
       strip.style.transform = `translate3d(${x}px,0,0)`;
     }
 
@@ -125,7 +125,7 @@ function PhotoViewer({ images, initialIndex = 0, onClose }) {
           setStripX(target, true);
           setTimeout(() => {
             setIndex((i) => Math.max(0, Math.min(list.length - 1, i - dir)));
-          }, 380);
+          }, 400);
         } else {
           // 閾値未満、または端でこれ以上進めない場合はゴムのように元へ戻す
           setStripX(0, true);
