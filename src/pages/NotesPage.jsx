@@ -10,18 +10,24 @@ function deriveTitle(text) {
 }
 
 // Fullscreen single-photo viewer. Tap the backdrop or × to close.
-function PhotoViewer({ src, onClose }) {
+function PhotoViewer({ images, initialIndex = 0, onClose }) {
+  const list = images && images.length > 0 ? images : [];
+  const [index, setIndex] = useState(Math.min(initialIndex, Math.max(0, list.length - 1)));
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const pinchState = useRef(null); // { startDist, startScale }
   const panState = useRef(null); // { startX, startY, startTx, startTy }
+  const swipeState = useRef(null); // { startX, startY } — 等倍時の左右スワイプでのページ送り用
   const lastTapRef = useRef(0);
   const containerRef = useRef(null);
-  // タッチハンドラ内から常に最新のscale/translateを読めるようにrefへ複製。
+  // タッチハンドラ内から常に最新のscale/translate/indexを読めるようにrefへ複製。
   // (addEventListenerはマウント時の一度きりの登録なので、クロージャの
   // 値が古いまま固定されるのを避けるため)
-  const stateRef = useRef({ scale, translate });
-  useEffect(() => { stateRef.current = { scale, translate }; }, [scale, translate]);
+  const stateRef = useRef({ scale, translate, index });
+  useEffect(() => { stateRef.current = { scale, translate, index }; }, [scale, translate, index]);
+
+  // 画像を切り替えたら毎回ズーム状態はリセット
+  useEffect(() => { setScale(1); setTranslate({ x: 0, y: 0 }); }, [index]);
 
   function dist(touches) {
     const [a, b] = touches;
@@ -35,9 +41,15 @@ function PhotoViewer({ src, onClose }) {
     function handleTouchStart(e) {
       if (e.touches.length === 2) {
         pinchState.current = { startDist: dist(e.touches), startScale: stateRef.current.scale };
-      } else if (e.touches.length === 1 && stateRef.current.scale > 1) {
-        const t = stateRef.current.translate;
-        panState.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, startTx: t.x, startTy: t.y };
+        swipeState.current = null;
+      } else if (e.touches.length === 1) {
+        if (stateRef.current.scale > 1.05) {
+          const t = stateRef.current.translate;
+          panState.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, startTx: t.x, startTy: t.y };
+        } else {
+          // 等倍(ズームしていない)時のみ、横スワイプで前後の写真に移動できるようにする
+          swipeState.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY };
+        }
       }
     }
 
@@ -51,12 +63,31 @@ function PhotoViewer({ src, onClose }) {
         const dx = e.touches[0].clientX - panState.current.startX;
         const dy = e.touches[0].clientY - panState.current.startY;
         setTranslate({ x: panState.current.startTx + dx, y: panState.current.startTy + dy });
+      } else if (e.touches.length === 1 && swipeState.current) {
+        const dx = e.touches[0].clientX - swipeState.current.startX;
+        const dy = e.touches[0].clientY - swipeState.current.startY;
+        // 横方向の動きが縦より明確に大きい場合のみ、ページ送りジェスチャーとして
+        // preventDefaultする(縦スクロール等と誤判定しないため)
+        if (Math.abs(dx) > Math.abs(dy) + 10) e.preventDefault();
       }
     }
 
     function handleTouchEnd(e) {
       pinchState.current = null;
       panState.current = null;
+
+      if (swipeState.current && e.changedTouches?.length === 1) {
+        const dx = e.changedTouches[0].clientX - swipeState.current.startX;
+        const dy = e.changedTouches[0].clientY - swipeState.current.startY;
+        if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
+          setIndex((i) => {
+            if (dx < 0) return Math.min(list.length - 1, i + 1); // 左スワイプ→次
+            return Math.max(0, i - 1); // 右スワイプ→前
+          });
+        }
+      }
+      swipeState.current = null;
+
       if (e.touches.length === 0) {
         const now = Date.now();
         if (now - lastTapRef.current < 300) {
@@ -82,7 +113,11 @@ function PhotoViewer({ src, onClose }) {
       el.removeEventListener("touchmove", handleTouchMove);
       el.removeEventListener("touchend", handleTouchEnd);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [list.length]);
+
+  const current = list[index];
+  if (!current) return null;
 
   return (
     <div
@@ -91,12 +126,19 @@ function PhotoViewer({ src, onClose }) {
       onClick={(e) => e.stopPropagation()}
     >
       <img
-        src={src}
+        src={current}
         alt=""
         className="max-w-full max-h-full object-contain rounded-2xl"
-        style={{ transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`, transition: pinchState.current ? "none" : "transform 0.15s" }}
+        style={{ transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`, transition: pinchState.current || swipeState.current ? "none" : "transform 0.15s" }}
         draggable={false}
       />
+      {list.length > 1 && (
+        <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-1.5">
+          {list.map((_, i) => (
+            <span key={i} className={`w-1.5 h-1.5 rounded-full ${i === index ? "bg-white" : "bg-white/30"}`} />
+          ))}
+        </div>
+      )}
       <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="absolute top-14 right-5 w-9 h-9 rounded-full bg-white/20 text-white text-lg flex items-center justify-center">×</button>
     </div>
   );
@@ -105,7 +147,7 @@ function PhotoViewer({ src, onClose }) {
 // A tappable thumbnail: tap opens the fullscreen viewer, long-press (600ms)
 // asks for confirmation and deletes if onDelete is provided. Used for both
 // the note-list preview (no delete) and the composer preview (deletable).
-function PhotoThumb({ src, onDelete, confirm, size = "w-24 h-24" }) {
+function PhotoThumb({ src, images, index = 0, onDelete, confirm, size = "w-24 h-24" }) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const pressTimer = useRef(null);
   const longPressed = useRef(false);
@@ -137,7 +179,7 @@ function PhotoThumb({ src, onDelete, confirm, size = "w-24 h-24" }) {
         onMouseUp={handleTouchEnd}
         onClick={(e) => e.stopPropagation()}
       />
-      {viewerOpen && <PhotoViewer src={src} onClose={() => setViewerOpen(false)} />}
+      {viewerOpen && <PhotoViewer images={images && images.length > 0 ? images : [src]} initialIndex={index} onClose={() => setViewerOpen(false)} />}
     </>
   );
 }
@@ -435,6 +477,8 @@ function FullScreenComposer({
               <PhotoThumb
                 key={i}
                 src={src}
+                images={pendingImages}
+                index={i}
                 confirm={confirm}
                 onDelete={() => setPendingImages((p) => p.filter((_, idx) => idx !== i))}
               />
@@ -666,7 +710,7 @@ export default function NotesPage({ setTab }) {
                 {n.images && n.images.length > 0 && (
                   <div className="flex gap-2 overflow-x-auto mb-3">
                     {n.images.map((src, i) => (
-                      <PhotoThumb key={i} src={src} />
+                      <PhotoThumb key={i} src={src} images={n.images} index={i} />
                     ))}
                   </div>
                 )}
