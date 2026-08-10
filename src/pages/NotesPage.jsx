@@ -17,17 +17,29 @@ function PhotoViewer({ images, initialIndex = 0, onClose }) {
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const pinchState = useRef(null); // { startDist, startScale }
   const panState = useRef(null); // { startX, startY, startTx, startTy }
-  const swipeState = useRef(null); // { startX, startY } — 等倍時の左右スワイプでのページ送り用
   const lastTapRef = useRef(0);
   const containerRef = useRef(null);
-  // タッチハンドラ内から常に最新のscale/translate/indexを読めるようにrefへ複製。
-  // (addEventListenerはマウント時の一度きりの登録なので、クロージャの
-  // 値が古いまま固定されるのを避けるため)
-  const stateRef = useRef({ scale, translate, index });
-  useEffect(() => { stateRef.current = { scale, translate, index }; }, [scale, translate, index]);
+  const stripRef = useRef(null);
+
+  // --- スワイプ(ページ送り)関連 ---
+  // touchmove中はReactのstateを更新せず、DOMのtransformを直接書き換える
+  // ことでフレーム落ちを避ける(Reactの再レンダーは1回のスワイプにつき
+  // 開始・確定の2回程度で済む)。
+  const swipe = useRef(null); // { startX, startY, lastX, lastT, v, dragging }
+  const stateRef = useRef({ scale, index });
+  const translateRef = useRef(translate);
+  useEffect(() => { stateRef.current = { scale, index }; }, [scale, index]);
+  useEffect(() => { translateRef.current = translate; }, [translate]);
 
   // 画像を切り替えたら毎回ズーム状態はリセット
-  useEffect(() => { setScale(1); setTranslate({ x: 0, y: 0 }); }, [index]);
+  useEffect(() => {
+    setScale(1);
+    setTranslate({ x: 0, y: 0 });
+    if (stripRef.current) {
+      stripRef.current.style.transition = "none";
+      stripRef.current.style.transform = "translate3d(0,0,0)";
+    }
+  }, [index]);
 
   function dist(touches) {
     const [a, b] = touches;
@@ -37,18 +49,29 @@ function PhotoViewer({ images, initialIndex = 0, onClose }) {
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    const W = window.innerWidth;
+
+    function setStripX(x, withTransition) {
+      const strip = stripRef.current;
+      if (!strip) return;
+      strip.style.transition = withTransition ? "transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)" : "none";
+      strip.style.transform = `translate3d(${x}px,0,0)`;
+    }
 
     function handleTouchStart(e) {
       if (e.touches.length === 2) {
         pinchState.current = { startDist: dist(e.touches), startScale: stateRef.current.scale };
-        swipeState.current = null;
+        swipe.current = null;
       } else if (e.touches.length === 1) {
         if (stateRef.current.scale > 1.05) {
-          const t = stateRef.current.translate;
-          panState.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, startTx: t.x, startTy: t.y };
+          panState.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, baseX: translateRef.current.x, baseY: translateRef.current.y };
         } else {
           // 等倍(ズームしていない)時のみ、横スワイプで前後の写真に移動できるようにする
-          swipeState.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY };
+          const now = performance.now();
+          swipe.current = {
+            startX: e.touches[0].clientX, startY: e.touches[0].clientY,
+            lastX: e.touches[0].clientX, lastT: now, v: 0, dragging: false,
+          };
         }
       }
     }
@@ -60,18 +83,29 @@ function PhotoViewer({ images, initialIndex = 0, onClose }) {
         setScale(newScale);
       } else if (e.touches.length === 1 && panState.current) {
         e.preventDefault();
-        const dx = e.touches[0].clientX - panState.current.startX;
-        const dy = e.touches[0].clientY - panState.current.startY;
-        setTranslate({ x: panState.current.startTx + dx, y: panState.current.startTy + dy });
-      } else if (e.touches.length === 1 && swipeState.current) {
-        const dx = e.touches[0].clientX - swipeState.current.startX;
-        const dy = e.touches[0].clientY - swipeState.current.startY;
-        // 横方向の動きが縦より明確に大きい場合のみ、ページ送りジェスチャーとして
-        // preventDefaultし、指の動きに合わせて画像を追従させる
-        if (Math.abs(dx) > Math.abs(dy) + 10) {
-          e.preventDefault();
-          setTranslate({ x: dx, y: 0 });
+      } else if (e.touches.length === 1 && swipe.current) {
+        const s = swipe.current;
+        const x = e.touches[0].clientX;
+        const dx = x - s.startX;
+        const dy = e.touches[0].clientY - s.startY;
+        if (!s.dragging && Math.abs(dx) < Math.abs(dy) + 10) return; // 方向確定前は何もしない(縦スクロール等との誤判定回避)
+        s.dragging = true;
+        e.preventDefault();
+
+        // 端(最初/最後の写真)でさらに引っ張ろうとしたら、ゴムのような抵抗をかける
+        let dragX = dx;
+        if ((stateRef.current.index === 0 && dx > 0) || (stateRef.current.index === list.length - 1 && dx < 0)) {
+          dragX = dx * 0.35;
         }
+
+        const now = performance.now();
+        const dt = now - s.lastT;
+        if (dt > 0) s.v = (x - s.lastX) / dt; // px/ms、直近の瞬間速度
+        s.lastX = x;
+        s.lastT = now;
+        s.finalDragX = dragX;
+
+        setStripX(dragX, false);
       }
     }
 
@@ -79,24 +113,25 @@ function PhotoViewer({ images, initialIndex = 0, onClose }) {
       pinchState.current = null;
       panState.current = null;
 
-      if (swipeState.current && e.changedTouches && e.changedTouches.length > 0) {
-        const dx = e.changedTouches[0].clientX - swipeState.current.startX;
-        const dy = e.changedTouches[0].clientY - swipeState.current.startY;
-        if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
-          const newIndex = dx < 0 ? Math.min(list.length - 1, stateRef.current.index + 1) : Math.max(0, stateRef.current.index - 1);
-          if (newIndex !== stateRef.current.index) {
-            setIndex(newIndex);
-          } else {
-            // 端(最初/最後の写真)でこれ以上進めない場合は、その場でスッと戻す
-            setTranslate({ x: 0, y: 0 });
-          }
+      if (swipe.current && swipe.current.dragging) {
+        const s = swipe.current;
+        const dragX = s.finalDragX || 0;
+        const commit = Math.abs(dragX) > W * 0.35 || Math.abs(s.v) > 0.5;
+        const dir = (dragX < 0 || s.v < -0.5) ? -1 : 1; // -1: 次へ(左スワイプ), 1: 前へ(右スワイプ)
+        const atEdge = (dir === -1 && stateRef.current.index === list.length - 1) || (dir === 1 && stateRef.current.index === 0);
+
+        if (commit && !atEdge) {
+          const target = dir === -1 ? -W : W;
+          setStripX(target, true);
+          setTimeout(() => {
+            setIndex((i) => Math.max(0, Math.min(list.length - 1, i - dir)));
+          }, 300);
         } else {
-          // 閾値に届かなかった(スワイプとして確定しなかった)場合も、
-          // ずれた位置のままにせず元に戻す
-          setTranslate({ x: 0, y: 0 });
+          // 閾値未満、または端でこれ以上進めない場合はゴムのように元へ戻す
+          setStripX(0, true);
         }
       }
-      swipeState.current = null;
+      swipe.current = null;
 
       if (e.touches.length === 0) {
         const now = Date.now();
@@ -126,22 +161,51 @@ function PhotoViewer({ images, initialIndex = 0, onClose }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [list.length]);
 
+  // ズーム中のパン操作(1本指ドラッグ)は、写真単体のtransformなので
+  // 従来通りReact stateで問題ない(スワイプのようにフレーム毎の再描画
+  // コストを気にする必要が薄い、動くのは1枚だけのため)。
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    function handlePanMove(e) {
+      if (e.touches.length === 1 && panState.current && stateRef.current.scale > 1.05) {
+        const dx = e.touches[0].clientX - panState.current.startX;
+        const dy = e.touches[0].clientY - panState.current.startY;
+        setTranslate({ x: panState.current.baseX + dx, y: panState.current.baseY + dy });
+      }
+    }
+    el.addEventListener("touchmove", handlePanMove, { passive: false });
+    return () => el.removeEventListener("touchmove", handlePanMove);
+  }, []);
+
   const current = list[index];
   if (!current) return null;
 
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-[90] bg-black/95 flex items-center justify-center p-8 overflow-hidden touch-none"
+      className="fixed inset-0 z-[90] bg-black/95 overflow-hidden touch-none"
       onClick={(e) => e.stopPropagation()}
     >
-      <img
-        src={current}
-        alt=""
-        className="max-w-full max-h-full object-contain rounded-2xl"
-        style={{ transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`, transition: pinchState.current || swipeState.current ? "none" : "transform 0.15s" }}
-        draggable={false}
-      />
+      <div
+        ref={stripRef}
+        className="flex items-center h-full"
+        style={{ width: "300vw", marginLeft: "-100vw", willChange: "transform", transform: "translate3d(0,0,0)" }}
+      >
+        {[index - 1, index, index + 1].map((i) => (
+          <div key={i} className="w-screen h-full flex items-center justify-center p-8 shrink-0">
+            {list[i] && (
+              <img
+                src={list[i]}
+                alt=""
+                draggable={false}
+                className="max-w-full max-h-full object-contain rounded-2xl"
+                style={i === index ? { transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})` } : undefined}
+              />
+            )}
+          </div>
+        ))}
+      </div>
       {list.length > 1 && (
         <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-1.5">
           {list.map((_, i) => (
