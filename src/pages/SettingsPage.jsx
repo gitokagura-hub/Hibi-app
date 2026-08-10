@@ -8,7 +8,7 @@ import { isPushSupported, wasPushSubscribedBefore, notificationPermission, subsc
 
 function GroupHeader({ children }) {
   return (
-    <h3 className="text-xs font-bold text-gray-500 uppercase pl-2 mb-2">{children}</h3>
+    <h3 className="text-xs font-bold text-ink-sub uppercase pl-2 mb-2">{children}</h3>
   );
 }
 
@@ -165,27 +165,27 @@ export default function SettingsPage({ setTab }) {
         {/* Group 1: Google Suite Sync Setup */}
         <div className="mb-7">
           <GroupHeader>Google 連携設定</GroupHeader>
-          <div className="rounded-2xl border border-gray-200 overflow-hidden">
-            <div className="p-4 flex items-center justify-between border-b border-gray-100">
+          <div className="rounded-2xl border border-app-line overflow-hidden">
+            <div className="p-4 flex items-center justify-between border-b border-app-line">
               <span>Google Calendar 同期</span>
-              <span className="text-gray-400 text-sm">未接続</span>
+              <span className="text-ink-sub text-sm">未接続</span>
             </div>
             <div className="p-4 flex items-center justify-between">
               <div>
                 <span>Google Drive 連携</span>
-                {!driveReady && <p className="text-xs text-gray-400 mt-1">未設定（Client ID未構成）</p>}
+                {!driveReady && <p className="text-xs text-ink-sub mt-1">未設定（Client ID未構成）</p>}
                 {driveError && <p className="text-xs text-red-500 mt-1">{driveError}</p>}
               </div>
               {driveReady ? (
                 <button
                   onClick={handleDriveToggle}
                   disabled={driveBusy}
-                  className={`text-sm font-semibold rounded-full px-4 py-1.5 ${driveConnected ? "bg-black text-white" : "border border-gray-300"}`}
+                  className={`text-sm font-semibold rounded-full px-4 py-1.5 ${driveConnected ? "bg-ink text-black" : "border border-app-line"}`}
                 >
                   {driveBusy ? "…" : driveConnected ? "連携済" : "連携する"}
                 </button>
               ) : (
-                <span className="text-gray-400 text-sm">利用不可</span>
+                <span className="text-ink-sub text-sm">利用不可</span>
               )}
             </div>
           </div>
@@ -194,23 +194,23 @@ export default function SettingsPage({ setTab }) {
         {/* Group 1.2: Team Space */}
         <div className="mb-7">
           <GroupHeader>ByMaeNikko Team 連携</GroupHeader>
-          <div className="rounded-2xl border border-gray-200 overflow-hidden">
-            <div className="p-4 flex items-center justify-between border-b border-gray-100">
+          <div className="rounded-2xl border border-app-line overflow-hidden">
+            <div className="p-4 flex items-center justify-between border-b border-app-line">
               <div>
                 <span>共有スペースへの接続</span>
-                {!teamReady && <p className="text-xs text-gray-400 mt-1">未設定（シートID未構成）</p>}
+                {!teamReady && <p className="text-xs text-ink-sub mt-1">未設定（シートID未構成）</p>}
                 {teamConnError && <p className="text-xs text-red-500 mt-1">{teamConnError}</p>}
               </div>
               {teamReady ? (
                 <button
                   onClick={handleTeamToggle}
                   disabled={teamBusy}
-                  className={`text-sm font-semibold rounded-full px-4 py-1.5 ${teamConnected ? "bg-black text-white" : "border border-gray-300"}`}
+                  className={`text-sm font-semibold rounded-full px-4 py-1.5 ${teamConnected ? "bg-ink text-black" : "border border-app-line"}`}
                 >
                   {teamBusy ? "…" : teamConnected ? "連携済" : "連携する"}
                 </button>
               ) : (
-                <span className="text-gray-400 text-sm">利用不可</span>
+                <span className="text-ink-sub text-sm">利用不可</span>
               )}
             </div>
             <div className="p-4">
@@ -223,7 +223,7 @@ export default function SettingsPage({ setTab }) {
                 placeholder="例：Gito"
                 className="w-full rounded-xl border p-2.5 text-sm"
               />
-              <p className="text-xs text-gray-400 mt-1.5">Teamスペースに書いたノートやタスクに、この名前が表示されます。</p>
+              <p className="text-xs text-ink-sub mt-1.5">Teamスペースに書いたノートやタスクに、この名前が表示されます。</p>
             </div>
           </div>
         </div>
@@ -231,16 +231,16 @@ export default function SettingsPage({ setTab }) {
         {/* Group 1.4: Task Reminder Notifications */}
         <div className="mb-7">
           <GroupHeader>タスクのリマインダー通知</GroupHeader>
-          <div className="rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="rounded-2xl border border-app-line overflow-hidden">
             <div className="p-4 flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold">🔔 通知を受け取る</p>
-                <p className="text-xs text-gray-400 mt-0.5">Calendarで時刻を設定したタスクの時間になったら通知します</p>
+                <p className="text-xs text-ink-sub mt-0.5">Calendarで時刻を設定したタスクの時間になったら通知します</p>
               </div>
               <button
                 onClick={handlePushToggle}
                 disabled={pushBusy}
-                className={`rounded-xl px-4 py-2 text-sm font-semibold flex-shrink-0 ${pushSubscribed ? "bg-gray-100 text-gray-600" : "bg-black text-white"}`}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold flex-shrink-0 ${pushSubscribed ? "bg-app-raised text-ink-sub" : "bg-ink text-black"}`}
               >
                 {pushBusy ? "設定中…" : pushSubscribed ? "オフにする" : "オンにする"}
               </button>
@@ -266,7 +266,7 @@ export default function SettingsPage({ setTab }) {
               </div>
             )}
           </div>
-          <p className="text-xs text-gray-400 mt-2 px-2">
+          <p className="text-xs text-ink-sub mt-2 px-2">
             初回はホーム画面に追加したアプリから開いて設定してください。ブラウザから直接開いた場合、iPhoneでは通知が届かないことがあります。
           </p>
         </div>
@@ -274,9 +274,9 @@ export default function SettingsPage({ setTab }) {
         {/* Group 1.5: Backup & Restore */}
         <div className="mb-7">
           <GroupHeader>データのバックアップ</GroupHeader>
-          <div className="rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="rounded-2xl border border-app-line overflow-hidden">
             <div className="p-4">
-              <p className="text-sm text-gray-600 mb-3">
+              <p className="text-sm text-ink-sub mb-3">
                 {driveConnected
                   ? "カレンダー・ノート・プロジェクトのすべてのデータをGoogle Driveに保存・復元できます。"
                   : "バックアップを使うには、まず上のGoogle Driveと連携してください。"}
@@ -285,19 +285,19 @@ export default function SettingsPage({ setTab }) {
                 <button
                   onClick={handleBackup}
                   disabled={!driveConnected || backupBusy}
-                  className="flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold bg-white disabled:opacity-40"
+                  className="flex-1 rounded-xl border border-app-line px-4 py-2.5 text-sm font-semibold bg-app-surface disabled:opacity-40"
                 >
                   {backupBusy ? "…" : "バックアップする"}
                 </button>
                 <button
                   onClick={handleRestore}
                   disabled={!driveConnected || backupBusy}
-                  className="flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold bg-white disabled:opacity-40"
+                  className="flex-1 rounded-xl border border-app-line px-4 py-2.5 text-sm font-semibold bg-app-surface disabled:opacity-40"
                 >
                   {backupBusy ? "…" : "復元する"}
                 </button>
               </div>
-              {backupMessage && <p className="text-xs text-gray-500 mt-1">{backupMessage}</p>}
+              {backupMessage && <p className="text-xs text-ink-sub mt-1">{backupMessage}</p>}
             </div>
           </div>
         </div>
@@ -305,11 +305,11 @@ export default function SettingsPage({ setTab }) {
         {/* Group 2: AI Core Models Matrix */}
         <div className="mb-7">
           <GroupHeader>AI 連携コアマトリクス</GroupHeader>
-          <div className="rounded-2xl border border-gray-200 overflow-hidden">
-            <div className="p-4 border-b border-gray-100">
+          <div className="rounded-2xl border border-app-line overflow-hidden">
+            <div className="p-4 border-b border-app-line">
               <div className="flex items-center justify-between mb-2">
                 <span>Claude（Notes画面のAI処理に使用）</span>
-                <span className={data.settings.claudeKey ? "text-blue-600 font-semibold text-sm" : "text-gray-400 text-sm"}>
+                <span className={data.settings.claudeKey ? "text-blue-600 font-semibold text-sm" : "text-ink-sub text-sm"}>
                   {data.settings.claudeKey ? "設定済" : "未設定"}
                 </span>
               </div>
@@ -321,10 +321,10 @@ export default function SettingsPage({ setTab }) {
                 className="w-full rounded-xl border p-2.5 text-sm"
               />
             </div>
-            <div className="p-4 border-b border-gray-100">
+            <div className="p-4 border-b border-app-line">
               <div className="flex items-center justify-between mb-2">
                 <span>Gemini（Notes画面のAI処理に使用）</span>
-                <span className={data.settings.geminiKey ? "text-blue-600 font-semibold text-sm" : "text-gray-400 text-sm"}>
+                <span className={data.settings.geminiKey ? "text-blue-600 font-semibold text-sm" : "text-ink-sub text-sm"}>
                   {data.settings.geminiKey ? "設定済" : "未設定"}
                 </span>
               </div>
@@ -339,7 +339,7 @@ export default function SettingsPage({ setTab }) {
             <div className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <span>ChatGPT（設計パートナー）</span>
-                <span className={data.settings.chatgptKey ? "text-blue-600 font-semibold text-sm" : "text-gray-400 text-sm"}>
+                <span className={data.settings.chatgptKey ? "text-blue-600 font-semibold text-sm" : "text-ink-sub text-sm"}>
                   {data.settings.chatgptKey ? "設定済" : "未設定"}
                 </span>
               </div>
@@ -350,10 +350,10 @@ export default function SettingsPage({ setTab }) {
                 placeholder="API キーを入力"
                 className="w-full rounded-xl border p-2.5 text-sm"
               />
-              <p className="text-[11px] text-gray-400 mt-1.5">ChatGPTはまだNotes画面のAI処理には接続されていません。</p>
+              <p className="text-[11px] text-ink-sub mt-1.5">ChatGPTはまだNotes画面のAI処理には接続されていません。</p>
             </div>
           </div>
-          <p className="text-xs text-gray-400 mt-2 px-2">
+          <p className="text-xs text-ink-sub mt-2 px-2">
             ここで保存したキーは端末内にのみ保存され、各プロバイダのAPIへの直接通信にのみ使われます。
           </p>
         </div>
@@ -361,12 +361,12 @@ export default function SettingsPage({ setTab }) {
         {/* Group 3: Information & Manuals */}
         <div className="pb-10">
           <GroupHeader>アプリケーション説明</GroupHeader>
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600 leading-relaxed mb-4">
+          <div className="rounded-2xl border border-app-line bg-app-surface p-4 text-sm text-ink-sub leading-relaxed mb-4">
             Dayliy Brains は「毎日開く、自分専用の思考整理アプリ」です。カレンダーによるスケジュール管理、低摩擦の壁打ちノート、それらを構造化するプロジェクトルームが連携します。
           </div>
 
           <GroupHeader>使い方ガイド</GroupHeader>
-          <div className="rounded-2xl border border-gray-200 overflow-hidden divide-y divide-gray-100">
+          <div className="rounded-2xl border border-app-line overflow-hidden divide-y divide-app-line">
             <UsageItem title="① Personal / Team の切り替え">
               Calendar・Notes・Projects画面の上部にあるタブで「Personal」と「ByMaeNikko Team」を切り替えられます。
               <br /><br />
@@ -406,16 +406,16 @@ export default function SettingsPage({ setTab }) {
 function UsageItem({ title, children }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="bg-white">
+    <div className="bg-app-surface">
       <button
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center justify-between p-4 text-left"
       >
         <span className="text-sm font-semibold">{title}</span>
-        <span className="text-gray-400 text-xs">{open ? "▲" : "▼"}</span>
+        <span className="text-ink-sub text-xs">{open ? "▲" : "▼"}</span>
       </button>
       {open && (
-        <div className="px-4 pb-4 text-xs text-gray-600 leading-relaxed">
+        <div className="px-4 pb-4 text-xs text-ink-sub leading-relaxed">
           {children}
         </div>
       )}

@@ -17,7 +17,7 @@ export default function BottomNavigation({ current, setTab }) {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-20 flex items-center justify-around"
+      className="fixed bottom-0 left-0 right-0 bg-app-bg/90 backdrop-blur-xl border-t border-app-line h-20 flex items-center justify-around"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       {items.map((item) => {
@@ -29,8 +29,8 @@ export default function BottomNavigation({ current, setTab }) {
             onClick={() => setTab(item.id)}
             className="flex flex-col items-center justify-center gap-1"
           >
-            <Icon size={22} className={active ? "text-black" : "text-gray-400"} />
-            <span className={`text-xs ${active ? "font-semibold text-black" : "text-gray-400"}`}>
+            <Icon size={22} className={active ? "text-ink" : "text-ink-sub"} />
+            <span className={`text-xs ${active ? "font-semibold text-ink" : "text-ink-sub"}`}>
               {item.label}
             </span>
           </button>

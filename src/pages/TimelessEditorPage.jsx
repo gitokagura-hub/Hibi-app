@@ -10,8 +10,8 @@ export default function TimelessEditorPage({ articleId, onBack }) {
 
   if (!article) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 text-center">
-        <p className="text-sm text-gray-400">この記事は見つかりませんでした</p>
+      <div className="min-h-screen bg-app-bg flex flex-col items-center justify-center px-6 text-center">
+        <p className="text-sm text-ink-sub">この記事は見つかりませんでした</p>
         <button onClick={onBack} className="mt-4 text-sm font-semibold" style={{ color: "#8C6B47" }}>
           一覧へ戻る
         </button>
@@ -20,16 +20,16 @@ export default function TimelessEditorPage({ articleId, onBack }) {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-app-bg">
       <button
         onClick={onBack}
-        className="fixed bottom-6 left-5 z-30 w-11 h-11 rounded-full bg-white/90 backdrop-blur border border-gray-200 flex items-center justify-center shadow-sm"
+        className="fixed bottom-6 left-5 z-30 w-11 h-11 rounded-full bg-app-surface/90 backdrop-blur border border-app-line flex items-center justify-center shadow-sm"
         aria-label="一覧へ戻る"
       >
-        <ChevronLeft size={18} className="text-gray-600" />
+        <ChevronLeft size={18} className="text-ink-sub" />
       </button>
 
-      <div className="sticky top-0 z-20 bg-white border-b border-gray-100">
+      <div className="sticky top-0 z-20 bg-app-bg border-b border-app-line">
         <div className="flex items-center justify-end px-4 pt-14 pb-2">
           <button
             onClick={() => {
@@ -38,7 +38,7 @@ export default function TimelessEditorPage({ articleId, onBack }) {
                 onBack();
               }
             }}
-            className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center"
+            className="w-9 h-9 rounded-full bg-app-raised flex items-center justify-center"
           >
             <Trash2 size={16} className="text-red-400" />
           </button>
@@ -69,7 +69,7 @@ export default function TimelessEditorPage({ articleId, onBack }) {
                 className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${
                   article.status === s.id
                     ? "bg-gray-900 text-white border-gray-900"
-                    : "bg-white text-gray-500 border-gray-200"
+                    : "bg-app-surface text-ink-sub border-app-line"
                 }`}
               >
                 {s.label}
@@ -84,14 +84,14 @@ export default function TimelessEditorPage({ articleId, onBack }) {
           value={article.title}
           onChange={(e) => updateArticle(article.id, { title: e.target.value })}
           placeholder="記事タイトル"
-          className="w-full text-xl font-bold text-gray-900 focus:outline-none mb-4"
+          className="w-full text-xl font-bold text-ink focus:outline-none mb-4"
         />
         <textarea
           value={article.content}
           onChange={(e) => updateArticle(article.id, { content: e.target.value })}
           placeholder="ここに下書きを書いていく。音声メモの文字起こしをそのまま貼ってもOK。"
           rows={14}
-          className="w-full text-[15px] leading-relaxed text-gray-800 focus:outline-none resize-none"
+          className="w-full text-[15px] leading-relaxed text-ink focus:outline-none resize-none"
         />
 
         <div className="mt-5">

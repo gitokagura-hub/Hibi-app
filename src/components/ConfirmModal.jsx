@@ -28,7 +28,7 @@ export function ConfirmProvider({ children }) {
       {children}
       {state && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-6">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-sm">
+          <div className="bg-app-surface rounded-3xl p-6 w-full max-w-sm">
             <p className="text-[15px] leading-relaxed mb-5 whitespace-pre-wrap">{state.message}</p>
             <div className="flex gap-2">
               <button

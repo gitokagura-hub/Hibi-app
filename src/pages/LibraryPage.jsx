@@ -51,7 +51,7 @@ function TagPickerSheet({ selected, available, onAddCategory, onClose, onSave })
 
   return (
     <div className="fixed inset-0 z-[95] flex items-end bg-black/40" onClick={(e) => { e.stopPropagation(); onClose(); }}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full bg-white rounded-t-3xl p-6 max-h-[75vh] overflow-y-auto" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full bg-app-surface rounded-t-3xl p-6 max-h-[75vh] overflow-y-auto" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
         <h2 className="text-lg font-semibold mb-3">🏷️ タグを選ぶ</h2>
         {available.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-4">
@@ -59,7 +59,7 @@ function TagPickerSheet({ selected, available, onAddCategory, onClose, onSave })
               <button
                 key={cat}
                 onClick={() => toggle(cat)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold border ${picked.includes(cat) ? "bg-black text-white border-black" : "bg-white text-gray-600 border-gray-200"}`}
+                className={`rounded-full px-4 py-2 text-sm font-semibold border ${picked.includes(cat) ? "bg-ink text-black border-black" : "bg-app-surface text-ink-sub border-app-line"}`}
               >
                 {cat}
               </button>
@@ -74,7 +74,7 @@ function TagPickerSheet({ selected, available, onAddCategory, onClose, onSave })
             placeholder="新しいタグ名（例：人、料理、名刺）..."
             className="flex-1 rounded-xl border p-2.5 text-sm"
           />
-          <button onClick={handleAddNew} disabled={!newCat.trim()} className="rounded-xl bg-black text-white px-4 text-sm font-semibold disabled:opacity-30">追加</button>
+          <button onClick={handleAddNew} disabled={!newCat.trim()} className="rounded-xl bg-ink text-black px-4 text-sm font-semibold disabled:opacity-30">追加</button>
         </div>
         <button
           onClick={() => {
@@ -86,9 +86,9 @@ function TagPickerSheet({ selected, available, onAddCategory, onClose, onSave })
               onSave(picked);
             }
           }}
-          className="w-full rounded-2xl bg-black text-white p-3.5 font-semibold mb-2"
+          className="w-full rounded-2xl bg-ink text-black p-3.5 font-semibold mb-2"
         >保存</button>
-        <button onClick={onClose} className="w-full text-center text-gray-400 text-sm">キャンセル</button>
+        <button onClick={onClose} className="w-full text-center text-ink-sub text-sm">キャンセル</button>
       </div>
     </div>
   );
@@ -148,7 +148,7 @@ export default function LibraryPage({ onHome }) {
   const untaggedCount = imagesWithTags.filter((img) => img.tags.length === 0).length;
 
   return (
-    <div className="min-h-screen bg-white relative">
+    <div className="min-h-screen bg-app-bg relative">
       <button
         onClick={onHome}
         className="fixed bottom-6 right-5 z-30 w-11 h-11 rounded-full bg-sky-100/90 backdrop-blur border border-sky-200 flex items-center justify-center shadow-sm"
@@ -159,7 +159,7 @@ export default function LibraryPage({ onHome }) {
 
       <header className="px-5 pt-14 pb-3">
         <h1 className="text-3xl font-semibold tracking-tight">Library</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-1 text-sm text-ink-sub">
           {filteredImages.length}件の画像（Daily Brains内 / Notes・Calendar・Projects横断）
         </p>
       </header>
@@ -168,7 +168,7 @@ export default function LibraryPage({ onHome }) {
         <div className="px-5 pb-3 flex gap-2 overflow-x-auto">
           <button
             onClick={() => setActiveCategory(null)}
-            className={`flex-shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold border ${!activeCategory ? "bg-black text-white border-black" : "bg-white text-gray-600 border-gray-200"}`}
+            className={`flex-shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold border ${!activeCategory ? "bg-ink text-black border-black" : "bg-app-surface text-ink-sub border-app-line"}`}
           >
             すべて
           </button>
@@ -176,7 +176,7 @@ export default function LibraryPage({ onHome }) {
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`flex-shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold border ${activeCategory === cat ? "bg-black text-white border-black" : "bg-white text-gray-600 border-gray-200"}`}
+              className={`flex-shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold border ${activeCategory === cat ? "bg-ink text-black border-black" : "bg-app-surface text-ink-sub border-app-line"}`}
             >
               {cat}
             </button>
@@ -186,14 +186,14 @@ export default function LibraryPage({ onHome }) {
 
       <main className="px-5 pb-24">
         {filteredImages.length === 0 ? (
-          <div className="mt-20 flex flex-col items-center text-center text-gray-400">
+          <div className="mt-20 flex flex-col items-center text-center text-ink-sub">
             <ImageIcon size={32} />
             <p className="mt-3 text-sm">{activeCategory ? "このタグの画像はまだありません" : "まだ画像がありません"}</p>
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-2">
             {filteredImages.map((img, i) => (
-              <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
+              <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-app-raised">
                 <button
                   onClick={() => setViewerSrc(img.src)}
                   className="w-full h-full block"
@@ -215,7 +215,7 @@ export default function LibraryPage({ onHome }) {
           </div>
         )}
         {!activeCategory && untaggedCount > 0 && (
-          <p className="mt-4 text-xs text-gray-400 text-center">未分類の写真: {untaggedCount}件</p>
+          <p className="mt-4 text-xs text-ink-sub text-center">未分類の写真: {untaggedCount}件</p>
         )}
       </main>
 
@@ -224,7 +224,7 @@ export default function LibraryPage({ onHome }) {
           <img src={viewerSrc} alt="" className="max-w-full max-h-full object-contain rounded-2xl" />
           <button
             onClick={(e) => { e.stopPropagation(); setViewerSrc(null); }}
-            className="absolute top-14 right-5 w-9 h-9 rounded-full bg-white/20 text-white text-lg flex items-center justify-center"
+            className="absolute top-14 right-5 w-9 h-9 rounded-full bg-app-surface/20 text-white text-lg flex items-center justify-center"
           >×</button>
         </div>
       )}

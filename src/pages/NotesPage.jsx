@@ -209,11 +209,11 @@ function PhotoViewer({ images, initialIndex = 0, onClose }) {
       {list.length > 1 && (
         <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-1.5">
           {list.map((_, i) => (
-            <span key={i} className={`w-1.5 h-1.5 rounded-full ${i === index ? "bg-white" : "bg-white/30"}`} />
+            <span key={i} className={`w-1.5 h-1.5 rounded-full ${i === index ? "bg-app-surface" : "bg-app-surface/30"}`} />
           ))}
         </div>
       )}
-      <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="absolute top-14 right-5 w-9 h-9 rounded-full bg-white/20 text-white text-lg flex items-center justify-center">×</button>
+      <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="absolute top-14 right-5 w-9 h-9 rounded-full bg-app-surface/20 text-white text-lg flex items-center justify-center">×</button>
     </div>
   );
 }
@@ -306,10 +306,10 @@ function PdfPreview({ file }) {
   }, [file.dataUrl]);
 
   if (failed) {
-    return <p className="text-xs text-gray-400 mt-1">プレビューを表示できませんでした。上のファイル名をタップして開いてください。</p>;
+    return <p className="text-xs text-ink-sub mt-1">プレビューを表示できませんでした。上のファイル名をタップして開いてください。</p>;
   }
   if (!blobUrl) {
-    return <div className="w-full rounded-lg border mt-1 flex items-center justify-center text-xs text-gray-400 h-20">読み込み中...</div>;
+    return <div className="w-full rounded-lg border mt-1 flex items-center justify-center text-xs text-ink-sub h-20">読み込み中...</div>;
   }
 
   // iOS Safariのiframeは、埋め込み枠だと自前のCSS高さ指定を無視して
@@ -321,7 +321,7 @@ function PdfPreview({ file }) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="w-full rounded-lg border mt-1 h-20 flex items-center justify-center gap-2 text-xs text-gray-500 bg-gray-50 active:bg-gray-100"
+        className="w-full rounded-lg border mt-1 h-20 flex items-center justify-center gap-2 text-xs text-ink-sub bg-app-surface active:bg-app-raised"
       >
         📄 タップしてPDFを表示
       </button>
@@ -329,9 +329,9 @@ function PdfPreview({ file }) {
         <div className="fixed inset-0 z-[90] bg-black/95 flex flex-col" onClick={() => setOpen(false)}>
           <div className="flex items-center justify-between px-4 pt-14 pb-2" onClick={(e) => e.stopPropagation()}>
             <span className="text-white text-sm truncate">{file.name}</span>
-            <button onClick={() => setOpen(false)} className="w-9 h-9 rounded-full bg-white/20 text-white text-lg flex items-center justify-center shrink-0 ml-2">×</button>
+            <button onClick={() => setOpen(false)} className="w-9 h-9 rounded-full bg-app-surface/20 text-white text-lg flex items-center justify-center shrink-0 ml-2">×</button>
           </div>
-          <object data={blobUrl} type="application/pdf" className="flex-1 w-full bg-white" onClick={(e) => e.stopPropagation()}>
+          <object data={blobUrl} type="application/pdf" className="flex-1 w-full bg-app-surface" onClick={(e) => e.stopPropagation()}>
             <p className="text-white text-sm p-6">PDFを表示できませんでした。</p>
           </object>
         </div>
@@ -364,12 +364,12 @@ function VoiceCapture({ onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end bg-black/40" onClick={stage === "review" ? onClose : undefined}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full bg-white rounded-t-3xl p-6">
+      <div onClick={(e) => e.stopPropagation()} className="w-full bg-app-surface rounded-t-3xl p-6">
         {stage === "listening" ? (
           <div className="flex flex-col items-center py-6">
-            <div className="h-16 w-16 rounded-full border bg-white shadow-lg text-2xl flex items-center justify-center mb-4 animate-pulse">🎤</div>
-            <p className="text-gray-500 text-sm mb-1">Listening…</p>
-            <p className="text-gray-400 text-xs mb-6">
+            <div className="h-16 w-16 rounded-full border bg-app-surface shadow-lg text-2xl flex items-center justify-center mb-4 animate-pulse">🎤</div>
+            <p className="text-ink-sub text-sm mb-1">Listening…</p>
+            <p className="text-ink-sub text-xs mb-6">
               {String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}
             </p>
             <button onClick={handleStop} className="rounded-2xl border px-6 py-3">Stop</button>
@@ -377,7 +377,7 @@ function VoiceCapture({ onClose, onSave }) {
         ) : (
           <div>
             <h2 className="text-lg font-semibold mb-2">Conversation</h2>
-            <p className="text-sm text-gray-500 mb-3">Voice transcription isn't connected yet — type a summary to save.</p>
+            <p className="text-sm text-ink-sub mb-3">Voice transcription isn't connected yet — type a summary to save.</p>
             <textarea
               autoFocus
               value={transcript}
@@ -385,7 +385,7 @@ function VoiceCapture({ onClose, onSave }) {
               placeholder="What did you talk about?"
               className="w-full rounded-2xl border p-4 h-32 mb-3"
             />
-            <button onClick={() => onSave(transcript.trim() || "(voice note)")} className="w-full rounded-2xl bg-black text-white p-4">
+            <button onClick={() => onSave(transcript.trim() || "(voice note)")} className="w-full rounded-2xl bg-ink text-black p-4">
               Save to Notes
             </button>
           </div>
@@ -401,19 +401,19 @@ function PasteChooser({ note, mode: initialMode, projects, onClose, onPasteToCal
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end bg-black/40" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full bg-white rounded-t-3xl p-6">
+      <div onClick={(e) => e.stopPropagation()} className="w-full bg-app-surface rounded-t-3xl p-6">
         {mode === "calendar" && (
           <>
             <h2 className="text-lg font-semibold mb-4">Paste to Calendar</h2>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full rounded-2xl border p-4 mb-3" />
-            <button onClick={() => onPasteToCalendar(date)} className="w-full rounded-2xl bg-black text-white p-4">Add as Task</button>
+            <button onClick={() => onPasteToCalendar(date)} className="w-full rounded-2xl bg-ink text-black p-4">Add as Task</button>
           </>
         )}
         {mode === "projects" && (
           <>
             <h2 className="text-lg font-semibold mb-4">Paste to Project</h2>
             <div className="space-y-2 max-h-64 overflow-y-auto">
-              {projects.length === 0 && <p className="text-gray-400">No projects yet</p>}
+              {projects.length === 0 && <p className="text-ink-sub">No projects yet</p>}
               {projects.map((p) => (
                 <button key={p.id} onClick={() => onPasteToProject(p.id)} className="w-full text-left rounded-2xl border p-4">{p.name}</button>
               ))}
@@ -428,10 +428,10 @@ function PasteChooser({ note, mode: initialMode, projects, onClose, onPasteToCal
 function ProjectPickerSheet({ projects, onClose, onPick }) {
   return (
     <div className="fixed inset-0 z-[70] flex items-end bg-black/40" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full bg-white rounded-t-3xl p-6">
+      <div onClick={(e) => e.stopPropagation()} className="w-full bg-app-surface rounded-t-3xl p-6">
         <h2 className="text-lg font-semibold mb-4">送信先のプロジェクトを選択</h2>
         <div className="space-y-2 max-h-72 overflow-y-auto">
-          {projects.length === 0 && <p className="text-gray-400">プロジェクトがまだありません</p>}
+          {projects.length === 0 && <p className="text-ink-sub">プロジェクトがまだありません</p>}
           {projects.map((p) => (
             <button key={p.id} onClick={() => onPick(p.id)} className="w-full text-left rounded-2xl border p-4">📁 {p.name}</button>
           ))}
@@ -464,9 +464,9 @@ function AIAssistSheet({ provider, apiKeyMissing, onClose, onRun, onApply }) {
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end bg-black/40" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full bg-white rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full bg-app-surface rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
         <h2 className="text-lg font-semibold mb-1">✨ {provider}に頼む</h2>
-        <p className="text-xs text-gray-400 mb-4">このノートの内容について、やってほしいことを書いてください</p>
+        <p className="text-xs text-ink-sub mb-4">このノートの内容について、やってほしいことを書いてください</p>
 
         {apiKeyMissing ? (
           <p className="text-sm text-red-500 mb-3">
@@ -486,7 +486,7 @@ function AIAssistSheet({ provider, apiKeyMissing, onClose, onRun, onApply }) {
             <button
               onClick={handleRun}
               disabled={running || !instruction.trim()}
-              className="w-full rounded-2xl bg-black text-white p-3.5 font-semibold mb-3 disabled:opacity-40"
+              className="w-full rounded-2xl bg-ink text-black p-3.5 font-semibold mb-3 disabled:opacity-40"
             >
               {running ? "処理中…" : "実行する"}
             </button>
@@ -494,7 +494,7 @@ function AIAssistSheet({ provider, apiKeyMissing, onClose, onRun, onApply }) {
             {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
 
             {result && (
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 mb-3">
+              <div className="rounded-2xl border border-app-line bg-app-surface p-4 mb-3">
                 <p className="text-sm whitespace-pre-wrap leading-relaxed">{result}</p>
               </div>
             )}
@@ -508,7 +508,7 @@ function AIAssistSheet({ provider, apiKeyMissing, onClose, onRun, onApply }) {
           </>
         )}
 
-        <button onClick={onClose} className="w-full text-center text-gray-400 text-sm mt-4">閉じる</button>
+        <button onClick={onClose} className="w-full text-center text-ink-sub text-sm mt-4">閉じる</button>
       </div>
     </div>
   );
@@ -541,12 +541,12 @@ function FullScreenComposer({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-white flex flex-col">
-      <div className="flex items-center justify-between px-5 pt-14 pb-3 border-b border-gray-100">
-        <button onClick={onClose} className="text-gray-500">閉じる</button>
+    <div className="fixed inset-0 z-50 bg-app-surface flex flex-col">
+      <div className="flex items-center justify-between px-5 pt-14 pb-3 border-b border-app-line">
+        <button onClick={onClose} className="text-ink-sub">閉じる</button>
         <span className="font-semibold">{isEditing ? "Edit Note" : "New Note"}</span>
         {text ? (
-          <button onClick={handleCopy} className="text-sm text-gray-500">
+          <button onClick={handleCopy} className="text-sm text-ink-sub">
             {copied ? "✅ コピー済" : "📋 コピー"}
           </button>
         ) : (
@@ -583,7 +583,7 @@ function FullScreenComposer({
               <div key={i}>
                 <div className="flex items-center justify-between rounded-lg border p-2 text-xs">
                   <span className="truncate">📄 {f.name}</span>
-                  <button onClick={() => setPendingFiles((p) => p.filter((_, idx) => idx !== i))} className="text-gray-400 ml-2">×</button>
+                  <button onClick={() => setPendingFiles((p) => p.filter((_, idx) => idx !== i))} className="text-ink-sub ml-2">×</button>
                 </div>
                 {(f.type === "application/pdf" || f.name?.toLowerCase().endsWith(".pdf")) && <PdfPreview file={f} />}
               </div>
@@ -593,18 +593,18 @@ function FullScreenComposer({
       </div>
 
       <div className="px-5 pb-8" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
-        <div className="flex items-center gap-2 border-t border-gray-100 pt-3 mb-3">
-          <button onClick={onAIAssist} className="rounded-xl border px-2.5 py-1.5 text-xs bg-white whitespace-nowrap">✨ AIに頼む</button>
-          <button onClick={onVoice} className="rounded-xl border px-2.5 py-1.5 text-xs bg-white whitespace-nowrap">🎤 ボイチャ</button>
-          <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="rounded-xl border px-2.5 py-1.5 text-xs bg-white whitespace-nowrap">📎 ファイル</button>
-          <button onClick={() => photoInputRef.current?.click()} disabled={uploading} className="rounded-xl border px-2.5 py-1.5 text-xs bg-white whitespace-nowrap">📷 写真</button>
+        <div className="flex items-center gap-2 border-t border-app-line pt-3 mb-3">
+          <button onClick={onAIAssist} className="rounded-xl border px-2.5 py-1.5 text-xs bg-app-surface whitespace-nowrap">✨ AIに頼む</button>
+          <button onClick={onVoice} className="rounded-xl border px-2.5 py-1.5 text-xs bg-app-surface whitespace-nowrap">🎤 ボイチャ</button>
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="rounded-xl border px-2.5 py-1.5 text-xs bg-app-surface whitespace-nowrap">📎 ファイル</button>
+          <button onClick={() => photoInputRef.current?.click()} disabled={uploading} className="rounded-xl border px-2.5 py-1.5 text-xs bg-app-surface whitespace-nowrap">📷 写真</button>
         </div>
         <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={onPickPhoto} className="hidden" />
         <input ref={fileInputRef} type="file" multiple onChange={onPickFile} className="hidden" />
         <div className="flex gap-2">
           <button onClick={onSave} className="flex-1 rounded-xl border px-4 py-3 text-sm font-semibold">保存</button>
           {!isEditing && (
-            <button onClick={onSend} className="flex-1 rounded-xl bg-black text-white px-4 py-3 text-sm font-semibold">📤 Send</button>
+            <button onClick={onSend} className="flex-1 rounded-xl bg-ink text-black px-4 py-3 text-sm font-semibold">📤 Send</button>
           )}
         </div>
       </div>
@@ -777,18 +777,18 @@ export default function NotesPage({ setTab }) {
 
         <button
           onClick={handleOpenNewComposer}
-          className="w-full text-left rounded-3xl border p-4 mb-6 text-gray-400 text-[15px]"
+          className="w-full text-left rounded-3xl border p-4 mb-6 text-ink-sub text-[15px]"
         >
           {isTeam ? "チームに共有するメモを書く..." : "思いつきやアイデアを書き出す（壁打ち）..."}
         </button>
 
         {isTeam && teamError && <p className="text-xs text-red-500 mb-3">{teamError}</p>}
-        {isTeam && teamLoading && <p className="text-xs text-gray-400 mb-3">同期中…</p>}
+        {isTeam && teamLoading && <p className="text-xs text-ink-sub mb-3">同期中…</p>}
 
         <div className="space-y-4 pb-10">
-          {sorted.length === 0 && <p className="text-gray-400">No notes yet</p>}
+          {sorted.length === 0 && <p className="text-ink-sub">No notes yet</p>}
           {sorted.map((n) => (
-            <div key={n.id} className={`rounded-2xl border p-4 ${isTeam ? "border-blue-100 bg-blue-50" : "border-gray-200 bg-gray-50"}`}>
+            <div key={n.id} className={`rounded-2xl border p-4 ${isTeam ? "border-blue-100 bg-blue-50" : "border-app-line bg-app-surface"}`}>
               <button onClick={() => handleOpenNote(n)} className="w-full text-left">
                 {n.text && (
                   <p className="text-[15px] mb-3 leading-relaxed">
@@ -814,7 +814,7 @@ export default function NotesPage({ setTab }) {
                         href={f.dataUrl}
                         download={f.name}
                         onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-1.5 text-xs rounded-lg border p-2 truncate text-indigo-600 active:bg-gray-50"
+                        className="flex items-center gap-1.5 text-xs rounded-lg border p-2 truncate text-indigo-600 active:bg-app-surface"
                       >
                         📄 {f.name}
                       </a>
@@ -823,7 +823,7 @@ export default function NotesPage({ setTab }) {
                 )}
               </button>
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <span className="text-[11px] text-gray-400 font-semibold">
+                <span className="text-[11px] text-ink-sub font-semibold">
                   {formatDateTime(n.createdAt)}
                   {isTeam && (
                     <span className="ml-1.5 inline-flex items-center gap-1 text-blue-600 bg-blue-100 rounded-full px-2 py-0.5">
@@ -832,14 +832,14 @@ export default function NotesPage({ setTab }) {
                   )}
                 </span>
                 <div className="flex items-center gap-1.5">
-                  <button onClick={() => handleOpenNote(n)} className="bg-white border border-gray-300 text-gray-700 rounded-lg px-2.5 py-1 text-xs font-medium">Edit</button>
+                  <button onClick={() => handleOpenNote(n)} className="bg-app-surface border border-app-line text-ink-sub rounded-lg px-2.5 py-1 text-xs font-medium">Edit</button>
                   {!isTeam && (
                     <>
-                      <button onClick={() => { setPasteTarget(n); setPasteMode("calendar"); }} className="bg-white border border-gray-300 text-gray-700 rounded-lg px-2.5 py-1 text-xs font-medium">To Calendar</button>
-                      <button onClick={() => { setPasteTarget(n); setPasteMode("projects"); }} className="bg-white border border-gray-300 text-gray-700 rounded-lg px-2.5 py-1 text-xs font-medium">To Project</button>
+                      <button onClick={() => { setPasteTarget(n); setPasteMode("calendar"); }} className="bg-app-surface border border-app-line text-ink-sub rounded-lg px-2.5 py-1 text-xs font-medium">To Calendar</button>
+                      <button onClick={() => { setPasteTarget(n); setPasteMode("projects"); }} className="bg-app-surface border border-app-line text-ink-sub rounded-lg px-2.5 py-1 text-xs font-medium">To Project</button>
                     </>
                   )}
-                  <button onClick={async () => { if (await confirm("このノートを削除しますか？", { confirmLabel: "削除する", danger: true })) (isTeam ? deleteTeamNoteAction(n.id) : deleteNote(n.id)); }} className="text-gray-400 text-xs px-1">Delete</button>
+                  <button onClick={async () => { if (await confirm("このノートを削除しますか？", { confirmLabel: "削除する", danger: true })) (isTeam ? deleteTeamNoteAction(n.id) : deleteNote(n.id)); }} className="text-ink-sub text-xs px-1">Delete</button>
                 </div>
               </div>
             </div>

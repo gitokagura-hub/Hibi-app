@@ -25,16 +25,16 @@ export default function SearchPage({ setTab }) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search..."
-          className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none"
+          className="w-full rounded-2xl border border-app-line px-4 py-3 outline-none"
         />
 
         <div className="mt-6 space-y-3">
           {results && results.length === 0 && (
-            <p className="text-gray-400">No results</p>
+            <p className="text-ink-sub">No results</p>
           )}
           {results && results.map((r, i) => (
-            <button key={i} className="w-full rounded-2xl border border-gray-200 p-4 text-left">
-              <span className="text-xs text-gray-400 block mb-1">{r.type}</span>
+            <button key={i} className="w-full rounded-2xl border border-app-line p-4 text-left">
+              <span className="text-xs text-ink-sub block mb-1">{r.type}</span>
               {r.label}
             </button>
           ))}

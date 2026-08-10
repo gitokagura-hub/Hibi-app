@@ -19,7 +19,7 @@ function ArticleCard({ article, onClick, showDate }) {
   return (
     <button
       onClick={onClick}
-      className="w-full text-left bg-white rounded-2xl border border-gray-200 border-l-4 p-4 active:scale-[0.98] transition-transform"
+      className="w-full text-left bg-app-surface rounded-2xl border border-app-line border-l-4 p-4 active:scale-[0.98] transition-transform"
       style={{ borderLeftColor: "#8C6B47" }}
     >
       <div className="flex items-center gap-2 mb-1.5">
@@ -30,12 +30,12 @@ function ArticleCard({ article, onClick, showDate }) {
           {status?.label}
         </span>
         {showDate && (
-          <span className="text-[10px] text-gray-400 ml-auto font-mono">{formatDate(article.createdAt)}</span>
+          <span className="text-[10px] text-ink-sub ml-auto font-mono">{formatDate(article.createdAt)}</span>
         )}
       </div>
-      <div className="text-[15px] font-bold text-gray-900 leading-snug">{article.title}</div>
+      <div className="text-[15px] font-bold text-ink leading-snug">{article.title}</div>
       {article.content && (
-        <div className="text-xs text-gray-500 mt-1 line-clamp-2">{article.content}</div>
+        <div className="text-xs text-ink-sub mt-1 line-clamp-2">{article.content}</div>
       )}
     </button>
   );
@@ -46,11 +46,11 @@ function AddSheet({ onClose, onCreate }) {
   const [category, setCategory] = useState(CATEGORIES[0].id);
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/30" onClick={onClose}>
-      <div className="bg-white w-full max-w-md rounded-t-3xl p-5 pb-8" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-app-surface w-full max-w-md rounded-t-3xl p-5 pb-8" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-gray-900">新しい記事アイデア</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-            <X size={16} className="text-gray-500" />
+          <h2 className="text-base font-bold text-ink">新しい記事アイデア</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-app-raised flex items-center justify-center">
+            <X size={16} className="text-ink-sub" />
           </button>
         </div>
         <input
@@ -58,7 +58,7 @@ function AddSheet({ onClose, onCreate }) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="記事タイトル"
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[15px] focus:outline-none"
+          className="w-full border border-app-line rounded-xl px-4 py-3 text-[15px] focus:outline-none"
           style={{ borderColor: title ? "#8C6B47" : undefined }}
         />
         <div className="flex gap-1.5 flex-wrap mt-3">
@@ -80,7 +80,7 @@ function AddSheet({ onClose, onCreate }) {
         <button
           disabled={!title.trim()}
           onClick={() => onCreate(title.trim(), category)}
-          className="w-full mt-4 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold rounded-xl py-3 text-[15px]"
+          className="w-full mt-4 disabled:bg-app-raised disabled:text-ink-sub text-white font-semibold rounded-xl py-3 text-[15px]"
           style={{ background: title.trim() ? "#8C6B47" : undefined }}
         >
           作成する
@@ -114,7 +114,7 @@ export default function TimelessListPage({ onHome, onOpenArticle }) {
   }
 
   return (
-    <div className="min-h-screen bg-white relative">
+    <div className="min-h-screen bg-app-bg relative">
       <button
         onClick={onHome}
         className="fixed bottom-6 right-5 z-30 w-11 h-11 rounded-full bg-sky-100/90 backdrop-blur border border-sky-200 flex items-center justify-center shadow-sm"
@@ -125,12 +125,12 @@ export default function TimelessListPage({ onHome, onOpenArticle }) {
 
       <header className="px-5 pt-14 pb-3">
         <h1 className="text-3xl font-semibold tracking-tight">Timeless Analogue</h1>
-        <p className="mt-1 text-sm text-gray-500">構想・下書きワークスペース（非公開）</p>
+        <p className="mt-1 text-sm text-ink-sub">構想・下書きワークスペース（非公開）</p>
       </header>
 
       {/* カテゴリ別 / 時系列 切り替え */}
       <div className="px-5 mb-3">
-        <div className="flex bg-gray-100 rounded-xl p-1">
+        <div className="flex bg-app-raised rounded-xl p-1">
           {[
             { id: "category", label: "カテゴリ別" },
             { id: "timeline", label: "時系列" },
@@ -183,7 +183,7 @@ export default function TimelessListPage({ onHome, onOpenArticle }) {
 
       <main className="px-5 pb-28">
         {filtered.length === 0 ? (
-          <div className="mt-16 text-center text-gray-400">
+          <div className="mt-16 text-center text-ink-sub">
             <p className="text-sm">まだ記事がありません</p>
           </div>
         ) : (

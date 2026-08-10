@@ -81,11 +81,11 @@ export default function DriveGallery({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-4">
+    <div className="bg-app-surface rounded-2xl border border-app-line p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Paperclip size={15} className="text-gray-400" />
-          <span className="text-sm font-semibold text-gray-900">資料・写真（Drive）</span>
+          <Paperclip size={15} className="text-ink-sub" />
+          <span className="text-sm font-semibold text-ink">資料・写真（Drive）</span>
         </div>
         <label
           className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full text-white cursor-pointer"
@@ -98,12 +98,12 @@ export default function DriveGallery({
       </div>
 
       {!connected && (
-        <p className="text-xs text-gray-400">Home画面でGoogle Driveと連携すると使えます</p>
+        <p className="text-xs text-ink-sub">Home画面でGoogle Driveと連携すると使えます</p>
       )}
       {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
 
       {connected && (!driveFiles || driveFiles.length === 0) && (
-        <button onClick={ensureLoaded} className="text-xs text-gray-400">
+        <button onClick={ensureLoaded} className="text-xs text-ink-sub">
           まだファイルがありません（タップで再読み込み）
         </button>
       )}
@@ -116,12 +116,12 @@ export default function DriveGallery({
               href={f.webViewLink}
               target="_blank"
               rel="noreferrer"
-              className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center"
+              className="relative aspect-square rounded-lg overflow-hidden bg-app-raised border border-app-line flex items-center justify-center"
             >
               {f.thumbnailLink ? (
                 <img src={f.thumbnailLink} alt={f.name} className="w-full h-full object-cover" />
               ) : (
-                <span className="text-[10px] text-gray-500 px-1 text-center break-all">{f.name}</span>
+                <span className="text-[10px] text-ink-sub px-1 text-center break-all">{f.name}</span>
               )}
               <button
                 onClick={(e) => {

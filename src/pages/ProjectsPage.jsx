@@ -10,9 +10,9 @@ function isImageFile(mimeType) {
 
 function FullScreenItemEditor({ item, onChange, onClose }) {
   return (
-    <div className="fixed inset-0 z-50 bg-white flex flex-col">
-      <div className="flex items-center justify-between px-5 pt-14 pb-3 border-b border-gray-100">
-        <button onClick={onClose} className="text-gray-500">← 戻る</button>
+    <div className="fixed inset-0 z-50 bg-app-surface flex flex-col">
+      <div className="flex items-center justify-between px-5 pt-14 pb-3 border-b border-app-line">
+        <button onClick={onClose} className="text-ink-sub">← 戻る</button>
         <span className="font-semibold">編集</span>
         <div className="w-10" />
       </div>
@@ -38,7 +38,7 @@ function FullScreenItemEditor({ item, onChange, onClose }) {
             ))}
           </div>
         )}
-        <button onClick={onClose} className="w-full rounded-xl bg-black text-white px-4 py-3 text-sm font-semibold">← 戻る</button>
+        <button onClick={onClose} className="w-full rounded-xl bg-ink text-black px-4 py-3 text-sm font-semibold">← 戻る</button>
       </div>
     </div>
   );
@@ -183,39 +183,39 @@ export default function ProjectsPage({ setTab }) {
   return (
     <Layout title="Projects" current="projects" setTab={setTab}>
       <div className="px-5">
-        <div className="rounded-3xl border border-gray-200 overflow-hidden mb-6">
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+        <div className="rounded-3xl border border-app-line overflow-hidden mb-6">
+          <div className="px-4 py-3 bg-app-surface border-b border-app-line flex items-center justify-between">
             <span className="font-bold text-[15px]">項目名（プロジェクト名）</span>
-            <span className="text-xs text-gray-500 font-semibold">作成日</span>
+            <span className="text-xs text-ink-sub font-semibold">作成日</span>
           </div>
 
           {projects.length === 0 && (
-            <div className="p-5 text-gray-400 text-sm">プロジェクトはまだありません</div>
+            <div className="p-5 text-ink-sub text-sm">プロジェクトはまだありません</div>
           )}
 
           {isTeam && teamError && <div className="px-4 pt-2 text-xs text-red-500">{teamError}</div>}
-          {isTeam && teamLoading && <div className="px-4 pt-2 text-xs text-gray-400">同期中…</div>}
+          {isTeam && teamLoading && <div className="px-4 pt-2 text-xs text-ink-sub">同期中…</div>}
 
           {projects.map((p) => {
             const isOpen = openId === p.id;
             return (
-              <div key={p.id} ref={(el) => (rowRefs.current[p.id] = el)} className="border-b border-gray-200 last:border-b-0 scroll-mt-2">
+              <div key={p.id} ref={(el) => (rowRefs.current[p.id] = el)} className="border-b border-app-line last:border-b-0 scroll-mt-2">
                 <button onClick={() => handleToggle(p)} className="w-full text-left px-4 py-5">
                   <div className="flex items-center justify-between">
                     <span className="font-bold">{p.name}</span>
                     <div className="flex items-center gap-3">
-                      <span className="text-xs text-gray-400">{formatDateTime(p.createdAt).split(" ")[0]}</span>
-                      <span onClick={(e) => handleDeleteProject(e, p)} className="text-gray-400 text-sm px-1">🗑</span>
+                      <span className="text-xs text-ink-sub">{formatDateTime(p.createdAt).split(" ")[0]}</span>
+                      <span onClick={(e) => handleDeleteProject(e, p)} className="text-ink-sub text-sm px-1">🗑</span>
                     </div>
                   </div>
                 </button>
 
                 {isOpen && (
                   <div className="px-4 pb-5">
-                    <div className="bg-gray-100 rounded-2xl p-3.5">
-                      <div className="text-xs font-bold text-gray-600 mb-2">📂 連携ルーム・統合レイヤー</div>
+                    <div className="bg-app-raised rounded-2xl p-3.5">
+                      <div className="text-xs font-bold text-ink-sub mb-2">📂 連携ルーム・統合レイヤー</div>
 
-                      <div className="text-[13px] text-gray-800 mb-3 space-y-1">
+                      <div className="text-[13px] text-ink mb-3 space-y-1">
                         <div>• [ノート連携] ノートから転送されたアイデアを{p.items.length}件格納</div>
                         {isTeam && (
                           <div>• [作成者] {p.author || "名無し"}</div>
@@ -225,19 +225,19 @@ export default function ProjectsPage({ setTab }) {
                       {/* File & photo gallery — backed by a real Drive folder (Personal: personal folder, Team: shared folder) */}
                       <div className="mb-3">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-bold text-gray-600">📎 ファイル・写真</span>
+                            <span className="text-xs font-bold text-ink-sub">📎 ファイル・写真</span>
                             <div className="flex gap-1.5">
                               <button
                                 onClick={() => fileInputRefs.current[p.id]?.click()}
                                 disabled={galleryUploading[p.id]}
-                                className="rounded-lg border px-2.5 py-1 text-xs bg-white"
+                                className="rounded-lg border px-2.5 py-1 text-xs bg-app-surface"
                               >
                                 {galleryUploading[p.id] ? "…" : "📎 ファイル"}
                               </button>
                               <button
                                 onClick={() => photoInputRefs.current[p.id]?.click()}
                                 disabled={galleryUploading[p.id]}
-                                className="rounded-lg border px-2.5 py-1 text-xs bg-white"
+                                className="rounded-lg border px-2.5 py-1 text-xs bg-app-surface"
                               >
                                 {galleryUploading[p.id] ? "…" : "📷 写真"}
                               </button>
@@ -255,14 +255,14 @@ export default function ProjectsPage({ setTab }) {
                           />
 
                           {!isDriveConnected() && (
-                            <p className="text-[11px] text-gray-400">SettingsでGoogle Driveと連携すると使えます</p>
+                            <p className="text-[11px] text-ink-sub">SettingsでGoogle Driveと連携すると使えます</p>
                           )}
                           {galleryError[p.id] && <p className="text-[11px] text-red-500">{galleryError[p.id]}</p>}
 
                           {p.driveFiles && p.driveFiles.length > 0 && (
                             <div className="grid grid-cols-3 gap-1.5 mt-2">
                               {p.driveFiles.map((f) => (
-                                <div key={f.id} className="relative rounded-lg border bg-white overflow-hidden">
+                                <div key={f.id} className="relative rounded-lg border bg-app-surface overflow-hidden">
                                   {isImageFile(f.mimeType) && !brokenThumbs[f.id] ? (
                                     <a href={f.webViewLink} target="_blank" rel="noopener noreferrer">
                                       <img
@@ -299,12 +299,12 @@ export default function ProjectsPage({ setTab }) {
                             }
                           }}
                           placeholder="このプロジェクトに新しいメモを書く..."
-                          className="w-full rounded-lg border p-2 text-xs bg-white resize-none mb-1.5"
+                          className="w-full rounded-lg border p-2 text-xs bg-app-surface resize-none mb-1.5"
                           rows={2}
                         />
                         <button
                           onClick={() => handleAddMemo(p.id)}
-                          className="w-full rounded-lg bg-black text-white text-xs font-semibold py-1.5"
+                          className="w-full rounded-lg bg-ink text-black text-xs font-semibold py-1.5"
                         >
                           ＋ メモを追加
                         </button>
@@ -313,16 +313,16 @@ export default function ProjectsPage({ setTab }) {
                       {p.items.length > 0 && (
                         <div className="space-y-2 mb-3">
                           {p.items.map((item) => (
-                            <div key={item.id} className="rounded-xl border border-gray-200 bg-white p-2.5">
+                            <div key={item.id} className="rounded-xl border border-app-line bg-app-surface p-2.5">
                               <div className="flex items-start gap-2">
                                 <button
                                   onClick={() => setEditing({ projectId: p.id, itemId: item.id })}
                                   className="flex-1 text-left text-[13px] whitespace-pre-wrap"
                                 >
-                                  {item.text || <span className="text-gray-400">（空のメモ）</span>}
+                                  {item.text || <span className="text-ink-sub">（空のメモ）</span>}
                                   {isTeam && <span className="block text-[10px] text-blue-500 mt-1">● {item.author || "名無し"}</span>}
                                 </button>
-                                <button onClick={async () => { if (await confirm("このメモを削除しますか？", { confirmLabel: "削除する", danger: true })) (isTeam ? deleteTeamProjectItemAction(item.id) : deleteProjectItem(p.id, item.id)); }} className="text-gray-400 text-sm flex-shrink-0">🗑</button>
+                                <button onClick={async () => { if (await confirm("このメモを削除しますか？", { confirmLabel: "削除する", danger: true })) (isTeam ? deleteTeamProjectItemAction(item.id) : deleteProjectItem(p.id, item.id)); }} className="text-ink-sub text-sm flex-shrink-0">🗑</button>
                               </div>
                               {item.images && item.images.length > 0 && (
                                 <div className="flex gap-1.5 overflow-x-auto mt-1.5">
@@ -344,11 +344,11 @@ export default function ProjectsPage({ setTab }) {
                       )}
 
                       <div className="flex gap-2">
-                        <button onClick={() => loadGallery(p)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-semibold bg-white">
+                        <button onClick={() => loadGallery(p)} className="border border-app-line rounded-lg px-3 py-1.5 text-xs font-semibold bg-app-surface">
                           🔄 ギャラリー更新
                         </button>
                         {!isTeam && (
-                          <button onClick={() => setTab("calendar")} className="border border-gray-300 rounded-lg px-3 py-1.5 text-xs font-semibold bg-white">
+                          <button onClick={() => setTab("calendar")} className="border border-app-line rounded-lg px-3 py-1.5 text-xs font-semibold bg-app-surface">
                             📅 カレンダー連携
                           </button>
                         )}

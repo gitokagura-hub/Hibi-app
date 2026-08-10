@@ -16,28 +16,17 @@ function getMonthGrid(y, m) {
   return cells;
 }
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+const MONTH_NAMES = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
 
-// タイトル文字列から決定論的にピル色(0〜7)を割り当てる。
-// 同じ予定/タスクなら常に同じ色になる(ランダムだと再描画のたびに
-// 色が変わってしまうため)。pill-2(黄)のみ黒文字、他は白文字。
-// Tailwindは動的に組み立てた文字列(`bg-pill-${n}`等)をビルド時の
-// 静的解析で検出できないため、完全な形のクラス名を配列で持つ。
-const PILL_CLASSES = [
-  "bg-pill-1 text-white",
-  "bg-pill-2 text-black",
-  "bg-pill-3 text-white",
-  "bg-pill-4 text-white",
-  "bg-pill-5 text-white",
-  "bg-pill-6 text-white",
-  "bg-pill-7 text-white",
-  "bg-pill-8 text-white",
-];
-function pillClassFor(title) {
+// iOS標準カレンダー(ダーク)の予定チップ: 色の25%透過を地に、先頭に
+// 同色のドット、白文字。タイトルから決定論的に色を割り当てる
+// (同じ予定は常に同じ色)。パレットはiOSカレンダー系。
+const EVENT_COLORS = ["#34C759", "#AF52DE", "#0A84FF", "#FF9F0A", "#FF375F", "#64D2FF"];
+function eventColorFor(title) {
   let hash = 0;
   for (let i = 0; i < title.length; i++) hash = (hash * 31 + title.charCodeAt(i)) >>> 0;
-  return PILL_CLASSES[hash % PILL_CLASSES.length];
+  return EVENT_COLORS[hash % EVENT_COLORS.length];
 }
 
 export default function CalendarPage({ setTab }) {
@@ -226,9 +215,9 @@ export default function CalendarPage({ setTab }) {
   }
 
   return (
-    <div className="h-[100dvh] bg-white flex flex-col">
+    <div className="h-[100dvh] bg-app-bg flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-white px-5 pt-8 pb-1">
+      <header className="sticky top-0 z-20 bg-app-bg px-5 pt-8 pb-1">
         <div className="mb-2">
           <h1 className="text-lg font-bold text-center">Dayliy Brains</h1>
         </div>
@@ -239,53 +228,62 @@ export default function CalendarPage({ setTab }) {
       <main className="flex-1 overflow-y-auto">
         {/* ========= PAGE 1 ========= */}
         <section className="flex flex-col" style={{ paddingBottom: "calc(5rem + env(safe-area-inset-bottom))" }}>
-          {/* Month */}
-          <div className="px-5 py-1">
-            <div className="flex items-center justify-between">
-              <button onClick={() => setCalMonth(({ y, m }) => m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 })}>{"<"}</button>
-              <div className="flex items-baseline gap-2">
-                <h2 className="text-2xl font-bold">{MONTH_NAMES[calMonth.m]}</h2>
-                <span className="text-sm text-gray-500">{calMonth.y}</span>
-              </div>
-              <button onClick={() => setCalMonth(({ y, m }) => m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 })}>{">"}</button>
+          {/* Month — iOS標準カレンダー風: 左寄せの大きな月表示 */}
+          <div className="px-5 pt-2 pb-1 flex items-end justify-between">
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-[32px] leading-none font-bold text-ink">{MONTH_NAMES[calMonth.m]}</h2>
+              <span className="text-sm text-ink-sub">{calMonth.y}</span>
+            </div>
+            <div className="flex items-center gap-5 pb-1 text-ink-sub">
+              <button className="text-xl leading-none px-1" onClick={() => setCalMonth(({ y, m }) => m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 })}>{"‹"}</button>
+              <button className="text-xl leading-none px-1" onClick={() => setCalMonth(({ y, m }) => m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 })}>{"›"}</button>
             </div>
           </div>
 
-          {/* Week */}
-          <div className="grid grid-cols-7 text-center text-[11px] text-ink-sub bg-app-bg py-1">
-            {WEEKDAYS.map((w, i) => <div key={w} className={i === 0 ? "text-accent-red" : ""}>{w}</div>)}
+          {/* Week — 11pxグレー、下に髪の毛ライン */}
+          <div className="grid grid-cols-7 text-center text-[11px] font-medium text-ink-sub py-1.5 border-b border-app-line/70">
+            {WEEKDAYS.map((w) => <div key={w}>{w}</div>)}
           </div>
 
-          {/* Calendar */}
-          <div className="grid grid-cols-7" style={{ gridAutoRows: "78px" }}>
+          {/* Calendar — iOS標準風: 縦罫線なし・行ごとの髪の毛ライン・数字は中央 */}
+          <div className="grid grid-cols-7" style={{ gridAutoRows: "96px" }}>
             {grid.map((d, index) => {
-              if (!d) return <div key={index} className="border border-app-line" />;
+              const rowLine = index >= 7 ? "border-t border-app-line/70" : "";
+              if (!d) return <div key={index} className={rowLine} />;
               const ds = dateOf(d);
               const isToday = ds === todayS;
               const isSelected = ds === selectedDate;
-              const isSunday = index % 7 === 0;
+              const dow = index % 7;
+              const isWeekend = dow === 0 || dow === 6;
               const items = (cellPreview[ds] || []).slice(0, 3);
               const overflowCount = (cellPreview[ds] || []).length - items.length;
               return (
                 <button
                   key={index}
                   onClick={() => selectDate(ds)}
-                  className={`border border-app-line flex flex-col items-start justify-start p-0.5 text-left ${isSelected ? "bg-app-surface" : "bg-app-bg"}`}
+                  className={`${rowLine} flex flex-col items-center justify-start pt-1.5 px-[3px] text-left bg-app-bg`}
                 >
-                  <span className={`inline-flex items-center justify-center w-[26px] h-[26px] rounded-full text-[10px] leading-none mb-0.5 ${isToday ? "bg-accent-red text-white font-bold" : isSunday ? "text-accent-red" : "text-ink"}`}>
+                  <span className={`inline-flex items-center justify-center w-[30px] h-[30px] rounded-full text-[17px] font-semibold leading-none mb-1 ${
+                    isToday ? "bg-accent-red text-white" : isSelected ? "bg-app-raised text-ink" : isWeekend ? "text-ink-sub" : "text-ink"
+                  }`}>
                     {d}
                   </span>
-                  <div className="flex flex-col gap-[2px] w-full">
-                    {items.map((it, i) => (
-                      <span
-                        key={i}
-                        className={`h-[18px] leading-[18px] rounded text-[11px] font-medium px-1.5 truncate w-full ${pillClassFor(it.title)}`}
-                      >
-                        {it.kind === "event" ? it.title : `${it.completed ? "☑" : "☐"} ${it.title}`}
-                      </span>
-                    ))}
+                  <div className="flex flex-col gap-[3px] w-full items-stretch">
+                    {items.map((it, i) => {
+                      const c = eventColorFor(it.title);
+                      return (
+                        <span
+                          key={i}
+                          className="flex items-center gap-1 h-[18px] rounded-full px-1.5 min-w-0"
+                          style={{ backgroundColor: c + "40" }}
+                        >
+                          <span className="w-[7px] h-[7px] rounded-full flex-shrink-0" style={{ backgroundColor: c }} />
+                          <span className={`text-[10px] font-medium truncate text-white/90 ${it.kind === "task" && it.completed ? "line-through opacity-60" : ""}`}>{it.title}</span>
+                        </span>
+                      );
+                    })}
                     {overflowCount > 0 && (
-                      <span className="text-[10px] text-ink-sub px-1.5">+{overflowCount}件</span>
+                      <span className="text-[10px] text-ink-sub px-1.5">+{overflowCount}</span>
                     )}
                   </div>
                 </button>
@@ -301,7 +299,7 @@ export default function CalendarPage({ setTab }) {
           </h2>
 
           {isTeam && teamError && <p className="text-xs text-red-500 mb-3">{teamError}</p>}
-          {isTeam && teamLoading && <p className="text-xs text-gray-400 mb-3">同期中…</p>}
+          {isTeam && teamLoading && <p className="text-xs text-ink-sub mb-3">同期中…</p>}
 
           {/* 1. Schedule */}
           <div className="space-y-3 mb-10">
@@ -309,7 +307,7 @@ export default function CalendarPage({ setTab }) {
               <div key={e.id} className={`rounded-2xl border p-4 ${isTeam ? "border-blue-100 bg-blue-50" : ""}`}>
                 {editingEventId === e.id ? (
                   <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-xs text-gray-600">
+                    <label className="flex items-center gap-2 text-xs text-ink-sub">
                       <input
                         type="checkbox"
                         checked={editingEventIsAllDay}
@@ -332,9 +330,9 @@ export default function CalendarPage({ setTab }) {
                         value={editingEventText}
                         onChange={(ev) => setEditingEventText(ev.target.value)}
                         onKeyDown={(ev) => { if (ev.key === "Enter") saveEditEvent(); if (ev.key === "Escape") cancelEditEvent(); }}
-                        className="flex-1 outline-none border-b border-gray-300 text-sm"
+                        className="flex-1 outline-none border-b border-app-line text-sm"
                       />
-                      <button onClick={saveEditEvent} className="flex-shrink-0 text-xs font-semibold bg-black text-white rounded-lg px-2.5 py-1">保存</button>
+                      <button onClick={saveEditEvent} className="flex-shrink-0 text-xs font-semibold bg-ink text-black rounded-lg px-2.5 py-1">保存</button>
                     </div>
                   </div>
                 ) : (
@@ -343,12 +341,12 @@ export default function CalendarPage({ setTab }) {
                       {e.time ? `${e.time}　${e.text || e.title}` : (e.text || e.title)}
                       {isTeam && <span className="block text-[10px] text-blue-500 mt-1">● {e.author || "名無し"}</span>}
                     </button>
-                    <button onClick={() => handleDeleteEvent(e.id)} className="flex-shrink-0 text-gray-400 text-sm">🗑</button>
+                    <button onClick={() => handleDeleteEvent(e.id)} className="flex-shrink-0 text-ink-sub text-sm">🗑</button>
                   </div>
                 )}
               </div>
             ))}
-            <label className="flex items-center gap-2 text-sm text-gray-600">
+            <label className="flex items-center gap-2 text-sm text-ink-sub">
               <input
                 type="checkbox"
                 checked={isAllDay}
@@ -375,7 +373,7 @@ export default function CalendarPage({ setTab }) {
                 className="flex-1 rounded-2xl border p-4"
               />
             </div>
-            <button onClick={handleAddEvent} disabled={!eventTitle.trim()} className="w-full rounded-2xl bg-black text-white p-3.5 font-semibold disabled:opacity-30">
+            <button onClick={handleAddEvent} disabled={!eventTitle.trim()} className="w-full rounded-2xl bg-ink text-black p-3.5 font-semibold disabled:opacity-30">
               追加
             </button>
           </div>
@@ -401,21 +399,21 @@ export default function CalendarPage({ setTab }) {
                       value={editingTaskText}
                       onChange={(e) => setEditingTaskText(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") saveEditTask(); if (e.key === "Escape") cancelEditTask(); }}
-                      className="flex-1 outline-none border-b border-gray-300"
+                      className="flex-1 outline-none border-b border-app-line"
                     />
-                    <button onClick={saveEditTask} className="flex-shrink-0 text-xs font-semibold bg-black text-white rounded-lg px-2.5 py-1">保存</button>
+                    <button onClick={saveEditTask} className="flex-shrink-0 text-xs font-semibold bg-ink text-black rounded-lg px-2.5 py-1">保存</button>
                   </div>
                 ) : (
                   <button
                     onClick={() => startEditTask(t)}
-                    className={`flex-1 text-left ${t.completed ? "text-gray-400 line-through" : ""}`}
+                    className={`flex-1 text-left ${t.completed ? "text-ink-sub line-through" : ""}`}
                   >
-                    {t.reminderTime && <span className="text-xs text-gray-400 mr-1.5">🔔{t.reminderTime}</span>}
+                    {t.reminderTime && <span className="text-xs text-ink-sub mr-1.5">🔔{t.reminderTime}</span>}
                     {t.title || t.text}
                     {isTeam && <span className="block text-[10px] text-blue-500">● {t.author || "名無し"}</span>}
                   </button>
                 )}
-                <button onClick={() => handleDeleteTask(t.id)} className="flex-shrink-0 text-gray-400 text-sm">🗑</button>
+                <button onClick={() => handleDeleteTask(t.id)} className="flex-shrink-0 text-ink-sub text-sm">🗑</button>
               </div>
             ))}
           </div>
@@ -427,7 +425,7 @@ export default function CalendarPage({ setTab }) {
             className="w-full h-40 rounded-2xl border p-4 mb-3"
           />
           {!isTeam && (
-            <label className="flex items-center gap-2 text-sm text-gray-600 mb-3">
+            <label className="flex items-center gap-2 text-sm text-ink-sub mb-3">
               🔔 リマインダー時刻（任意）
               <input
                 type="time"
@@ -436,11 +434,11 @@ export default function CalendarPage({ setTab }) {
                 className="rounded-xl border p-2 text-sm"
               />
               {taskReminderTime && (
-                <button onClick={() => setTaskReminderTime("")} className="text-xs text-gray-400">クリア</button>
+                <button onClick={() => setTaskReminderTime("")} className="text-xs text-ink-sub">クリア</button>
               )}
             </label>
           )}
-          <button onClick={() => { if (taskInput.trim()) { if (isTeam) addTeamTaskAction(selectedDate, taskInput.trim()); else { addTask(selectedDate, taskInput.trim(), taskReminderTime); setTaskReminderTime(""); } setTaskInput(""); } }} disabled={!taskInput.trim()} className="w-full rounded-2xl bg-black text-white p-3.5 font-semibold mb-10 disabled:opacity-30">
+          <button onClick={() => { if (taskInput.trim()) { if (isTeam) addTeamTaskAction(selectedDate, taskInput.trim()); else { addTask(selectedDate, taskInput.trim(), taskReminderTime); setTaskReminderTime(""); } setTaskInput(""); } }} disabled={!taskInput.trim()} className="w-full rounded-2xl bg-ink text-black p-3.5 font-semibold mb-10 disabled:opacity-30">
             タスクを追加
           </button>
 
@@ -448,10 +446,10 @@ export default function CalendarPage({ setTab }) {
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-2xl font-semibold">📝 Memo</h2>
             <div className="flex gap-2">
-              <button onClick={() => fileInputRef.current?.click()} disabled={uploadingFile} className="rounded-xl border px-3 py-1.5 text-sm bg-white">
+              <button onClick={() => fileInputRef.current?.click()} disabled={uploadingFile} className="rounded-xl border px-3 py-1.5 text-sm bg-app-surface">
                 {uploadingFile ? "…" : "📎 ファイル"}
               </button>
-              <button onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto} className="rounded-xl border px-3 py-1.5 text-sm bg-white">
+              <button onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto} className="rounded-xl border px-3 py-1.5 text-sm bg-app-surface">
                 {uploadingPhoto ? "…" : "📷 写真"}
               </button>
             </div>
@@ -459,7 +457,7 @@ export default function CalendarPage({ setTab }) {
           <button
             onClick={handleSendMemoToNote}
             disabled={!memoText.trim() && memo.images.length === 0 && memo.files.length === 0}
-            className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold mb-2 disabled:opacity-30"
+            className="w-full rounded-xl border border-app-line bg-app-surface px-3 py-2 text-sm font-semibold mb-2 disabled:opacity-30"
           >
             {memoSent ? "✅ ノートに送信しました" : "📤 このメモをノートへ転送"}
           </button>
@@ -479,7 +477,7 @@ export default function CalendarPage({ setTab }) {
               {memo.images.map((src, i) => (
                 <div key={i} className="relative flex-shrink-0">
                   <img src={src} alt="" className="w-20 h-20 object-cover rounded-xl border" />
-                  <button onClick={() => (isTeam ? removeTeamMemoImageAction(selectedDate, i) : removeMemoImage(selectedDate, i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black text-white text-xs flex items-center justify-center">×</button>
+                  <button onClick={() => (isTeam ? removeTeamMemoImageAction(selectedDate, i) : removeMemoImage(selectedDate, i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-ink text-black text-xs flex items-center justify-center">×</button>
                 </div>
               ))}
             </div>
@@ -489,7 +487,7 @@ export default function CalendarPage({ setTab }) {
               {memo.files.map((f, i) => (
                 <div key={i} className="flex items-center justify-between rounded-xl border p-2.5 text-sm">
                   <span className="truncate">📄 {f.name}</span>
-                  <button onClick={() => (isTeam ? removeTeamMemoFileAction(selectedDate, i) : removeMemoFile(selectedDate, i))} className="text-gray-400 ml-2">×</button>
+                  <button onClick={() => (isTeam ? removeTeamMemoFileAction(selectedDate, i) : removeMemoFile(selectedDate, i))} className="text-ink-sub ml-2">×</button>
                 </div>
               ))}
             </div>

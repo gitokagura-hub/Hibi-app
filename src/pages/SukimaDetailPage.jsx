@@ -38,7 +38,7 @@ function TagsEditor({ value, onChange }) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && add()}
           placeholder="タグを入力してEnter"
-          className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500"
+          className="flex-1 border border-app-line rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500"
         />
         <button onClick={add} className="text-xs font-semibold text-emerald-600 px-2">
           追加
@@ -69,15 +69,15 @@ function ChecklistEditor({ value, onChange }) {
           <button
             onClick={() => toggle(i)}
             className={`w-4 h-4 rounded mt-0.5 flex-shrink-0 flex items-center justify-center text-[9px] ${
-              it.done ? "bg-emerald-600 text-white" : "border border-gray-300"
+              it.done ? "bg-emerald-600 text-white" : "border border-app-line"
             }`}
           >
             {it.done ? "✓" : ""}
           </button>
-          <span className={`flex-1 text-sm ${it.done ? "text-gray-400 line-through" : "text-gray-800"}`}>
+          <span className={`flex-1 text-sm ${it.done ? "text-ink-sub line-through" : "text-ink"}`}>
             {it.text}
           </span>
-          <button onClick={() => remove(i)} className="text-gray-300 text-xs">
+          <button onClick={() => remove(i)} className="text-ink-sub/70 text-xs">
             ×
           </button>
         </div>
@@ -88,7 +88,7 @@ function ChecklistEditor({ value, onChange }) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && add()}
           placeholder="次に調べることを自由に追加"
-          className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-gray-400"
+          className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-ink-sub"
         />
         <button onClick={add} className="text-xs font-semibold text-emerald-700">
           + 追加
@@ -107,21 +107,21 @@ function CardRow({ def, value, onChange }) {
   else if (value) preview = value.length > 14 ? value.slice(0, 14) + "…" : value;
 
   return (
-    <div className="border-b border-gray-100 last:border-b-0">
+    <div className="border-b border-app-line last:border-b-0">
       <button
         onClick={() => setOpen((o) => !o)}
         className={`w-full flex items-center justify-between px-4 py-3 ${def.accent ? "pl-3" : ""}`}
         style={def.accent ? { borderLeft: "3px solid #279a63" } : undefined}
       >
         <div className="flex items-center gap-2">
-          <span className="text-[14.5px] font-medium text-gray-900">{def.title}</span>
+          <span className="text-[14.5px] font-medium text-ink">{def.title}</span>
           {def.accent && (
             <span className="text-[9.5px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
               ★ 核心
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5 text-gray-400">
+        <div className="flex items-center gap-1.5 text-ink-sub">
           <span className="text-xs max-w-[110px] truncate">{preview}</span>
           <ChevronRight size={14} className={`transition-transform ${open ? "rotate-90" : ""}`} />
         </div>
@@ -136,7 +136,7 @@ function CardRow({ def, value, onChange }) {
               onChange={(e) => onChange(e.target.value)}
               placeholder="記入する..."
               rows={4}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500 resize-none"
+              className="w-full border border-app-line rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500 resize-none"
             />
           )}
         </div>
@@ -152,8 +152,8 @@ export default function SukimaDetailPage({ entryId, onBack }) {
 
   if (!entry) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 text-center">
-        <p className="text-sm text-gray-400">この研究は見つかりませんでした</p>
+      <div className="min-h-screen bg-app-bg flex flex-col items-center justify-center px-6 text-center">
+        <p className="text-sm text-ink-sub">この研究は見つかりませんでした</p>
         <button onClick={onBack} className="mt-4 text-emerald-600 text-sm font-semibold">
           一覧へ戻る
         </button>
@@ -162,16 +162,16 @@ export default function SukimaDetailPage({ entryId, onBack }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-app-bg">
       <button
         onClick={onBack}
-        className="fixed bottom-6 left-5 z-30 w-11 h-11 rounded-full bg-white/90 backdrop-blur border border-gray-200 flex items-center justify-center shadow-sm"
+        className="fixed bottom-6 left-5 z-30 w-11 h-11 rounded-full bg-app-surface/90 backdrop-blur border border-app-line flex items-center justify-center shadow-sm"
         aria-label="一覧へ戻る"
       >
-        <ChevronLeft size={18} className="text-gray-600" />
+        <ChevronLeft size={18} className="text-ink-sub" />
       </button>
 
-      <div className="bg-white sticky top-0 z-20 border-b border-gray-100">
+      <div className="bg-app-surface sticky top-0 z-20 border-b border-app-line">
         <div className="flex items-center justify-end px-4 pt-14 pb-2">
           <button
             onClick={() => {
@@ -180,7 +180,7 @@ export default function SukimaDetailPage({ entryId, onBack }) {
                 onBack();
               }
             }}
-            className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center"
+            className="w-9 h-9 rounded-full bg-app-raised flex items-center justify-center"
           >
             <Trash2 size={16} className="text-red-400" />
           </button>
@@ -191,13 +191,13 @@ export default function SukimaDetailPage({ entryId, onBack }) {
             value={entry.name}
             onChange={(e) => updateEntry(entry.id, { name: e.target.value })}
             placeholder="名前"
-            className="text-xl font-bold text-gray-900 w-full focus:outline-none"
+            className="text-xl font-bold text-ink w-full focus:outline-none"
           />
           <input
             value={entry.role}
             onChange={(e) => updateEntry(entry.id, { role: e.target.value })}
             placeholder="役職・所属など"
-            className="text-sm text-gray-500 w-full mt-1 focus:outline-none"
+            className="text-sm text-ink-sub w-full mt-1 focus:outline-none"
           />
           <div className="flex gap-1.5 mt-3">
             {STATUS_OPTIONS.map((s) => (
@@ -207,7 +207,7 @@ export default function SukimaDetailPage({ entryId, onBack }) {
                 className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${
                   entry.status === s.id
                     ? "bg-gray-900 text-white border-gray-900"
-                    : "bg-white text-gray-500 border-gray-200"
+                    : "bg-app-surface text-ink-sub border-app-line"
                 }`}
               >
                 {s.label}
@@ -232,11 +232,11 @@ export default function SukimaDetailPage({ entryId, onBack }) {
         </div>
         {GROUPS.map((g) => (
           <div key={g.code} className="mb-4">
-            <div className="text-[11px] font-bold text-gray-400 tracking-wide mb-1.5 px-1">
-              <span className="font-mono text-gray-300 mr-1">{g.code}</span>
+            <div className="text-[11px] font-bold text-ink-sub tracking-wide mb-1.5 px-1">
+              <span className="font-mono text-ink-sub/70 mr-1">{g.code}</span>
               {g.title}
             </div>
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+            <div className="bg-app-surface rounded-2xl border border-app-line overflow-hidden">
               {CARD_DEFS.filter((c) => c.group === g.code).map((c) => (
                 <CardRow
                   key={c.key}

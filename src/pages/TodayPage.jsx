@@ -56,7 +56,7 @@ export default function TodayPage({ setTab }) {
 
         <div className="space-y-3">
           {tasks.length === 0 && (
-            <div className="rounded-2xl border p-4 text-gray-400">
+            <div className="rounded-2xl border p-4 text-ink-sub">
               No tasks yet
             </div>
           )}
@@ -64,7 +64,7 @@ export default function TodayPage({ setTab }) {
             <button
               key={t.id}
               onClick={() => toggleTask(t.id)}
-              className={`w-full text-left rounded-2xl border p-4 ${t.completed ? "text-gray-400 line-through" : ""}`}
+              className={`w-full text-left rounded-2xl border p-4 ${t.completed ? "text-ink-sub line-through" : ""}`}
             >
               {t.title}
             </button>
@@ -89,7 +89,7 @@ export default function TodayPage({ setTab }) {
                 <img src={src} alt="" className="w-16 h-16 object-cover rounded-xl border" />
                 <button
                   onClick={() => removeMemoImage(today, i)}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black text-white text-xs flex items-center justify-center"
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-ink text-black text-xs flex items-center justify-center"
                 >
                   ×
                 </button>
