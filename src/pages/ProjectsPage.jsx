@@ -18,7 +18,6 @@ function FullScreenItemEditor({ item, onChange, onClose }) {
       </div>
 
       <textarea
-        autoFocus
         value={item.text}
         onChange={(e) => onChange(e.target.value)}
         className="flex-1 w-full px-5 py-4 text-[16px] outline-none resize-none"

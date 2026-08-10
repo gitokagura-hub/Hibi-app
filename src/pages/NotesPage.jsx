@@ -537,7 +537,7 @@ function FullScreenComposer({
       </div>
 
       <textarea
-        autoFocus
+        autoFocus={!isEditing}
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="思いつきやアイデアを書き出す（壁打ち）..."
