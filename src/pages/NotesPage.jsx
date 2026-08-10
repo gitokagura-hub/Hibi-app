@@ -149,6 +149,7 @@ function PhotoThumb({ src, onDelete, confirm, size = "w-24 h-24" }) {
 function PdfPreview({ file }) {
   const [blobUrl, setBlobUrl] = useState(null);
   const [failed, setFailed] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     let url = null;
@@ -178,19 +179,32 @@ function PdfPreview({ file }) {
     return <p className="text-xs text-gray-400 mt-1">プレビューを表示できませんでした。上のファイル名をタップして開いてください。</p>;
   }
   if (!blobUrl) {
-    return <div className="w-full rounded-lg border mt-1 flex items-center justify-center text-xs text-gray-400" style={{ height: "45vh" }}>読み込み中...</div>;
+    return <div className="w-full rounded-lg border mt-1 flex items-center justify-center text-xs text-gray-400 h-20">読み込み中...</div>;
   }
-  // iOS Safariは<iframe>自体に指定したCSSの高さを無視し、中身(PDF)の
-  // 高さに合わせて自分で広がってしまう。ラッパーdivの方に高さと
-  // overflow:autoを持たせ、iframe自体には高さを指定しないことで、
-  // 「枠は45vh、その中をスクロールしてPDF全体を見る」形にする。
+
+  // iOS Safariのiframeは、埋め込み枠だと自前のCSS高さ指定を無視して
+  // 中身のPDF実寸まで広がってしまい、枠内に収める調整がうまくいかな
+  // かった。写真ビューアーと同じ「普段は小さいカード、タップで
+  // フルスクリーン」方式に変更。フルスクリーン(画面いっぱい)なら
+  // iOSのPDFビューア標準のピンチズーム操作がそのまま自然に使える。
   return (
-    <div
-      className="w-full rounded-lg border mt-1 overflow-auto"
-      style={{ height: "45vh", WebkitOverflowScrolling: "touch" }}
-    >
-      <iframe src={blobUrl} title={file.name} className="w-full block" style={{ height: "150vh", border: "none" }} />
-    </div>
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="w-full rounded-lg border mt-1 h-20 flex items-center justify-center gap-2 text-xs text-gray-500 bg-gray-50 active:bg-gray-100"
+      >
+        📄 タップしてPDFを表示
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-[90] bg-black/95 flex flex-col" onClick={() => setOpen(false)}>
+          <div className="flex items-center justify-between px-4 pt-14 pb-2" onClick={(e) => e.stopPropagation()}>
+            <span className="text-white text-sm truncate">{file.name}</span>
+            <button onClick={() => setOpen(false)} className="w-9 h-9 rounded-full bg-white/20 text-white text-lg flex items-center justify-center shrink-0 ml-2">×</button>
+          </div>
+          <iframe src={blobUrl} title={file.name} className="flex-1 w-full bg-white" style={{ border: "none" }} onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
+    </>
   );
 }
 
