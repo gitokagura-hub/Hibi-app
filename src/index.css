@@ -2,6 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: dark;
+  --bg: #000;
+  --surface: #1C1C1E;
+  --raised: #2C2C2E;
+  --line: #38383A;
+  --ink: #FFF;
+  --ink-sub: #98989F;
+  --accent-yellow: #FFD60A;
+  --accent-red: #FF453A;
+  --pill-1: #EA4335;
+  --pill-2: #F6BF26;
+  --pill-3: #33B679;
+  --pill-4: #039BE5;
+  --pill-5: #7986CB;
+  --pill-6: #8E24AA;
+  --pill-7: #F4511E;
+  --pill-8: #616161;
+}
+
 html, body, #root {
   height: 100%;
 }

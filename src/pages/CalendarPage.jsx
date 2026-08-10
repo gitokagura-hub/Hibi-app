@@ -19,6 +19,27 @@ function getMonthGrid(y, m) {
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
+// タイトル文字列から決定論的にピル色(0〜7)を割り当てる。
+// 同じ予定/タスクなら常に同じ色になる(ランダムだと再描画のたびに
+// 色が変わってしまうため)。pill-2(黄)のみ黒文字、他は白文字。
+// Tailwindは動的に組み立てた文字列(`bg-pill-${n}`等)をビルド時の
+// 静的解析で検出できないため、完全な形のクラス名を配列で持つ。
+const PILL_CLASSES = [
+  "bg-pill-1 text-white",
+  "bg-pill-2 text-black",
+  "bg-pill-3 text-white",
+  "bg-pill-4 text-white",
+  "bg-pill-5 text-white",
+  "bg-pill-6 text-white",
+  "bg-pill-7 text-white",
+  "bg-pill-8 text-white",
+];
+function pillClassFor(title) {
+  let hash = 0;
+  for (let i = 0; i < title.length; i++) hash = (hash * 31 + title.charCodeAt(i)) >>> 0;
+  return PILL_CLASSES[hash % PILL_CLASSES.length];
+}
+
 export default function CalendarPage({ setTab }) {
   const {
     data, addTask, toggleTask, deleteTask, updateTask, addEvent, deleteEvent, updateEvent,
@@ -231,35 +252,41 @@ export default function CalendarPage({ setTab }) {
           </div>
 
           {/* Week */}
-          <div className="grid grid-cols-7 text-center text-xs text-gray-400">
-            {WEEKDAYS.map((w, i) => <div key={w} className={i === 0 ? "text-red-300" : ""}>{w}</div>)}
+          <div className="grid grid-cols-7 text-center text-[11px] text-ink-sub bg-app-bg py-1">
+            {WEEKDAYS.map((w, i) => <div key={w} className={i === 0 ? "text-accent-red" : ""}>{w}</div>)}
           </div>
 
           {/* Calendar */}
           <div className="grid grid-cols-7" style={{ gridAutoRows: "78px" }}>
             {grid.map((d, index) => {
-              if (!d) return <div key={index} className="border border-gray-100" />;
+              if (!d) return <div key={index} className="border border-app-line" />;
               const ds = dateOf(d);
               const isToday = ds === todayS;
               const isSelected = ds === selectedDate;
               const isSunday = index % 7 === 0;
-              const items = (cellPreview[ds] || []).slice(0, 4);
+              const items = (cellPreview[ds] || []).slice(0, 3);
+              const overflowCount = (cellPreview[ds] || []).length - items.length;
               return (
                 <button
                   key={index}
                   onClick={() => selectDate(ds)}
-                  className={`border border-gray-100 flex flex-col items-start justify-start p-0.5 text-left ${isSelected ? "bg-green-100" : ""}`}
+                  className={`border border-app-line flex flex-col items-start justify-start p-0.5 text-left ${isSelected ? "bg-app-surface" : "bg-app-bg"}`}
                 >
-                  <span className={`text-[10px] leading-none mb-0.5 ${isToday ? "font-bold" : ""} ${isSunday ? "text-red-300" : ""}`}>{d}</span>
-                  <div className="flex flex-col gap-px w-full">
+                  <span className={`inline-flex items-center justify-center w-[26px] h-[26px] rounded-full text-[10px] leading-none mb-0.5 ${isToday ? "bg-accent-red text-white font-bold" : isSunday ? "text-accent-red" : "text-ink"}`}>
+                    {d}
+                  </span>
+                  <div className="flex flex-col gap-[2px] w-full">
                     {items.map((it, i) => (
                       <span
                         key={i}
-                        className={`text-[6px] leading-[1.3] px-0.5 rounded overflow-hidden whitespace-nowrap w-full ${it.kind === "event" ? "bg-gray-200" : "bg-gray-100 text-gray-500"}`}
+                        className={`h-[18px] leading-[18px] rounded text-[11px] font-medium px-1.5 truncate w-full ${pillClassFor(it.title)}`}
                       >
                         {it.kind === "event" ? it.title : `${it.completed ? "☑" : "☐"} ${it.title}`}
                       </span>
                     ))}
+                    {overflowCount > 0 && (
+                      <span className="text-[10px] text-ink-sub px-1.5">+{overflowCount}件</span>
+                    )}
                   </div>
                 </button>
               );
