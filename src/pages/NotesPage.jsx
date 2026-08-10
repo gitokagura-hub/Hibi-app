@@ -225,20 +225,37 @@ function PhotoThumb({ src, images, index = 0, onDelete, confirm, size = "w-24 h-
   const [viewerOpen, setViewerOpen] = useState(false);
   const pressTimer = useRef(null);
   const longPressed = useRef(false);
+  const startPos = useRef({ x: 0, y: 0 });
+  const moved = useRef(false);
 
   function handleTouchStart(e) {
     e.stopPropagation();
     longPressed.current = false;
+    moved.current = false;
+    const point = e.touches ? e.touches[0] : e;
+    startPos.current = { x: point.clientX, y: point.clientY };
     if (!onDelete) return;
     pressTimer.current = setTimeout(async () => {
       longPressed.current = true;
       if (await confirm("この写真を削除しますか？", { confirmLabel: "削除する", danger: true })) onDelete();
     }, 600);
   }
+  function handleTouchMove(e) {
+    const point = e.touches ? e.touches[0] : e;
+    const dx = point.clientX - startPos.current.x;
+    const dy = point.clientY - startPos.current.y;
+    // 横スクロール中に指が写真の上を通過しただけで開いてしまわないよう、
+    // 一定以上動いたら「スクロール」とみなし、タップ・長押しどちらも
+    // 発動させない。
+    if (Math.hypot(dx, dy) > 10) {
+      moved.current = true;
+      if (pressTimer.current) clearTimeout(pressTimer.current);
+    }
+  }
   function handleTouchEnd(e) {
     e.stopPropagation();
     if (pressTimer.current) clearTimeout(pressTimer.current);
-    if (!longPressed.current) setViewerOpen(true);
+    if (!longPressed.current && !moved.current) setViewerOpen(true);
   }
 
   return (
@@ -248,6 +265,7 @@ function PhotoThumb({ src, images, index = 0, onDelete, confirm, size = "w-24 h-
         alt=""
         className={`${size} object-cover rounded-xl border flex-shrink-0`}
         onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onMouseDown={handleTouchStart}
         onMouseUp={handleTouchEnd}
