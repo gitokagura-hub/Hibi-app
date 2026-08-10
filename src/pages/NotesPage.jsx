@@ -189,7 +189,7 @@ function PdfPreview({ file }) {
       className="w-full rounded-lg border mt-1 overflow-auto"
       style={{ height: "45vh", WebkitOverflowScrolling: "touch" }}
     >
-      <iframe src={blobUrl} title={file.name} className="w-full" style={{ minHeight: "100%" }} />
+      <iframe src={blobUrl} title={file.name} className="w-full block" style={{ height: "150vh", border: "none" }} />
     </div>
   );
 }
