@@ -201,7 +201,9 @@ function PdfPreview({ file }) {
             <span className="text-white text-sm truncate">{file.name}</span>
             <button onClick={() => setOpen(false)} className="w-9 h-9 rounded-full bg-white/20 text-white text-lg flex items-center justify-center shrink-0 ml-2">×</button>
           </div>
-          <iframe src={blobUrl} title={file.name} className="flex-1 w-full bg-white" style={{ border: "none" }} onClick={(e) => e.stopPropagation()} />
+          <object data={blobUrl} type="application/pdf" className="flex-1 w-full bg-white" onClick={(e) => e.stopPropagation()}>
+            <p className="text-white text-sm p-6">PDFを表示できませんでした。</p>
+          </object>
         </div>
       )}
     </>
