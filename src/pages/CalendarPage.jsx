@@ -217,7 +217,7 @@ export default function CalendarPage({ setTab }) {
   return (
     <div className="h-[100dvh] bg-app-bg flex flex-col">
       {/* Full Screen Scroll */}
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
         <header className="bg-app-bg px-5 pt-6 pb-2">
           <h1 className="text-lg font-bold text-center">Dayliy Brains</h1>
         </header>
@@ -258,6 +258,7 @@ export default function CalendarPage({ setTab }) {
                   key={index}
                   onClick={() => selectDate(ds)}
                   className={`${rowLine} flex flex-col items-center justify-start pt-1.5 px-[3px] text-left bg-app-bg`}
+                  style={{ touchAction: "pan-y" }}
                 >
                   <span className={`inline-flex items-center justify-center w-[30px] h-[30px] rounded-full text-[17px] font-semibold leading-none mb-1 ${
                     isToday ? "bg-accent-red text-white" : isSelected ? "bg-app-raised text-ink" : isWeekend ? "text-ink-sub" : "text-ink"
