@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, ChevronLeft } from "lucide-react";
 import { Layout, AIConnections } from "../components";
 import { useData, todayStr, fileToCompressedDataUrl, fileToDataUrl, formatDateTime } from "../dataStore";
 import { runAIOnNote } from "../aiAssist";
@@ -515,6 +515,8 @@ function AIAssistSheet({ provider, apiKeyMissing, onClose, onRun, onApply }) {
   );
 }
 
+const COMPOSER_BAR_H = 44;
+
 function FullScreenComposer({
   text, setText, pendingImages, setPendingImages, pendingFiles, setPendingFiles,
   uploading, onPickPhoto, onPickFile, onVoice, onSave, onSend, onClose, isEditing, onAIAssist, confirm,
@@ -522,7 +524,10 @@ function FullScreenComposer({
   const photoInputRef = useRef(null);
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
+  const mainRef = useRef(null);
+  const sentinelRef = useRef(null);
   const [copied, setCopied] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   // 内容の長さに応じてtextareaの高さを自動調整する。固定rows数だと
   // 短いメモの下に大きな空白が残ったり、逆に長文が窮屈になったりする。
@@ -532,6 +537,20 @@ function FullScreenComposer({
     el.style.height = "auto";
     el.style.height = `${Math.max(el.scrollHeight, 160)}px`;
   }, [text]);
+
+  // Layout.jsxのラージタイトル方式と同じパターン(IntersectionObserver+
+  // 1px番兵)をこの独立モーダル内でも再現する。scrollイベント不使用。
+  useEffect(() => {
+    const main = mainRef.current;
+    const sentinel = sentinelRef.current;
+    if (!main || !sentinel || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      ([entry]) => setCollapsed(!entry.isIntersecting),
+      { root: main, rootMargin: `-${COMPOSER_BAR_H}px 0px 0px 0px` }
+    );
+    io.observe(sentinel);
+    return () => io.disconnect();
+  }, []);
 
   async function handleCopy() {
     try {
@@ -551,20 +570,44 @@ function FullScreenComposer({
     }
   }
 
+  const titleText = isEditing ? "Edit Note" : "New Note";
+
   return (
     <div className="fixed inset-0 z-50 bg-app-surface flex flex-col">
-      <div className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
-        <div className="flex items-center justify-between px-5 pt-12 pb-3 border-b border-app-line">
-          <button onClick={onClose} className="text-ink-sub">閉じる</button>
-          <span className="font-semibold">{isEditing ? "Edit Note" : "New Note"}</span>
-          {text ? (
-            <button onClick={handleCopy} className="text-ink-sub p-1" aria-label="コピー">
-              {copied ? <Check size={19} className="text-green-500" /> : <Copy size={19} />}
-            </button>
-          ) : (
-            <div className="w-10" />
-          )}
+      {/* 常駐コンパクトバー(Layout.jsxと同じパターン) */}
+      <div
+        className={`absolute top-0 inset-x-0 z-30 transition-colors duration-200 ${
+          collapsed ? "bg-black/75 backdrop-blur-xl border-b border-app-line/70" : "bg-transparent border-b border-transparent"
+        }`}
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
+        <div className="relative flex items-center justify-between px-2" style={{ height: COMPOSER_BAR_H }}>
+          <button onClick={onClose} className="flex items-center min-w-[44px] text-accent-yellow p-2" aria-label="閉じる">
+            <ChevronLeft size={22} />
+          </button>
+          <span
+            className={`absolute left-1/2 -translate-x-1/2 text-[15px] font-semibold transition-opacity duration-200 ${
+              collapsed ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            {titleText}
+          </span>
+          <div className="flex items-center justify-end min-w-[44px]">
+            {text && (
+              <button onClick={handleCopy} className="text-ink-sub p-2" aria-label="コピー">
+                {copied ? <Check size={19} className="text-green-500" /> : <Copy size={19} />}
+              </button>
+            )}
+          </div>
         </div>
+      </div>
+
+      <div ref={mainRef} className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
+        <header className="px-5 pb-2" style={{ paddingTop: `calc(env(safe-area-inset-top) + ${COMPOSER_BAR_H}px)` }}>
+          <h1 className="text-[28px] leading-tight font-bold tracking-tight">{titleText}</h1>
+        </header>
+        {/* 番兵: ここがバーの下に潜ったら collapsed */}
+        <div ref={sentinelRef} className="h-px" />
 
         <textarea
           ref={textareaRef}
