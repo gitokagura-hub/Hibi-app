@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useData, todayStr, fileToCompressedDataUrl, fileToDataUrl } from "../dataStore";
 import BottomNavigation from "../components/BottomNavigation";
 import SpaceSwitcher from "../components/SpaceSwitcher";
@@ -41,6 +41,10 @@ export default function CalendarPage({ setTab }) {
   } = useData();
   const isTeam = space === "team";
   const confirm = useConfirm();
+  const mainRef = useRef(null);
+  useEffect(() => {
+    if (mainRef.current) mainRef.current.scrollTop = 0;
+  }, []);
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [taskInput, setTaskInput] = useState("");
@@ -217,7 +221,7 @@ export default function CalendarPage({ setTab }) {
   return (
     <div className="h-[100dvh] bg-app-bg flex flex-col">
       {/* Full Screen Scroll */}
-      <main className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
+      <main ref={mainRef} className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
         <header className="bg-app-bg px-5 pt-6 pb-2">
           <h1 className="text-lg font-bold text-center">Dayliy Brains</h1>
         </header>
