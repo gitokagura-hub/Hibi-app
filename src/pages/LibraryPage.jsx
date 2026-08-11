@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from "react";
-import { ChevronLeft, Image as ImageIcon, Plus, Camera } from "lucide-react";
+import { ChevronLeft, Image as ImageIcon, Plus, Camera, Tag } from "lucide-react";
 import { useData, fileToCompressedDataUrl } from "../dataStore";
 import { useSwipeBack } from "../useSwipeBack";
 
@@ -52,7 +52,7 @@ function TagPickerSheet({ selected, available, onAddCategory, onClose, onSave })
   return (
     <div className="fixed inset-0 z-[95] flex items-end bg-black/40" onClick={(e) => { e.stopPropagation(); onClose(); }}>
       <div onClick={(e) => e.stopPropagation()} className="w-full bg-app-surface rounded-t-3xl p-6 max-h-[75vh] overflow-y-auto" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
-        <h2 className="text-lg font-semibold mb-3">🏷️ タグを選ぶ</h2>
+        <h2 className="text-lg font-semibold mb-3 flex items-center gap-1.5"><Tag size={17} /> タグを選ぶ</h2>
         {available.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-4">
             {available.map((cat) => (
@@ -259,8 +259,8 @@ export default function LibraryPage({ onHome }) {
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); setTaggingSrc(img.src); }}
-                  className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center"
-                >🏷️</button>
+                  className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center"
+                ><Tag size={12} /></button>
                 {img.tags.length > 0 && (
                   <span className="absolute bottom-1 left-1 max-w-[65%] truncate rounded-full bg-black/60 text-white text-[9px] px-1.5 py-0.5">
                     {img.tags.join(" / ")}
