@@ -521,7 +521,17 @@ function FullScreenComposer({
 }) {
   const photoInputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
   const [copied, setCopied] = useState(false);
+
+  // 内容の長さに応じてtextareaの高さを自動調整する。固定rows数だと
+  // 短いメモの下に大きな空白が残ったり、逆に長文が窮屈になったりする。
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.max(el.scrollHeight, 160)}px`;
+  }, [text]);
 
   async function handleCopy() {
     try {
@@ -544,7 +554,7 @@ function FullScreenComposer({
   return (
     <div className="fixed inset-0 z-50 bg-app-surface flex flex-col">
       <div className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
-        <div className="flex items-center justify-between px-5 pt-12 pb-2 border-b border-app-line">
+        <div className="flex items-center justify-between px-5 pt-12 pb-3 border-b border-app-line">
           <button onClick={onClose} className="text-ink-sub">閉じる</button>
           <span className="font-semibold">{isEditing ? "Edit Note" : "New Note"}</span>
           {text ? (
@@ -557,12 +567,12 @@ function FullScreenComposer({
         </div>
 
         <textarea
+          ref={textareaRef}
           autoFocus={!isEditing}
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="思いつきやアイデアを書き出す（壁打ち）..."
-          rows={10}
-          className="w-full px-5 py-4 text-[16px] outline-none resize-none"
+          className="w-full px-5 py-4 text-[16px] outline-none resize-none block"
         />
 
         <div className="px-5">
