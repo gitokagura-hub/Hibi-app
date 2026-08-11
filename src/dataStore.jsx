@@ -75,6 +75,7 @@ function emptyData() {
     memos: {},     // { [date]: { text, images: [], files: [] } }
     notes: [],     // { id, text, images: [], files: [], source: 'text'|'voice', createdAt }
     projects: [],  // { id, name, items: [{id, text, images, files, createdAt}], driveFolderId: '', driveFiles: [], createdAt }
+    libraryPhotos: [], // { id, src, createdAt } — Photos画面から直接追加された写真(他の画面のメモ等には紐付かない)
     settings: { geminiKey: '', chatgptKey: '', claudeKey: '', photoCategories: [] },
   };
 }
@@ -257,6 +258,13 @@ export function DataProvider({ children }) {
   }
   function deleteNote(id) {
     setData(prev => ({ ...prev, notes: prev.notes.filter(n => n.id !== id) }));
+  }
+  function addLibraryPhotos(srcs) {
+    const photos = srcs.map(src => ({ id: uid(), src, createdAt: Date.now() }));
+    setData(prev => ({ ...prev, libraryPhotos: [...(prev.libraryPhotos || []), ...photos] }));
+  }
+  function deleteLibraryPhoto(id) {
+    setData(prev => ({ ...prev, libraryPhotos: (prev.libraryPhotos || []).filter(p => p.id !== id) }));
   }
   function updateNote(id, text, images, files) {
     setData(prev => ({
@@ -583,6 +591,7 @@ export function DataProvider({ children }) {
     addEvent, deleteEvent, updateEvent,
     getMemo, setMemo, addMemoImages, removeMemoImage, updateMemoImageCategories, addMemoFiles, removeMemoFile,
     addNote, deleteNote, updateNote,
+    addLibraryPhotos, deleteLibraryPhoto,
     addProject, setProjectDriveFolderId, setProjectDriveFiles, addProjectDriveFile, removeProjectDriveFile, updateProjectItem, addProjectItem, deleteProject, deleteProjectItem, sendToProject,
     pasteNoteToCalendar, pasteNoteToProject,
     setSettings, addPhotoCategory, removePhotoCategory, replaceAllData,

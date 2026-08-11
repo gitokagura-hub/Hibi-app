@@ -1,6 +1,6 @@
-import { useMemo, useState, useEffect } from "react";
-import { ChevronLeft, Image as ImageIcon } from "lucide-react";
-import { useData } from "../dataStore";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { ChevronLeft, Image as ImageIcon, Plus, Camera } from "lucide-react";
+import { useData, fileToCompressedDataUrl } from "../dataStore";
 import { useSwipeBack } from "../useSwipeBack";
 
 // Library-only tagging: kept entirely separate from Notes/Calendar/Projects
@@ -96,15 +96,36 @@ function TagPickerSheet({ selected, available, onAddCategory, onClose, onSave })
 
 export default function LibraryPage({ onHome }) {
   useSwipeBack(onHome);
-  const { data } = useData();
+  const { data, addLibraryPhotos, deleteLibraryPhoto } = useData();
   const [viewerSrc, setViewerSrc] = useState(null);
   const [tagMap, setTagMap] = useState(() => loadTagMap());
   const [categories, setCategories] = useState(() => loadCategories());
   const [activeCategory, setActiveCategory] = useState(null); // null = すべて
   const [taggingSrc, setTaggingSrc] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const galleryInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
 
   useEffect(() => { saveTagMap(tagMap); }, [tagMap]);
   useEffect(() => { saveCategories(categories); }, [categories]);
+
+  async function handlePickFiles(e) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    setAddMenuOpen(false);
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      const srcs = await Promise.all(files.map((f) => fileToCompressedDataUrl(f)));
+      addLibraryPhotos(srcs);
+    } catch {
+      // 圧縮/読み込みに失敗したファイルは無視して残りを続行できるよう、
+      // 個別のcatchはfileToCompressedDataUrl内で処理済み想定。
+    } finally {
+      setUploading(false);
+    }
+  }
 
   function addCategory(name) {
     setCategories((prev) => (prev.includes(name) ? prev : [...prev, name]));
@@ -138,6 +159,10 @@ export default function LibraryPage({ onHome }) {
       )
     );
 
+    (data.libraryPhotos || []).forEach((p) =>
+      items.push({ src: p.src, source: "Photos", createdAt: p.createdAt, libraryPhotoId: p.id })
+    );
+
     return items.sort((a, b) => b.createdAt - a.createdAt);
   }, [data]);
 
@@ -157,11 +182,45 @@ export default function LibraryPage({ onHome }) {
         <ChevronLeft size={18} className="text-sky-700" />
       </button>
 
-      <header className="px-5 pt-14 pb-3">
-        <h1 className="text-3xl font-semibold tracking-tight">Library</h1>
-        <p className="mt-1 text-sm text-ink-sub">
-          {filteredImages.length}件の画像（Daily Brains内 / Notes・Calendar・Projects横断）
-        </p>
+      <header className="px-5 pt-14 pb-3 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Photos</h1>
+          <p className="mt-1 text-sm text-ink-sub">
+            {filteredImages.length}件の画像（Daily Brains内 / Notes・Calendar・Projects横断）
+          </p>
+        </div>
+        <div className="relative shrink-0 mt-1">
+          <button
+            onClick={() => setAddMenuOpen((v) => !v)}
+            disabled={uploading}
+            className="w-10 h-10 rounded-full bg-ink text-app-bg flex items-center justify-center disabled:opacity-40"
+            aria-label="写真を追加"
+          >
+            <Plus size={20} />
+          </button>
+          {addMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-20" onClick={() => setAddMenuOpen(false)} />
+              <div className="absolute right-0 top-12 z-30 w-44 bg-app-surface border border-app-line rounded-2xl overflow-hidden shadow-lg">
+                <button
+                  onClick={() => { setAddMenuOpen(false); cameraInputRef.current?.click(); }}
+                  className="w-full flex items-center gap-2 px-4 py-3 text-sm text-left"
+                >
+                  <Camera size={16} /> 写真を撮る
+                </button>
+                <div className="h-px bg-app-line" />
+                <button
+                  onClick={() => { setAddMenuOpen(false); galleryInputRef.current?.click(); }}
+                  className="w-full flex items-center gap-2 px-4 py-3 text-sm text-left"
+                >
+                  <ImageIcon size={16} /> 写真を選ぶ
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handlePickFiles} className="hidden" />
+        <input ref={galleryInputRef} type="file" accept="image/*" multiple onChange={handlePickFiles} className="hidden" />
       </header>
 
       {categories.length > 0 && (
@@ -195,7 +254,7 @@ export default function LibraryPage({ onHome }) {
             {filteredImages.map((img, i) => (
               <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-app-raised">
                 <button
-                  onClick={() => setViewerSrc(img.src)}
+                  onClick={() => setViewerSrc(img)}
                   className="w-full h-full block"
                   title={img.source}
                 >
@@ -221,7 +280,17 @@ export default function LibraryPage({ onHome }) {
 
       {viewerSrc && (
         <div className="fixed inset-0 z-[90] bg-black/95 flex items-center justify-center p-8" onClick={(e) => e.stopPropagation()}>
-          <img src={viewerSrc} alt="" className="max-w-full max-h-full object-contain rounded-2xl" />
+          <img src={viewerSrc.src} alt="" className="max-w-full max-h-full object-contain rounded-2xl" />
+          {viewerSrc.libraryPhotoId && (
+            <button
+              onClick={async (e) => {
+                e.stopPropagation();
+                deleteLibraryPhoto(viewerSrc.libraryPhotoId);
+                setViewerSrc(null);
+              }}
+              className="absolute top-14 left-5 h-9 px-3 rounded-full bg-red-600/90 text-white text-xs font-semibold flex items-center justify-center"
+            >削除</button>
+          )}
           <button
             onClick={(e) => { e.stopPropagation(); setViewerSrc(null); }}
             className="absolute top-14 right-5 w-9 h-9 rounded-full bg-app-surface/20 text-white text-lg flex items-center justify-center"

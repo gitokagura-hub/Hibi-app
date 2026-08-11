@@ -28,7 +28,7 @@ const apps = [
   },
   {
     id: "library",
-    title: "Library",
+    title: "Photos",
     icon: Image,
     description: "全ワークスペース横断の画像・ファイル一覧",
     status: "ACTIVE",
