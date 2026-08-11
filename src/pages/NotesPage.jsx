@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { Copy, Check } from "lucide-react";
 import { Layout, AIConnections } from "../components";
 import { useData, todayStr, fileToCompressedDataUrl, fileToDataUrl, formatDateTime } from "../dataStore";
 import { runAIOnNote } from "../aiAssist";
@@ -546,8 +547,8 @@ function FullScreenComposer({
         <button onClick={onClose} className="text-ink-sub">閉じる</button>
         <span className="font-semibold">{isEditing ? "Edit Note" : "New Note"}</span>
         {text ? (
-          <button onClick={handleCopy} className="text-sm text-ink-sub">
-            {copied ? "✅ コピー済" : "📋 コピー"}
+          <button onClick={handleCopy} className="text-ink-sub p-1" aria-label="コピー">
+            {copied ? <Check size={19} className="text-green-500" /> : <Copy size={19} />}
           </button>
         ) : (
           <div className="w-10" />
@@ -641,6 +642,7 @@ export default function NotesPage({ setTab }) {
     } catch { return false; }
   });
   const [editingNoteId, setEditingNoteId] = useState(null);
+  const [copiedNoteId, setCopiedNoteId] = useState(null);
   const [projectPickerOpen, setProjectPickerOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [aiAssistOpen, setAiAssistOpen] = useState(false);
@@ -706,6 +708,22 @@ export default function NotesPage({ setTab }) {
     setPendingImages(n.images || []);
     setPendingFiles(n.files || []);
     setComposerOpen(true);
+  }
+
+  async function handleCopyNote(n) {
+    const value = n.text || "";
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      const el = document.createElement("textarea");
+      el.value = value;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    }
+    setCopiedNoteId(n.id);
+    setTimeout(() => setCopiedNoteId((cur) => (cur === n.id ? null : cur)), 1500);
   }
 
   function handleOpenNewComposer() {
@@ -832,6 +850,11 @@ export default function NotesPage({ setTab }) {
                   )}
                 </span>
                 <div className="flex items-center gap-1.5">
+                  {n.text && (
+                    <button onClick={() => handleCopyNote(n)} className="bg-app-surface border border-app-line text-ink-sub rounded-lg p-1.5" aria-label="コピー">
+                      {copiedNoteId === n.id ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                    </button>
+                  )}
                   <button onClick={() => handleOpenNote(n)} className="bg-app-surface border border-app-line text-ink-sub rounded-lg px-2.5 py-1 text-xs font-medium">Edit</button>
                   {!isTeam && (
                     <>

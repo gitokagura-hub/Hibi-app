@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { Copy, Check, Trash2 } from "lucide-react";
 import { Layout } from "../components";
 import { useData, formatDateTime } from "../dataStore";
 import { isDriveConnected, ensureAppFolder, ensureProjectFolder, uploadFileToProjectFolder, listProjectFiles, deleteProjectFile, getTeamRootFolderId } from "../googleDrive";
@@ -9,12 +10,36 @@ function isImageFile(mimeType) {
 }
 
 function FullScreenItemEditor({ item, onChange, onClose }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    const value = item.text || "";
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      const el = document.createElement("textarea");
+      el.value = value;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-app-surface flex flex-col">
       <div className="flex items-center justify-between px-5 pt-14 pb-3 border-b border-app-line">
         <button onClick={onClose} className="text-ink-sub">← 戻る</button>
         <span className="font-semibold">編集</span>
-        <div className="w-10" />
+        {item.text ? (
+          <button onClick={handleCopy} className="text-ink-sub p-1" aria-label="コピー">
+            {copied ? <Check size={19} className="text-green-500" /> : <Copy size={19} />}
+          </button>
+        ) : (
+          <div className="w-10" />
+        )}
       </div>
 
       <textarea
@@ -55,6 +80,7 @@ export default function ProjectsPage({ setTab }) {
   const confirm = useConfirm();
   const [name, setName] = useState("");
   const [openId, setOpenId] = useState(null);
+  const [copiedItemId, setCopiedItemId] = useState(null);
   const [editing, setEditing] = useState(null); // { projectId, itemId }
   const [newMemoText, setNewMemoText] = useState({}); // { [projectId]: text }
   const [galleryUploading, setGalleryUploading] = useState({}); // { [projectId]: boolean }
@@ -145,6 +171,22 @@ export default function ProjectsPage({ setTab }) {
     if (isTeam) addTeamProjectItemAction(projectId, text);
     else addProjectItem(projectId, text);
     setNewMemoText((prev) => ({ ...prev, [projectId]: "" }));
+  }
+
+  async function handleCopyMemo(item) {
+    const value = item.text || "";
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      const el = document.createElement("textarea");
+      el.value = value;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    }
+    setCopiedItemId(item.id);
+    setTimeout(() => setCopiedItemId((cur) => (cur === item.id ? null : cur)), 1500);
   }
 
   function handleAdd() {
@@ -313,17 +355,20 @@ export default function ProjectsPage({ setTab }) {
                       {p.items.length > 0 && (
                         <div className="space-y-2 mb-3">
                           {p.items.map((item) => (
-                            <div key={item.id} className="rounded-xl border border-app-line bg-app-surface p-2.5">
-                              <div className="flex items-start gap-2">
-                                <button
-                                  onClick={() => setEditing({ projectId: p.id, itemId: item.id })}
-                                  className="flex-1 text-left text-[13px] whitespace-pre-wrap"
-                                >
-                                  {item.text || <span className="text-ink-sub">（空のメモ）</span>}
-                                  {isTeam && <span className="block text-[10px] text-blue-500 mt-1">● {item.author || "名無し"}</span>}
-                                </button>
-                                <button onClick={async () => { if (await confirm("このメモを削除しますか？", { confirmLabel: "削除する", danger: true })) (isTeam ? deleteTeamProjectItemAction(item.id) : deleteProjectItem(p.id, item.id)); }} className="text-ink-sub text-sm flex-shrink-0">🗑</button>
-                              </div>
+                            <div key={item.id} className="relative rounded-xl border border-app-line bg-app-surface p-2.5 pr-9 pb-8">
+                              <button onClick={() => handleCopyMemo(item)} className="absolute top-2 right-2 text-ink-sub p-1" aria-label="コピー">
+                                {copiedItemId === item.id ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                              </button>
+                              <button
+                                onClick={() => setEditing({ projectId: p.id, itemId: item.id })}
+                                className="w-full text-left text-[13px] whitespace-pre-wrap"
+                              >
+                                {item.text || <span className="text-ink-sub">（空のメモ）</span>}
+                                {isTeam && <span className="block text-[10px] text-blue-500 mt-1">● {item.author || "名無し"}</span>}
+                              </button>
+                              <button onClick={async () => { if (await confirm("このメモを削除しますか？", { confirmLabel: "削除する", danger: true })) (isTeam ? deleteTeamProjectItemAction(item.id) : deleteProjectItem(p.id, item.id)); }} className="absolute bottom-2 right-2 text-ink-sub p-1" aria-label="削除">
+                                <Trash2 size={14} />
+                              </button>
                               {item.images && item.images.length > 0 && (
                                 <div className="flex gap-1.5 overflow-x-auto mt-1.5">
                                   {item.images.map((src, i) => (
