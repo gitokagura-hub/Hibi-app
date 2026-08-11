@@ -543,70 +543,73 @@ function FullScreenComposer({
 
   return (
     <div className="fixed inset-0 z-50 bg-app-surface flex flex-col">
-      <div className="flex items-center justify-between px-5 pt-14 pb-3 border-b border-app-line">
-        <button onClick={onClose} className="text-ink-sub">閉じる</button>
-        <span className="font-semibold">{isEditing ? "Edit Note" : "New Note"}</span>
-        {text ? (
-          <button onClick={handleCopy} className="text-ink-sub p-1" aria-label="コピー">
-            {copied ? <Check size={19} className="text-green-500" /> : <Copy size={19} />}
-          </button>
-        ) : (
-          <div className="w-10" />
-        )}
-      </div>
-
-      <textarea
-        autoFocus={!isEditing}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="思いつきやアイデアを書き出す（壁打ち）..."
-        className="flex-1 w-full px-5 py-4 text-[16px] outline-none resize-none"
-      />
-
-      <div className="px-5">
-        {pendingImages.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto mb-2">
-            {pendingImages.map((src, i) => (
-              <PhotoThumb
-                key={i}
-                src={src}
-                images={pendingImages}
-                index={i}
-                confirm={confirm}
-                onDelete={() => setPendingImages((p) => p.filter((_, idx) => idx !== i))}
-              />
-            ))}
-          </div>
-        )}
-        {pendingFiles.length > 0 && (
-          <div className="space-y-2 mb-2">
-            {pendingFiles.map((f, i) => (
-              <div key={i}>
-                <div className="flex items-center justify-between rounded-lg border p-2 text-xs">
-                  <span className="truncate">📄 {f.name}</span>
-                  <button onClick={() => setPendingFiles((p) => p.filter((_, idx) => idx !== i))} className="text-ink-sub ml-2">×</button>
-                </div>
-                {(f.type === "application/pdf" || f.name?.toLowerCase().endsWith(".pdf")) && <PdfPreview file={f} />}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="px-5 pb-8" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
-        <div className="flex items-center gap-2 border-t border-app-line pt-3 mb-3">
-          <button onClick={onAIAssist} className="rounded-xl border px-2.5 py-1.5 text-xs bg-app-surface whitespace-nowrap">✨ AIに頼む</button>
-          <button onClick={onVoice} className="rounded-xl border px-2.5 py-1.5 text-xs bg-app-surface whitespace-nowrap">🎤 ボイチャ</button>
-          <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="rounded-xl border px-2.5 py-1.5 text-xs bg-app-surface whitespace-nowrap">📎 ファイル</button>
-          <button onClick={() => photoInputRef.current?.click()} disabled={uploading} className="rounded-xl border px-2.5 py-1.5 text-xs bg-app-surface whitespace-nowrap">📷 写真</button>
-        </div>
-        <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={onPickPhoto} className="hidden" />
-        <input ref={fileInputRef} type="file" multiple onChange={onPickFile} className="hidden" />
-        <div className="flex gap-2">
-          <button onClick={onSave} className="flex-1 rounded-xl border px-4 py-3 text-sm font-semibold">保存</button>
-          {!isEditing && (
-            <button onClick={onSend} className="flex-1 rounded-xl bg-ink text-black px-4 py-3 text-sm font-semibold">📤 Send</button>
+      <div className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
+        <div className="flex items-center justify-between px-5 pt-12 pb-2 border-b border-app-line">
+          <button onClick={onClose} className="text-ink-sub">閉じる</button>
+          <span className="font-semibold">{isEditing ? "Edit Note" : "New Note"}</span>
+          {text ? (
+            <button onClick={handleCopy} className="text-ink-sub p-1" aria-label="コピー">
+              {copied ? <Check size={19} className="text-green-500" /> : <Copy size={19} />}
+            </button>
+          ) : (
+            <div className="w-10" />
           )}
+        </div>
+
+        <textarea
+          autoFocus={!isEditing}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="思いつきやアイデアを書き出す（壁打ち）..."
+          rows={10}
+          className="w-full px-5 py-4 text-[16px] outline-none resize-none"
+        />
+
+        <div className="px-5">
+          {pendingImages.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto mb-2">
+              {pendingImages.map((src, i) => (
+                <PhotoThumb
+                  key={i}
+                  src={src}
+                  images={pendingImages}
+                  index={i}
+                  confirm={confirm}
+                  onDelete={() => setPendingImages((p) => p.filter((_, idx) => idx !== i))}
+                />
+              ))}
+            </div>
+          )}
+          {pendingFiles.length > 0 && (
+            <div className="space-y-2 mb-2">
+              {pendingFiles.map((f, i) => (
+                <div key={i}>
+                  <div className="flex items-center justify-between rounded-lg border p-2 text-xs">
+                    <span className="truncate">📄 {f.name}</span>
+                    <button onClick={() => setPendingFiles((p) => p.filter((_, idx) => idx !== i))} className="text-ink-sub ml-2">×</button>
+                  </div>
+                  {(f.type === "application/pdf" || f.name?.toLowerCase().endsWith(".pdf")) && <PdfPreview file={f} />}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="px-5 pb-8" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
+          <div className="flex items-center gap-2 border-t border-app-line pt-3 mb-3">
+            <button onClick={onAIAssist} className="rounded-xl border px-2.5 py-1.5 text-xs bg-app-surface whitespace-nowrap">✨ AIに頼む</button>
+            <button onClick={onVoice} className="rounded-xl border px-2.5 py-1.5 text-xs bg-app-surface whitespace-nowrap">🎤 ボイチャ</button>
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="rounded-xl border px-2.5 py-1.5 text-xs bg-app-surface whitespace-nowrap">📎 ファイル</button>
+            <button onClick={() => photoInputRef.current?.click()} disabled={uploading} className="rounded-xl border px-2.5 py-1.5 text-xs bg-app-surface whitespace-nowrap">📷 写真</button>
+          </div>
+          <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={onPickPhoto} className="hidden" />
+          <input ref={fileInputRef} type="file" multiple onChange={onPickFile} className="hidden" />
+          <div className="flex gap-2">
+            <button onClick={onSave} className="flex-1 rounded-xl border px-4 py-3 text-sm font-semibold">保存</button>
+            {!isEditing && (
+              <button onClick={onSend} className="flex-1 rounded-xl bg-ink text-black px-4 py-3 text-sm font-semibold">📤 Send</button>
+            )}
+          </div>
         </div>
       </div>
     </div>
