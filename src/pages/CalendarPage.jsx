@@ -221,11 +221,11 @@ export default function CalendarPage({ setTab }) {
         <div className="mb-2">
           <h1 className="text-lg font-bold text-center">Dayliy Brains</h1>
         </div>
-        <SpaceSwitcher />
       </header>
 
       {/* Full Screen Scroll */}
       <main className="flex-1 overflow-y-auto">
+        <SpaceSwitcher />
         {/* ========= PAGE 1 ========= */}
         <section className="flex flex-col" style={{ paddingBottom: "calc(5rem + env(safe-area-inset-bottom))" }}>
           {/* Month — iOS標準カレンダー風: 左寄せの大きな月表示 */}

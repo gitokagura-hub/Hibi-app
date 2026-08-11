@@ -16,11 +16,11 @@ export default function Layout({ title, subtitle, current, setTab, children }) {
             </p>
           )}
         </div>
-        <SpaceSwitcher />
       </header>
 
       {/* Content */}
       <main className="flex-1 overflow-y-auto pb-24">
+        <SpaceSwitcher />
         {children}
       </main>
 
