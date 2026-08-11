@@ -208,9 +208,9 @@ export default function LibraryPage({ onHome }) {
                 <div className="h-px bg-app-line" />
                 <button
                   onClick={() => { setAddMenuOpen(false); galleryInputRef.current?.click(); }}
-                  className="w-full flex items-center gap-2 px-4 py-3 text-sm text-left"
+                  className="w-full flex items-center gap-3 px-4 py-4 text-base font-medium text-left"
                 >
-                  <ImageIcon size={16} /> 写真を選ぶ
+                  <ImageIcon size={22} /> 写真を選ぶ
                 </button>
               </div>
             </>
