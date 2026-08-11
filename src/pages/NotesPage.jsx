@@ -386,7 +386,7 @@ function VoiceCapture({ onClose, onSave }) {
               placeholder="What did you talk about?"
               className="w-full rounded-2xl border p-4 h-32 mb-3"
             />
-            <button onClick={() => onSave(transcript.trim() || "(voice note)")} className="w-full rounded-2xl bg-ink text-black p-4">
+            <button onClick={() => onSave(transcript.trim() || "(voice note)")} className="w-full rounded-2xl bg-ink text-app-bg p-4">
               Save to Notes
             </button>
           </div>
@@ -407,7 +407,7 @@ function PasteChooser({ note, mode: initialMode, projects, onClose, onPasteToCal
           <>
             <h2 className="text-lg font-semibold mb-4">Paste to Calendar</h2>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full rounded-2xl border p-4 mb-3" />
-            <button onClick={() => onPasteToCalendar(date)} className="w-full rounded-2xl bg-ink text-black p-4">Add as Task</button>
+            <button onClick={() => onPasteToCalendar(date)} className="w-full rounded-2xl bg-ink text-app-bg p-4">Add as Task</button>
           </>
         )}
         {mode === "projects" && (
@@ -487,7 +487,7 @@ function AIAssistSheet({ provider, apiKeyMissing, onClose, onRun, onApply }) {
             <button
               onClick={handleRun}
               disabled={running || !instruction.trim()}
-              className="w-full rounded-2xl bg-ink text-black p-3.5 font-semibold mb-3 disabled:opacity-40"
+              className="w-full rounded-2xl bg-ink text-app-bg p-3.5 font-semibold mb-3 disabled:opacity-40"
             >
               {running ? "処理中…" : "実行する"}
             </button>
@@ -577,7 +577,7 @@ function FullScreenComposer({
       {/* 常駐コンパクトバー(Layout.jsxと同じパターン) */}
       <div
         className={`absolute top-0 inset-x-0 z-30 transition-colors duration-200 ${
-          collapsed ? "bg-black/75 backdrop-blur-xl border-b border-app-line/70" : "bg-transparent border-b border-transparent"
+          collapsed ? "bg-app-bg/75 backdrop-blur-xl border-b border-app-line/70" : "bg-transparent border-b border-transparent"
         }`}
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
@@ -660,7 +660,7 @@ function FullScreenComposer({
           <div className="flex gap-2">
             <button onClick={onSave} className="flex-1 rounded-xl border px-4 py-3 text-sm font-semibold">保存</button>
             {!isEditing && (
-              <button onClick={onSend} className="flex-1 rounded-xl bg-ink text-black px-4 py-3 text-sm font-semibold">📤 Send</button>
+              <button onClick={onSend} className="flex-1 rounded-xl bg-ink text-app-bg px-4 py-3 text-sm font-semibold">📤 Send</button>
             )}
           </div>
         </div>

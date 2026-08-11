@@ -63,7 +63,7 @@ function FullScreenItemEditor({ item, onChange, onClose }) {
             ))}
           </div>
         )}
-        <button onClick={onClose} className="w-full rounded-xl bg-ink text-black px-4 py-3 text-sm font-semibold">← 戻る</button>
+        <button onClick={onClose} className="w-full rounded-xl bg-ink text-app-bg px-4 py-3 text-sm font-semibold">← 戻る</button>
       </div>
     </div>
   );
@@ -346,7 +346,7 @@ export default function ProjectsPage({ setTab }) {
                         />
                         <button
                           onClick={() => handleAddMemo(p.id)}
-                          className="w-full rounded-lg bg-ink text-black text-xs font-semibold py-1.5"
+                          className="w-full rounded-lg bg-ink text-app-bg text-xs font-semibold py-1.5"
                         >
                           ＋ メモを追加
                         </button>

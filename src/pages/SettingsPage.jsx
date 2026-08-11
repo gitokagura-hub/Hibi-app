@@ -180,7 +180,7 @@ export default function SettingsPage({ setTab }) {
                 <button
                   onClick={handleDriveToggle}
                   disabled={driveBusy}
-                  className={`text-sm font-semibold rounded-full px-4 py-1.5 ${driveConnected ? "bg-ink text-black" : "border border-app-line"}`}
+                  className={`text-sm font-semibold rounded-full px-4 py-1.5 ${driveConnected ? "bg-ink text-app-bg" : "border border-app-line"}`}
                 >
                   {driveBusy ? "…" : driveConnected ? "連携済" : "連携する"}
                 </button>
@@ -205,7 +205,7 @@ export default function SettingsPage({ setTab }) {
                 <button
                   onClick={handleTeamToggle}
                   disabled={teamBusy}
-                  className={`text-sm font-semibold rounded-full px-4 py-1.5 ${teamConnected ? "bg-ink text-black" : "border border-app-line"}`}
+                  className={`text-sm font-semibold rounded-full px-4 py-1.5 ${teamConnected ? "bg-ink text-app-bg" : "border border-app-line"}`}
                 >
                   {teamBusy ? "…" : teamConnected ? "連携済" : "連携する"}
                 </button>
@@ -240,7 +240,7 @@ export default function SettingsPage({ setTab }) {
               <button
                 onClick={handlePushToggle}
                 disabled={pushBusy}
-                className={`rounded-xl px-4 py-2 text-sm font-semibold flex-shrink-0 ${pushSubscribed ? "bg-app-raised text-ink-sub" : "bg-ink text-black"}`}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold flex-shrink-0 ${pushSubscribed ? "bg-app-raised text-ink-sub" : "bg-ink text-app-bg"}`}
               >
                 {pushBusy ? "設定中…" : pushSubscribed ? "オフにする" : "オンにする"}
               </button>

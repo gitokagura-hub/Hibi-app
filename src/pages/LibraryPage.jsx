@@ -59,7 +59,7 @@ function TagPickerSheet({ selected, available, onAddCategory, onClose, onSave })
               <button
                 key={cat}
                 onClick={() => toggle(cat)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold border ${picked.includes(cat) ? "bg-ink text-black border-black" : "bg-app-surface text-ink-sub border-app-line"}`}
+                className={`rounded-full px-4 py-2 text-sm font-semibold border ${picked.includes(cat) ? "bg-ink text-app-bg border-black" : "bg-app-surface text-ink-sub border-app-line"}`}
               >
                 {cat}
               </button>
@@ -74,7 +74,7 @@ function TagPickerSheet({ selected, available, onAddCategory, onClose, onSave })
             placeholder="新しいタグ名（例：人、料理、名刺）..."
             className="flex-1 rounded-xl border p-2.5 text-sm"
           />
-          <button onClick={handleAddNew} disabled={!newCat.trim()} className="rounded-xl bg-ink text-black px-4 text-sm font-semibold disabled:opacity-30">追加</button>
+          <button onClick={handleAddNew} disabled={!newCat.trim()} className="rounded-xl bg-ink text-app-bg px-4 text-sm font-semibold disabled:opacity-30">追加</button>
         </div>
         <button
           onClick={() => {
@@ -86,7 +86,7 @@ function TagPickerSheet({ selected, available, onAddCategory, onClose, onSave })
               onSave(picked);
             }
           }}
-          className="w-full rounded-2xl bg-ink text-black p-3.5 font-semibold mb-2"
+          className="w-full rounded-2xl bg-ink text-app-bg p-3.5 font-semibold mb-2"
         >保存</button>
         <button onClick={onClose} className="w-full text-center text-ink-sub text-sm">キャンセル</button>
       </div>
@@ -168,7 +168,7 @@ export default function LibraryPage({ onHome }) {
         <div className="px-5 pb-3 flex gap-2 overflow-x-auto">
           <button
             onClick={() => setActiveCategory(null)}
-            className={`flex-shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold border ${!activeCategory ? "bg-ink text-black border-black" : "bg-app-surface text-ink-sub border-app-line"}`}
+            className={`flex-shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold border ${!activeCategory ? "bg-ink text-app-bg border-black" : "bg-app-surface text-ink-sub border-app-line"}`}
           >
             すべて
           </button>
@@ -176,7 +176,7 @@ export default function LibraryPage({ onHome }) {
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`flex-shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold border ${activeCategory === cat ? "bg-ink text-black border-black" : "bg-app-surface text-ink-sub border-app-line"}`}
+              className={`flex-shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold border ${activeCategory === cat ? "bg-ink text-app-bg border-black" : "bg-app-surface text-ink-sub border-app-line"}`}
             >
               {cat}
             </button>

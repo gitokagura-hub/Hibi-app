@@ -276,10 +276,10 @@ export default function CalendarPage({ setTab }) {
                         <span
                           key={i}
                           className="flex items-center gap-1 h-[18px] rounded-full px-1.5 min-w-0"
-                          style={{ backgroundColor: c + "40" }}
+                          style={{ backgroundColor: c + "26" }}
                         >
                           <span className="w-[7px] h-[7px] rounded-full flex-shrink-0" style={{ backgroundColor: c }} />
-                          <span className={`text-[10px] font-medium truncate text-white/90 ${it.kind === "task" && it.completed ? "line-through opacity-60" : ""}`}>{it.title}</span>
+                          <span className={`text-[10px] font-medium truncate text-ink ${it.kind === "task" && it.completed ? "line-through opacity-60" : ""}`}>{it.title}</span>
                         </span>
                       );
                     })}
@@ -333,7 +333,7 @@ export default function CalendarPage({ setTab }) {
                         onKeyDown={(ev) => { if (ev.key === "Enter") saveEditEvent(); if (ev.key === "Escape") cancelEditEvent(); }}
                         className="flex-1 outline-none border-b border-app-line text-sm"
                       />
-                      <button onClick={saveEditEvent} className="flex-shrink-0 text-xs font-semibold bg-ink text-black rounded-lg px-2.5 py-1">保存</button>
+                      <button onClick={saveEditEvent} className="flex-shrink-0 text-xs font-semibold bg-ink text-app-bg rounded-lg px-2.5 py-1">保存</button>
                     </div>
                   </div>
                 ) : (
@@ -374,7 +374,7 @@ export default function CalendarPage({ setTab }) {
                 className="flex-1 rounded-2xl border p-4"
               />
             </div>
-            <button onClick={handleAddEvent} disabled={!eventTitle.trim()} className="w-full rounded-2xl bg-ink text-black p-3.5 font-semibold disabled:opacity-30">
+            <button onClick={handleAddEvent} disabled={!eventTitle.trim()} className="w-full rounded-2xl bg-ink text-app-bg p-3.5 font-semibold disabled:opacity-30">
               追加
             </button>
           </div>
@@ -402,7 +402,7 @@ export default function CalendarPage({ setTab }) {
                       onKeyDown={(e) => { if (e.key === "Enter") saveEditTask(); if (e.key === "Escape") cancelEditTask(); }}
                       className="flex-1 outline-none border-b border-app-line"
                     />
-                    <button onClick={saveEditTask} className="flex-shrink-0 text-xs font-semibold bg-ink text-black rounded-lg px-2.5 py-1">保存</button>
+                    <button onClick={saveEditTask} className="flex-shrink-0 text-xs font-semibold bg-ink text-app-bg rounded-lg px-2.5 py-1">保存</button>
                   </div>
                 ) : (
                   <button
@@ -439,7 +439,7 @@ export default function CalendarPage({ setTab }) {
               )}
             </label>
           )}
-          <button onClick={() => { if (taskInput.trim()) { if (isTeam) addTeamTaskAction(selectedDate, taskInput.trim()); else { addTask(selectedDate, taskInput.trim(), taskReminderTime); setTaskReminderTime(""); } setTaskInput(""); } }} disabled={!taskInput.trim()} className="w-full rounded-2xl bg-ink text-black p-3.5 font-semibold mb-10 disabled:opacity-30">
+          <button onClick={() => { if (taskInput.trim()) { if (isTeam) addTeamTaskAction(selectedDate, taskInput.trim()); else { addTask(selectedDate, taskInput.trim(), taskReminderTime); setTaskReminderTime(""); } setTaskInput(""); } }} disabled={!taskInput.trim()} className="w-full rounded-2xl bg-ink text-app-bg p-3.5 font-semibold mb-10 disabled:opacity-30">
             タスクを追加
           </button>
 
@@ -478,7 +478,7 @@ export default function CalendarPage({ setTab }) {
               {memo.images.map((src, i) => (
                 <div key={i} className="relative flex-shrink-0">
                   <img src={src} alt="" className="w-20 h-20 object-cover rounded-xl border" />
-                  <button onClick={() => (isTeam ? removeTeamMemoImageAction(selectedDate, i) : removeMemoImage(selectedDate, i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-ink text-black text-xs flex items-center justify-center">×</button>
+                  <button onClick={() => (isTeam ? removeTeamMemoImageAction(selectedDate, i) : removeMemoImage(selectedDate, i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-ink text-app-bg text-xs flex items-center justify-center">×</button>
                 </div>
               ))}
             </div>

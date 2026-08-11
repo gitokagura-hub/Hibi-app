@@ -37,7 +37,7 @@ export default function Layout({ title, subtitle, current, setTab, barLeft, barR
       {/* 常駐コンパクトバー */}
       <div
         className={`absolute top-0 inset-x-0 z-30 transition-colors duration-200 ${
-          collapsed ? "bg-black/75 backdrop-blur-xl border-b border-app-line/70" : "bg-transparent border-b border-transparent"
+          collapsed ? "bg-app-bg/75 backdrop-blur-xl border-b border-app-line/70" : "bg-transparent border-b border-transparent"
         }`}
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
