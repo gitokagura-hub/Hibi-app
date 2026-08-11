@@ -216,15 +216,11 @@ export default function CalendarPage({ setTab }) {
 
   return (
     <div className="h-[100dvh] bg-app-bg flex flex-col">
-      {/* Header */}
-      <header className="bg-app-bg px-5 pt-8 pb-1">
-        <div className="mb-2">
-          <h1 className="text-lg font-bold text-center">Dayliy Brains</h1>
-        </div>
-      </header>
-
       {/* Full Screen Scroll */}
       <main className="flex-1 overflow-y-auto">
+        <header className="bg-app-bg px-5 pt-6 pb-2">
+          <h1 className="text-lg font-bold text-center">Dayliy Brains</h1>
+        </header>
         <SpaceSwitcher />
         {/* ========= PAGE 1 ========= */}
         <section className="flex flex-col" style={{ paddingBottom: "calc(5rem + env(safe-area-inset-bottom))" }}>
