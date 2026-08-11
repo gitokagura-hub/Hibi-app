@@ -185,9 +185,6 @@ export default function LibraryPage({ onHome }) {
       <header className="px-5 pt-14 pb-3 flex items-start justify-between gap-3">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Photos</h1>
-          <p className="mt-1 text-sm text-ink-sub">
-            {filteredImages.length}件の画像（Daily Brains内 / Notes・Calendar・Projects横断）
-          </p>
         </div>
         <div className="relative shrink-0 mt-1">
           <button
@@ -201,12 +198,12 @@ export default function LibraryPage({ onHome }) {
           {addMenuOpen && (
             <>
               <div className="fixed inset-0 z-20" onClick={() => setAddMenuOpen(false)} />
-              <div className="absolute right-0 top-12 z-30 w-44 bg-app-surface border border-app-line rounded-2xl overflow-hidden shadow-lg">
+              <div className="absolute right-0 top-12 z-30 w-48 bg-app-surface border border-app-line rounded-2xl overflow-hidden shadow-lg">
                 <button
                   onClick={() => { setAddMenuOpen(false); cameraInputRef.current?.click(); }}
-                  className="w-full flex items-center gap-2 px-4 py-3 text-sm text-left"
+                  className="w-full flex items-center gap-3 px-4 py-4 text-base font-medium text-left"
                 >
-                  <Camera size={16} /> 写真を撮る
+                  <Camera size={22} /> 写真を撮る
                 </button>
                 <div className="h-px bg-app-line" />
                 <button
