@@ -324,7 +324,7 @@ export default function CalendarPage({ setTab }) {
             <h2 className="text-2xl font-semibold">
               {Number(calMonth.m) + 1}/{Number(selectedDate.split("-")[2])}
             </h2>
-            <button onClick={addEventDraft} className="w-9 h-9 rounded-full bg-ink text-app-bg flex items-center justify-center" aria-label="予定欄を追加">
+            <button onClick={addEventDraft} className="w-9 h-9 rounded-full bg-app-raised text-ink flex items-center justify-center" aria-label="予定欄を追加">
               <Plus size={18} />
             </button>
           </div>
@@ -420,7 +420,7 @@ export default function CalendarPage({ setTab }) {
           {/* 2. Task */}
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold">Task</h2>
-            <button onClick={addTaskDraft} className="w-9 h-9 rounded-full bg-ink text-app-bg flex items-center justify-center" aria-label="タスク欄を追加">
+            <button onClick={addTaskDraft} className="w-9 h-9 rounded-full bg-app-raised text-ink flex items-center justify-center" aria-label="タスク欄を追加">
               <Plus size={18} />
             </button>
           </div>
