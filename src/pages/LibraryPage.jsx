@@ -8,6 +8,7 @@ import { useSwipeBack } from "../useSwipeBack";
 // (the data URL itself acts as a stable identifier for a given photo).
 const TAGS_KEY = "hibi-library-tags"; // { [src]: string[] }
 const CATEGORIES_KEY = "hibi-library-categories"; // string[]
+const COMMENTS_KEY = "hibi-library-comments"; // { [src]: string }
 
 function loadTagMap() {
   try {
@@ -19,6 +20,17 @@ function loadTagMap() {
 }
 function saveTagMap(map) {
   try { localStorage.setItem(TAGS_KEY, JSON.stringify(map)); } catch {}
+}
+function loadCommentMap() {
+  try {
+    const raw = localStorage.getItem(COMMENTS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+function saveCommentMap(map) {
+  try { localStorage.setItem(COMMENTS_KEY, JSON.stringify(map)); } catch {}
 }
 function loadCategories() {
   try {
@@ -99,6 +111,7 @@ export default function LibraryPage({ onHome }) {
   const { data, addLibraryPhotos, deleteLibraryPhoto } = useData();
   const [viewerSrc, setViewerSrc] = useState(null);
   const [tagMap, setTagMap] = useState(() => loadTagMap());
+  const [commentMap, setCommentMap] = useState(() => loadCommentMap());
   const [categories, setCategories] = useState(() => loadCategories());
   const [activeCategory, setActiveCategory] = useState(null); // null = すべて
   const [taggingSrc, setTaggingSrc] = useState(null);
@@ -108,6 +121,7 @@ export default function LibraryPage({ onHome }) {
   const cameraInputRef = useRef(null);
 
   useEffect(() => { saveTagMap(tagMap); }, [tagMap]);
+  useEffect(() => { saveCommentMap(commentMap); }, [commentMap]);
   useEffect(() => { saveCategories(categories); }, [categories]);
 
   async function handlePickFiles(e) {
@@ -288,8 +302,18 @@ export default function LibraryPage({ onHome }) {
       </main>
 
       {viewerSrc && (
-        <div className="fixed inset-0 z-[90] bg-black/95 flex items-center justify-center p-8" onClick={(e) => e.stopPropagation()}>
-          <img src={viewerSrc.src} alt="" className="max-w-full max-h-full object-contain rounded-2xl" />
+        <div className="fixed inset-0 z-[90] bg-black/95 flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <div className="flex-1 flex items-center justify-center p-8 pb-2 min-h-0">
+            <img src={viewerSrc.src} alt="" className="max-w-full max-h-full object-contain rounded-2xl" />
+          </div>
+          <div className="px-5 pb-8" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
+            <input
+              value={commentMap[viewerSrc.src] || ""}
+              onChange={(e) => setCommentMap((prev) => ({ ...prev, [viewerSrc.src]: e.target.value }))}
+              placeholder="コメントを追加..."
+              className="w-full rounded-full bg-app-surface/90 text-white placeholder:text-white/40 text-sm px-4 py-2.5 outline-none"
+            />
+          </div>
           {viewerSrc.libraryPhotoId && (
             <button
               onClick={async (e) => {
