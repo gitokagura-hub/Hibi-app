@@ -493,9 +493,6 @@ export default function CalendarPage({ setTab }) {
               )}
             </div>
           ))}
-          <button onClick={() => taskDrafts.forEach((d) => commitTaskDraft(d.id))} disabled={!taskDrafts.some((d) => d.text.trim())} className="w-12 h-12 mx-auto flex rounded-full bg-ink text-app-bg items-center justify-center mb-10 disabled:opacity-30">
-            <Plus size={20} />
-          </button>
 
           {/* 3. Memo */}
           <div className="flex items-center justify-between mb-3">
