@@ -48,8 +48,7 @@ export default function CalendarPage({ setTab }) {
   }, []);
   const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [selectedDate, setSelectedDate] = useState(todayStr());
-  const [taskInput, setTaskInput] = useState("");
-  const [taskReminderTime, setTaskReminderTime] = useState("");
+  const [taskDrafts, setTaskDrafts] = useState([{ id: "t0", text: "", reminderTime: "" }]);
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskText, setEditingTaskText] = useState("");
   const [editingTaskReminderTime, setEditingTaskReminderTime] = useState("");
@@ -57,13 +56,13 @@ export default function CalendarPage({ setTab }) {
   const [editingEventText, setEditingEventText] = useState("");
   const [editingEventTime, setEditingEventTime] = useState("");
   const [editingEventIsAllDay, setEditingEventIsAllDay] = useState(false);
-  const [eventTime, setEventTime] = useState("09:00");
-  const [eventTitle, setEventTitle] = useState("");
-  const [isAllDay, setIsAllDay] = useState(false);
+  const [eventDrafts, setEventDrafts] = useState([{ id: "d0", time: "09:00", title: "", isAllDay: false }]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const photoInputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const eventTitleInputRef = useRef(null);
+  const taskInputRef = useRef(null);
 
   const grid = useMemo(() => getMonthGrid(calMonth.y, calMonth.m), [calMonth]);
   const todayS = todayStr();
@@ -97,20 +96,45 @@ export default function CalendarPage({ setTab }) {
     setTeamMemoDraft(null);
   }
 
-  function handleAddTask(e) {
-    if (e.key === "Enter" && taskInput.trim()) {
-      if (isTeam) addTeamTaskAction(selectedDate, taskInput.trim());
-      else { addTask(selectedDate, taskInput.trim(), taskReminderTime); setTaskReminderTime(""); }
-      setTaskInput("");
-    }
+  function commitTaskDraft(draftId) {
+    const draft = taskDrafts.find((d) => d.id === draftId);
+    if (!draft || !draft.text.trim()) return;
+    if (isTeam) addTeamTaskAction(selectedDate, draft.text.trim());
+    else addTask(selectedDate, draft.text.trim(), draft.reminderTime);
+    setTaskDrafts((prev) => prev.map((d) => (d.id === draftId ? { ...d, text: "", reminderTime: "" } : d)));
   }
 
-  function handleAddEvent() {
-    if (!eventTitle.trim()) return;
-    const time = isAllDay ? "" : eventTime;
-    if (isTeam) addTeamEventAction(selectedDate, time, eventTitle.trim());
-    else addEvent(selectedDate, time, eventTitle.trim());
-    setEventTitle("");
+  function updateTaskDraft(draftId, patch) {
+    setTaskDrafts((prev) => prev.map((d) => (d.id === draftId ? { ...d, ...patch } : d)));
+  }
+
+  function addTaskDraft() {
+    setTaskDrafts((prev) => [...prev, { id: `t${Date.now()}`, text: "", reminderTime: "" }]);
+  }
+
+  function removeTaskDraft(draftId) {
+    setTaskDrafts((prev) => (prev.length > 1 ? prev.filter((d) => d.id !== draftId) : prev));
+  }
+
+  function handleAddEvent(draftId) {
+    const draft = eventDrafts.find((d) => d.id === draftId);
+    if (!draft || !draft.title.trim()) return;
+    const time = draft.isAllDay ? "" : draft.time;
+    if (isTeam) addTeamEventAction(selectedDate, time, draft.title.trim());
+    else addEvent(selectedDate, time, draft.title.trim());
+    setEventDrafts((prev) => prev.map((d) => (d.id === draftId ? { ...d, title: "" } : d)));
+  }
+
+  function updateEventDraft(draftId, patch) {
+    setEventDrafts((prev) => prev.map((d) => (d.id === draftId ? { ...d, ...patch } : d)));
+  }
+
+  function addEventDraft() {
+    setEventDrafts((prev) => [...prev, { id: `d${Date.now()}`, time: "09:00", title: "", isAllDay: false }]);
+  }
+
+  function removeEventDraft(draftId) {
+    setEventDrafts((prev) => (prev.length > 1 ? prev.filter((d) => d.id !== draftId) : prev));
   }
 
   function startEditTask(t) {
@@ -296,9 +320,14 @@ export default function CalendarPage({ setTab }) {
 
         {/* ========= PAGE 2 ========= */}
         <section className="px-5 py-8" style={{ paddingBottom: "calc(8rem + env(safe-area-inset-bottom))" }}>
-          <h2 className="text-2xl font-semibold mb-6">
-            {Number(calMonth.m) + 1}/{Number(selectedDate.split("-")[2])}
-          </h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-semibold">
+              {Number(calMonth.m) + 1}/{Number(selectedDate.split("-")[2])}
+            </h2>
+            <button onClick={addEventDraft} className="w-9 h-9 rounded-full bg-ink text-app-bg flex items-center justify-center" aria-label="予定欄を追加">
+              <Plus size={18} />
+            </button>
+          </div>
 
           {isTeam && teamError && <p className="text-xs text-red-500 mb-3">{teamError}</p>}
           {isTeam && teamLoading && <p className="text-xs text-ink-sub mb-3">同期中…</p>}
@@ -348,40 +377,53 @@ export default function CalendarPage({ setTab }) {
                 )}
               </div>
             ))}
-            <label className="flex items-center gap-2 text-sm text-ink-sub">
-              <input
-                type="checkbox"
-                checked={isAllDay}
-                onChange={(ev) => setIsAllDay(ev.target.checked)}
-                className="w-4 h-4"
-              />
-              All day
-            </label>
-            <div className="flex gap-2">
-              {!isAllDay && (
-                <input
-                  type="time"
-                  value={eventTime}
-                  onChange={(ev) => setEventTime(ev.target.value)}
-                  className="rounded-2xl border p-4 w-32"
-                />
-              )}
-              <input
-                type="text"
-                value={eventTitle}
-                onChange={(ev) => setEventTitle(ev.target.value)}
-                onKeyDown={(ev) => { if (ev.key === "Enter") handleAddEvent(); }}
-                placeholder="Add schedule..."
-                className="flex-1 rounded-2xl border p-4"
-              />
-            </div>
-            <button onClick={handleAddEvent} disabled={!eventTitle.trim()} className="w-12 h-12 mx-auto rounded-full bg-ink text-app-bg flex items-center justify-center disabled:opacity-30">
-              <Plus size={20} />
-            </button>
+            {eventDrafts.map((draft) => (
+              <div key={draft.id} className="relative rounded-2xl border p-3 pt-6">
+                {eventDrafts.length > 1 && (
+                  <button
+                    onClick={() => removeEventDraft(draft.id)}
+                    className="absolute top-2 right-2 w-6 h-6 rounded-full bg-app-surface border border-app-line text-ink-sub flex items-center justify-center text-xs"
+                    aria-label="この予定欄を削除"
+                  >×</button>
+                )}
+                <label className="flex items-center gap-2 text-sm text-ink-sub mb-2">
+                  <input
+                    type="checkbox"
+                    checked={draft.isAllDay}
+                    onChange={(ev) => updateEventDraft(draft.id, { isAllDay: ev.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  All day
+                </label>
+                <div className="flex gap-2">
+                  {!draft.isAllDay && (
+                    <input
+                      type="time"
+                      value={draft.time}
+                      onChange={(ev) => updateEventDraft(draft.id, { time: ev.target.value })}
+                      className="rounded-2xl border p-4 w-32"
+                    />
+                  )}
+                  <input
+                    type="text"
+                    value={draft.title}
+                    onChange={(ev) => updateEventDraft(draft.id, { title: ev.target.value })}
+                    onKeyDown={(ev) => { if (ev.key === "Enter") handleAddEvent(draft.id); }}
+                    placeholder="Add schedule..."
+                    className="flex-1 rounded-2xl border p-4"
+                  />
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* 2. Task */}
-          <h2 className="text-2xl font-semibold mb-4">Task</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-semibold">Task</h2>
+            <button onClick={addTaskDraft} className="w-9 h-9 rounded-full bg-ink text-app-bg flex items-center justify-center" aria-label="タスク欄を追加">
+              <Plus size={18} />
+            </button>
+          </div>
           <div className="space-y-2 mb-3">
             {dayTasks.map((t) => (
               <div key={t.id} className={`flex items-center gap-2 rounded-2xl border p-4 ${isTeam ? "border-blue-100 bg-blue-50" : ""}`}>
@@ -419,28 +461,39 @@ export default function CalendarPage({ setTab }) {
               </div>
             ))}
           </div>
-          <textarea
-            value={taskInput}
-            onChange={(e) => setTaskInput(e.target.value)}
-            onKeyDown={handleAddTask}
-            placeholder="Add Task..."
-            className="w-full h-40 rounded-2xl border p-4 mb-3"
-          />
-          {!isTeam && (
-            <label className="flex items-center gap-2 text-sm text-ink-sub mb-3">
-              Reminder
-              <input
-                type="time"
-                value={taskReminderTime}
-                onChange={(e) => setTaskReminderTime(e.target.value)}
-                className="rounded-xl border p-2 text-sm"
-              />
-              {taskReminderTime && (
-                <button onClick={() => setTaskReminderTime("")} className="text-xs text-ink-sub">クリア</button>
+          {taskDrafts.map((draft) => (
+            <div key={draft.id} className="relative rounded-2xl border p-3 pt-6 mb-3">
+              {taskDrafts.length > 1 && (
+                <button
+                  onClick={() => removeTaskDraft(draft.id)}
+                  className="absolute top-2 right-2 w-6 h-6 rounded-full bg-app-surface border border-app-line text-ink-sub flex items-center justify-center text-xs"
+                  aria-label="このタスク欄を削除"
+                >×</button>
               )}
-            </label>
-          )}
-          <button onClick={() => { if (taskInput.trim()) { if (isTeam) addTeamTaskAction(selectedDate, taskInput.trim()); else { addTask(selectedDate, taskInput.trim(), taskReminderTime); setTaskReminderTime(""); } setTaskInput(""); } }} disabled={!taskInput.trim()} className="w-12 h-12 mx-auto flex rounded-full bg-ink text-app-bg items-center justify-center mb-10 disabled:opacity-30">
+              <textarea
+                value={draft.text}
+                onChange={(e) => updateTaskDraft(draft.id, { text: e.target.value })}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitTaskDraft(draft.id); } }}
+                placeholder="Add Task..."
+                className="w-full h-24 rounded-xl border p-3 mb-2"
+              />
+              {!isTeam && (
+                <label className="flex items-center gap-2 text-sm text-ink-sub">
+                  Reminder
+                  <input
+                    type="time"
+                    value={draft.reminderTime}
+                    onChange={(e) => updateTaskDraft(draft.id, { reminderTime: e.target.value })}
+                    className="rounded-xl border p-2 text-sm"
+                  />
+                  {draft.reminderTime && (
+                    <button onClick={() => updateTaskDraft(draft.id, { reminderTime: "" })} className="text-xs text-ink-sub">クリア</button>
+                  )}
+                </label>
+              )}
+            </div>
+          ))}
+          <button onClick={() => taskDrafts.forEach((d) => commitTaskDraft(d.id))} disabled={!taskDrafts.some((d) => d.text.trim())} className="w-12 h-12 mx-auto flex rounded-full bg-ink text-app-bg items-center justify-center mb-10 disabled:opacity-30">
             <Plus size={20} />
           </button>
 
