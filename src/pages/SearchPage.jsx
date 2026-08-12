@@ -129,12 +129,30 @@ export default function SearchPage({ setTab }) {
     setNewFolderOpen(false);
   }
 
-  function openFile(f) {
-    if (!f.dataUrl) return; // 集約ファイルはdataUrlを持つ想定、無い場合は何もしない
-    const a = document.createElement("a");
-    a.href = f.dataUrl;
-    a.download = f.name;
-    a.click();
+  function dataUrlToBlob(dataUrl) {
+    const [head, b64] = dataUrl.split(",");
+    const mime = head.match(/data:(.*?);/)?.[1] || "application/octet-stream";
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
+  }
+
+  async function openFile(f) {
+    if (!f.dataUrl) return;
+    const blob = dataUrlToBlob(f.dataUrl);
+    const file = new File([blob], f.name, { type: blob.type });
+    // iOSはWeb Share経由が最も確実: 共有シートから「見る」「Pagesで開く」等が選べる
+    // (data:URL+download属性のアンカークリックだと、iOSはダウンロード確認
+    // ダイアログを出すだけで、docx等ブラウザが描画できない形式は
+    // 「表示」を押しても真っ白になっていた)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file] }); return; } catch (e) { if (e.name === "AbortError") return; }
+    }
+    // フォールバック: blob URLを新規タブで(PDF/画像はSafariがプレビュー可能)
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   }
 
   return (
