@@ -302,7 +302,7 @@ export default function LibraryPage({ onHome }) {
       </main>
 
       {viewerSrc && (
-        <div className="fixed inset-0 z-[90] bg-black/95 flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[90] bg-app-bg flex flex-col" onClick={(e) => e.stopPropagation()}>
           <div className="flex-1 flex items-center justify-center p-6 pb-2 min-h-0">
             <img src={viewerSrc.src} alt="" className="max-w-full max-h-full object-contain" />
           </div>
@@ -326,8 +326,9 @@ export default function LibraryPage({ onHome }) {
           )}
           <button
             onClick={(e) => { e.stopPropagation(); setViewerSrc(null); }}
-            className="absolute top-14 right-5 w-9 h-9 rounded-full bg-app-surface/20 text-white text-lg flex items-center justify-center"
-          >×</button>
+            className="absolute top-14 right-3 w-10 h-10 flex items-center justify-center text-ink"
+            aria-label="戻る"
+          ><ChevronLeft size={24} /></button>
         </div>
       )}
 
