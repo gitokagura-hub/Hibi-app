@@ -328,6 +328,7 @@ export default function LibraryPage({ onHome }) {
 
 function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, deleteLibraryPhoto, onClose }) {
   const containerRef = useRef(null);
+  const photoAreaRef = useRef(null);
   const stripRef = useRef(null);
   const imgRef = useRef(null);
   const swipe = useRef(null); // { startX, startY, lastX, lastT, v, dragging, finalDragX }
@@ -371,7 +372,7 @@ function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, 
   }
 
   useEffect(() => {
-    const el = containerRef.current;
+    const el = photoAreaRef.current;
     if (!el) return;
     const W = window.innerWidth;
 
@@ -494,8 +495,8 @@ function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, 
   if (!current) return null;
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-[90] bg-app-bg flex flex-col overflow-hidden touch-none" onClick={(e) => e.stopPropagation()}>
-      <div className="relative min-h-0" style={{ height: frameH ? `${frameH}px` : "min(75vh, 100% - 5rem)", transition: "height 0.25s ease" }}>
+    <div ref={containerRef} className="fixed inset-0 z-[90] bg-app-bg flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <div ref={photoAreaRef} className="relative min-h-0 touch-none" style={{ height: frameH ? `${frameH}px` : "min(75vh, 100% - 5rem)", transition: "height 0.25s ease" }}>
         <div
           ref={stripRef}
           className="absolute inset-0 flex items-stretch"
