@@ -438,7 +438,7 @@ function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, 
         </div>
       </div>
 
-      <div className="bg-app-bg px-5 py-3 border-t border-app-line" style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}>
+      <div className="bg-app-bg px-5 pt-1.5 pb-2 border-t border-app-line" style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}>
         <input
           value={commentMap[current.src] || ""}
           onChange={(e) => setCommentMap((prev) => ({ ...prev, [current.src]: e.target.value }))}
