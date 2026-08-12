@@ -127,6 +127,18 @@ export default function LibraryPage({ onHome }) {
     }
   }
 
+  // タグ付けシートを開く前に、写真をピンチズームで拡大表示していた
+  // 場合でも等倍に戻す。iOS Safariはこのような「一瞬viewportの
+  // 拡大許可を切ってから戻す」操作で、現在のズーム状態を強制的に
+  // リセットできる。
+  function resetViewportZoom() {
+    const meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) return;
+    const original = meta.getAttribute("content");
+    meta.setAttribute("content", `${original}, maximum-scale=1.0`);
+    setTimeout(() => meta.setAttribute("content", original), 50);
+  }
+
   function addCategory(name) {
     setCategories((prev) => (prev.includes(name) ? prev : [...prev, name]));
   }
@@ -258,7 +270,7 @@ export default function LibraryPage({ onHome }) {
                   <img src={img.src} alt={img.source} className="w-full h-full object-cover" />
                 </button>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setTaggingSrc(img.src); }}
+                  onClick={(e) => { e.stopPropagation(); resetViewportZoom(); setTaggingSrc(img.src); }}
                   className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center"
                 ><Tag size={12} /></button>
                 {img.tags.length > 0 && (
