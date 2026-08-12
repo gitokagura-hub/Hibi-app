@@ -3,6 +3,15 @@ export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        sans: [
+          '-apple-system', 'BlinkMacSystemFont', '"Hiragino Sans"', '"Hiragino Kaku Gothic ProN"',
+          '"Segoe UI"', 'system-ui', 'sans-serif',
+        ],
+      },
+      fontSize: {
+        base: ['16.5px', { lineHeight: '1.5' }],
+      },
       colors: {
         app: {
           bg: "var(--bg)",
