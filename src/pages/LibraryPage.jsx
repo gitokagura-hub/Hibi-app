@@ -311,7 +311,7 @@ export default function LibraryPage({ onHome }) {
               value={commentMap[viewerSrc.src] || ""}
               onChange={(e) => setCommentMap((prev) => ({ ...prev, [viewerSrc.src]: e.target.value }))}
               placeholder="コメントを追加..."
-              className="w-full rounded-full bg-app-surface/90 text-white placeholder:text-white/40 text-sm px-4 py-2.5 outline-none"
+              className="w-full rounded-full bg-app-surface/90 text-ink placeholder:text-ink-sub text-sm px-4 py-2.5 outline-none"
             />
           </div>
           {viewerSrc.libraryPhotoId && (
