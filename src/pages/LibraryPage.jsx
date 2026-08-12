@@ -343,6 +343,26 @@ function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, 
   useEffect(() => { scaleRef.current = scale; }, [scale]);
   useEffect(() => { translateRef.current = translate; }, [translate]);
 
+  // 写真の実際のアスペクト比に応じて表示枠の高さを計算し、
+  // インジケーター/キャプションが写真の下端にぴったり付くようにする
+  // (ファーブル設計)。ズーム中は再計算しない(視界がガタつくため)。
+  const aspects = useRef({});
+  const [frameH, setFrameH] = useState(null);
+  function recalcHeight() {
+    if (scaleRef.current > 1) return;
+    const ar = aspects.current[indexRef.current];
+    const maxH = window.innerHeight * 0.75;
+    if (!ar) { setFrameH(maxH); return; }
+    const w = window.innerWidth - 16; // p-2ぶん左右8px×2
+    setFrameH(Math.max(140, Math.min(maxH, w / ar)));
+  }
+  useEffect(() => {
+    recalcHeight();
+    window.addEventListener("resize", recalcHeight);
+    return () => window.removeEventListener("resize", recalcHeight);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
+
   const current = images[index];
 
   function dist(touches) {
@@ -475,7 +495,7 @@ function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, 
 
   return (
     <div ref={containerRef} className="fixed inset-0 z-[90] bg-app-bg flex flex-col overflow-hidden touch-none" onClick={(e) => e.stopPropagation()}>
-      <div className="flex-1 relative min-h-0">
+      <div className="relative min-h-0" style={{ height: frameH ? `${frameH}px` : "min(75vh, 100% - 5rem)", transition: "height 0.25s ease" }}>
         <div
           ref={stripRef}
           className="absolute inset-0 flex items-stretch"
@@ -490,6 +510,10 @@ function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, 
                   draggable={false}
                   className="max-w-full max-h-full object-contain"
                   style={i === index ? { transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})` } : undefined}
+                  onLoad={(e) => {
+                    aspects.current[i] = e.target.naturalWidth / e.target.naturalHeight;
+                    if (i === index) recalcHeight();
+                  }}
                 />
               )}
             </div>
