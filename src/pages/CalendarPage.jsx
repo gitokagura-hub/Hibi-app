@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { Plus, Paperclip, Camera, PencilLine, FileText } from "lucide-react";
 import { useData, todayStr, fileToCompressedDataUrl, fileToDataUrl } from "../dataStore";
 import BottomNavigation from "../components/BottomNavigation";
 import SpaceSwitcher from "../components/SpaceSwitcher";
@@ -296,7 +297,7 @@ export default function CalendarPage({ setTab }) {
         {/* ========= PAGE 2 ========= */}
         <section className="px-5 py-8" style={{ paddingBottom: "calc(8rem + env(safe-area-inset-bottom))" }}>
           <h2 className="text-2xl font-semibold mb-6">
-            {MONTH_NAMES[calMonth.m]} {Number(selectedDate.split("-")[2])}'s Schedule
+            {Number(calMonth.m) + 1}/{Number(selectedDate.split("-")[2])}
           </h2>
 
           {isTeam && teamError && <p className="text-xs text-red-500 mb-3">{teamError}</p>}
@@ -315,7 +316,7 @@ export default function CalendarPage({ setTab }) {
                         onChange={(ev) => setEditingEventIsAllDay(ev.target.checked)}
                         className="w-3.5 h-3.5"
                       />
-                      終日（時間なし）
+                      All day
                     </label>
                     <div className="flex items-center gap-2">
                       {!editingEventIsAllDay && (
@@ -354,7 +355,7 @@ export default function CalendarPage({ setTab }) {
                 onChange={(ev) => setIsAllDay(ev.target.checked)}
                 className="w-4 h-4"
               />
-              終日（時間なし）
+              All day
             </label>
             <div className="flex gap-2">
               {!isAllDay && (
@@ -374,8 +375,8 @@ export default function CalendarPage({ setTab }) {
                 className="flex-1 rounded-2xl border p-4"
               />
             </div>
-            <button onClick={handleAddEvent} disabled={!eventTitle.trim()} className="w-full rounded-2xl bg-ink text-app-bg p-3.5 font-semibold disabled:opacity-30">
-              追加
+            <button onClick={handleAddEvent} disabled={!eventTitle.trim()} className="w-12 h-12 mx-auto rounded-full bg-ink text-app-bg flex items-center justify-center disabled:opacity-30">
+              <Plus size={20} />
             </button>
           </div>
 
@@ -427,7 +428,7 @@ export default function CalendarPage({ setTab }) {
           />
           {!isTeam && (
             <label className="flex items-center gap-2 text-sm text-ink-sub mb-3">
-              🔔 リマインダー時刻（任意）
+              Reminder
               <input
                 type="time"
                 value={taskReminderTime}
@@ -439,29 +440,30 @@ export default function CalendarPage({ setTab }) {
               )}
             </label>
           )}
-          <button onClick={() => { if (taskInput.trim()) { if (isTeam) addTeamTaskAction(selectedDate, taskInput.trim()); else { addTask(selectedDate, taskInput.trim(), taskReminderTime); setTaskReminderTime(""); } setTaskInput(""); } }} disabled={!taskInput.trim()} className="w-full rounded-2xl bg-ink text-app-bg p-3.5 font-semibold mb-10 disabled:opacity-30">
-            タスクを追加
+          <button onClick={() => { if (taskInput.trim()) { if (isTeam) addTeamTaskAction(selectedDate, taskInput.trim()); else { addTask(selectedDate, taskInput.trim(), taskReminderTime); setTaskReminderTime(""); } setTaskInput(""); } }} disabled={!taskInput.trim()} className="w-12 h-12 mx-auto flex rounded-full bg-ink text-app-bg items-center justify-center mb-10 disabled:opacity-30">
+            <Plus size={20} />
           </button>
 
           {/* 3. Memo */}
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-2xl font-semibold">📝 Memo</h2>
+            <h2 className="text-2xl font-semibold">Memo</h2>
             <div className="flex gap-2">
-              <button onClick={() => fileInputRef.current?.click()} disabled={uploadingFile} className="rounded-xl border px-3 py-1.5 text-sm bg-app-surface">
-                {uploadingFile ? "…" : "📎 ファイル"}
+              <button onClick={() => fileInputRef.current?.click()} disabled={uploadingFile} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center">
+                {uploadingFile ? "…" : <Paperclip size={16} />}
               </button>
-              <button onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto} className="rounded-xl border px-3 py-1.5 text-sm bg-app-surface">
-                {uploadingPhoto ? "…" : "📷 写真"}
+              <button onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center">
+                {uploadingPhoto ? "…" : <Camera size={16} />}
+              </button>
+              <button
+                onClick={handleSendMemoToNote}
+                disabled={!memoText.trim() && memo.images.length === 0 && memo.files.length === 0}
+                className="h-9 px-3 rounded-full border border-app-line bg-app-surface text-xs font-semibold flex items-center gap-1 disabled:opacity-30"
+              >
+                <PencilLine size={14} />
+                {memoSent ? "済" : "to note"}
               </button>
             </div>
           </div>
-          <button
-            onClick={handleSendMemoToNote}
-            disabled={!memoText.trim() && memo.images.length === 0 && memo.files.length === 0}
-            className="w-full rounded-xl border border-app-line bg-app-surface px-3 py-2 text-sm font-semibold mb-2 disabled:opacity-30"
-          >
-            {memoSent ? "✅ ノートに送信しました" : "📤 このメモをノートへ転送"}
-          </button>
           {isTeam && memo.author && <p className="text-[11px] text-blue-500 mb-1.5">● 最終更新: {memo.author}</p>}
           <textarea
             value={memoText}
@@ -487,7 +489,7 @@ export default function CalendarPage({ setTab }) {
             <div className="space-y-2 mb-3">
               {memo.files.map((f, i) => (
                 <div key={i} className="flex items-center justify-between rounded-xl border p-2.5 text-sm">
-                  <span className="truncate">📄 {f.name}</span>
+                  <span className="truncate flex items-center gap-1.5"><FileText size={13} className="shrink-0" /> {f.name}</span>
                   <button onClick={() => (isTeam ? removeTeamMemoFileAction(selectedDate, i) : removeMemoFile(selectedDate, i))} className="text-ink-sub ml-2">×</button>
                 </div>
               ))}
