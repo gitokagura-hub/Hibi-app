@@ -329,11 +329,26 @@ export default function LibraryPage({ onHome }) {
 function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, deleteLibraryPhoto, onClose }) {
   const containerRef = useRef(null);
   const stripRef = useRef(null);
+  const imgRef = useRef(null);
   const swipe = useRef(null); // { startX, startY, lastX, lastT, v, dragging, finalDragX }
+  const pinchState = useRef(null); // { startDist, startScale }
+  const panState = useRef(null); // { startX, startY, baseX, baseY }
+  const lastTapRef = useRef(0);
   const indexRef = useRef(index);
+  const [scale, setScale] = useState(1);
+  const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  const scaleRef = useRef(scale);
+  const translateRef = useRef(translate);
   useEffect(() => { indexRef.current = index; }, [index]);
+  useEffect(() => { scaleRef.current = scale; }, [scale]);
+  useEffect(() => { translateRef.current = translate; }, [translate]);
 
   const current = images[index];
+
+  function dist(touches) {
+    const [a, b] = touches;
+    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  }
 
   useEffect(() => {
     const el = containerRef.current;
@@ -348,58 +363,92 @@ function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, 
     }
 
     function handleTouchStart(e) {
-      if (e.touches.length !== 1) return;
-      const now = performance.now();
-      swipe.current = {
-        startX: e.touches[0].clientX, startY: e.touches[0].clientY,
-        lastX: e.touches[0].clientX, lastT: now, v: 0, dragging: false, finalDragX: 0,
-      };
+      if (e.touches.length === 2) {
+        pinchState.current = { startDist: dist(e.touches), startScale: scaleRef.current };
+        swipe.current = null;
+      } else if (e.touches.length === 1) {
+        if (scaleRef.current > 1.05) {
+          panState.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, baseX: translateRef.current.x, baseY: translateRef.current.y };
+        } else {
+          const now = performance.now();
+          swipe.current = {
+            startX: e.touches[0].clientX, startY: e.touches[0].clientY,
+            lastX: e.touches[0].clientX, lastT: now, v: 0, dragging: false, finalDragX: 0,
+          };
+        }
+      }
     }
 
     function handleTouchMove(e) {
-      const s = swipe.current;
-      if (!s || e.touches.length !== 1) return;
-      const x = e.touches[0].clientX;
-      const dx = x - s.startX;
-      const dy = e.touches[0].clientY - s.startY;
-      if (!s.dragging && Math.abs(dx) < Math.abs(dy) + 10) return;
-      s.dragging = true;
-      e.preventDefault();
+      if (e.touches.length === 2 && pinchState.current) {
+        e.preventDefault();
+        const newScale = Math.min(4, Math.max(0.5, pinchState.current.startScale * (dist(e.touches) / pinchState.current.startDist)));
+        setScale(newScale);
+      } else if (e.touches.length === 1 && panState.current) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - panState.current.startX;
+        const dy = e.touches[0].clientY - panState.current.startY;
+        setTranslate({ x: panState.current.baseX + dx, y: panState.current.baseY + dy });
+      } else if (e.touches.length === 1 && swipe.current) {
+        const s = swipe.current;
+        const x = e.touches[0].clientX;
+        const dx = x - s.startX;
+        const dy = e.touches[0].clientY - s.startY;
+        if (!s.dragging && Math.abs(dx) < Math.abs(dy) + 10) return;
+        s.dragging = true;
+        e.preventDefault();
 
-      let dragX = dx;
-      if ((indexRef.current === 0 && dx > 0) || (indexRef.current === images.length - 1 && dx < 0)) {
-        dragX = dx * 0.35;
+        let dragX = dx;
+        if ((indexRef.current === 0 && dx > 0) || (indexRef.current === images.length - 1 && dx < 0)) {
+          dragX = dx * 0.35;
+        }
+
+        const now = performance.now();
+        const dt = now - s.lastT;
+        if (dt > 0) s.v = (x - s.lastX) / dt;
+        s.lastX = x;
+        s.lastT = now;
+        s.finalDragX = dragX;
+
+        setStripX(dragX, false);
       }
-
-      const now = performance.now();
-      const dt = now - s.lastT;
-      if (dt > 0) s.v = (x - s.lastX) / dt;
-      s.lastX = x;
-      s.lastT = now;
-      s.finalDragX = dragX;
-
-      setStripX(dragX, false);
     }
 
-    function handleTouchEnd() {
+    function handleTouchEnd(e) {
+      pinchState.current = null;
+      panState.current = null;
+
       const s = swipe.current;
-      if (!s || !s.dragging) { swipe.current = null; return; }
+      if (s && s.dragging) {
+        const dragX = s.finalDragX || 0;
+        const commit = Math.abs(dragX) > W * 0.35 || Math.abs(s.v) > 0.5;
+        const dir = (dragX < 0 || s.v < -0.5) ? -1 : 1;
+        const atEdge = (dir === -1 && indexRef.current === images.length - 1) || (dir === 1 && indexRef.current === 0);
 
-      const dragX = s.finalDragX || 0;
-      const commit = Math.abs(dragX) > W * 0.35 || Math.abs(s.v) > 0.5;
-      const dir = (dragX < 0 || s.v < -0.5) ? -1 : 1;
-      const atEdge = (dir === -1 && indexRef.current === images.length - 1) || (dir === 1 && indexRef.current === 0);
-
-      if (commit && !atEdge) {
-        const target = dir === -1 ? -W : W;
-        setStripX(target, true);
-        setTimeout(() => {
-          setIndex((i) => Math.max(0, Math.min(images.length - 1, i - dir)));
-        }, 400);
-      } else {
-        setStripX(0, true);
+        if (commit && !atEdge) {
+          const target = dir === -1 ? -W : W;
+          setStripX(target, true);
+          setTimeout(() => {
+            setIndex((i) => Math.max(0, Math.min(images.length - 1, i - dir)));
+          }, 400);
+        } else {
+          setStripX(0, true);
+        }
       }
       swipe.current = null;
+
+      if (e.touches.length === 0) {
+        const now = Date.now();
+        if (now - lastTapRef.current < 300) {
+          if (Math.abs(scaleRef.current - 1) > 0.05) {
+            setScale(1);
+            setTranslate({ x: 0, y: 0 });
+          } else {
+            setScale(2);
+          }
+        }
+        lastTapRef.current = now;
+      }
     }
 
     el.addEventListener("touchstart", handleTouchStart, { passive: false });
@@ -412,12 +461,14 @@ function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, 
     };
   }, [images.length, setIndex]);
 
-  // インデックスが変わったら(スワイプ確定後)ストリップを瞬時に0へ戻す
+  // インデックスが変わったら(スワイプ確定後)ストリップとズーム状態をリセット
   useEffect(() => {
     if (stripRef.current) {
       stripRef.current.style.transition = "none";
       stripRef.current.style.transform = "translate3d(0,0,0)";
     }
+    setScale(1);
+    setTranslate({ x: 0, y: 0 });
   }, [index]);
 
   if (!current) return null;
@@ -431,14 +482,30 @@ function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, 
           style={{ width: "300vw", left: "-100vw", willChange: "transform", transform: "translate3d(0,0,0)" }}
         >
           {[index - 1, index, index + 1].map((i) => (
-            <div key={i} className="w-screen shrink-0 flex items-center justify-center p-6">
-              {images[i] && <img src={images[i].src} alt="" draggable={false} className="max-w-full max-h-full object-contain" />}
+            <div key={i} className="w-screen shrink-0 flex items-center justify-center p-2">
+              {images[i] && (
+                <img
+                  src={images[i].src}
+                  alt=""
+                  draggable={false}
+                  className="max-w-full max-h-full object-contain"
+                  style={i === index ? { transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})` } : undefined}
+                />
+              )}
             </div>
           ))}
         </div>
       </div>
 
-      <div className="bg-app-bg px-5 pt-1.5 pb-2 border-t border-app-line" style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}>
+      {images.length > 1 && (
+        <div className="flex justify-center gap-1.5 pb-2 shrink-0">
+          {images.map((_, i) => (
+            <span key={i} className={`w-2 h-2 rounded-full ${i === index ? "bg-ink" : "border border-ink-sub bg-transparent"}`} />
+          ))}
+        </div>
+      )}
+
+      <div className="bg-app-bg px-5 pt-1 pb-2 border-t border-app-line shrink-0" style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}>
         <input
           value={commentMap[current.src] || ""}
           onChange={(e) => setCommentMap((prev) => ({ ...prev, [current.src]: e.target.value }))}
@@ -446,14 +513,6 @@ function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, 
           className="w-full bg-transparent text-ink placeholder:text-ink-sub text-[15px] outline-none"
         />
       </div>
-
-      {images.length > 1 && (
-        <div className="absolute bottom-[4.5rem] left-0 right-0 flex justify-center gap-1.5 pointer-events-none">
-          {images.map((_, i) => (
-            <span key={i} className={`w-2 h-2 rounded-full ${i === index ? "bg-ink" : "border border-ink-sub bg-transparent"}`} />
-          ))}
-        </div>
-      )}
 
       {current.libraryPhotoId && (
         <button
