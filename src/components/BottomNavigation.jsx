@@ -2,7 +2,7 @@ import {
   CalendarDays,
   NotebookPen,
   FolderKanban,
-  Search,
+  Folder,
   Settings as SettingsIcon,
 } from "lucide-react";
 
@@ -11,7 +11,7 @@ export default function BottomNavigation({ current, setTab }) {
     { id: "calendar", label: "Calendar", icon: CalendarDays },
     { id: "notes", label: "Notes", icon: NotebookPen },
     { id: "projects", label: "Projects", icon: FolderKanban },
-    { id: "search", label: "Search", icon: Search },
+    { id: "search", label: "Files", icon: Folder },
     { id: "settings", label: "Settings", icon: SettingsIcon },
   ];
 

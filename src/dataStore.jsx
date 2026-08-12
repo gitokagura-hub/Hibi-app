@@ -76,6 +76,8 @@ function emptyData() {
     notes: [],     // { id, text, images: [], files: [], source: 'text'|'voice', createdAt }
     projects: [],  // { id, name, items: [{id, text, images, files, createdAt}], driveFolderId: '', driveFiles: [], createdAt }
     libraryPhotos: [], // { id, src, createdAt } — Photos画面から直接追加された写真(他の画面のメモ等には紐付かない)
+    libraryFiles: [], // { id, name, type, dataUrl, folderId, createdAt } — Files画面から直接追加されたファイル。folderId=nullはルート直下
+    libraryFolders: [], // { id, name, createdAt } — Files画面のフォルダ
     settings: { geminiKey: '', chatgptKey: '', claudeKey: '', photoCategories: [] },
   };
 }
@@ -265,6 +267,25 @@ export function DataProvider({ children }) {
   }
   function deleteLibraryPhoto(id) {
     setData(prev => ({ ...prev, libraryPhotos: (prev.libraryPhotos || []).filter(p => p.id !== id) }));
+  }
+  function addLibraryFiles(files, folderId = null) {
+    const withIds = files.map(f => ({ id: uid(), ...f, folderId, createdAt: Date.now() }));
+    setData(prev => ({ ...prev, libraryFiles: [...(prev.libraryFiles || []), ...withIds] }));
+  }
+  function deleteLibraryFile(id) {
+    setData(prev => ({ ...prev, libraryFiles: (prev.libraryFiles || []).filter(f => f.id !== id) }));
+  }
+  function addLibraryFolder(name) {
+    const folder = { id: uid(), name, createdAt: Date.now() };
+    setData(prev => ({ ...prev, libraryFolders: [...(prev.libraryFolders || []), folder] }));
+    return folder;
+  }
+  function deleteLibraryFolder(id) {
+    setData(prev => ({
+      ...prev,
+      libraryFolders: (prev.libraryFolders || []).filter(f => f.id !== id),
+      libraryFiles: (prev.libraryFiles || []).filter(f => f.folderId !== id),
+    }));
   }
   function updateNote(id, text, images, files) {
     setData(prev => ({
@@ -592,6 +613,7 @@ export function DataProvider({ children }) {
     getMemo, setMemo, addMemoImages, removeMemoImage, updateMemoImageCategories, addMemoFiles, removeMemoFile,
     addNote, deleteNote, updateNote,
     addLibraryPhotos, deleteLibraryPhoto,
+    addLibraryFiles, deleteLibraryFile, addLibraryFolder, deleteLibraryFolder,
     addProject, setProjectDriveFolderId, setProjectDriveFiles, addProjectDriveFile, removeProjectDriveFile, updateProjectItem, addProjectItem, deleteProject, deleteProjectItem, sendToProject,
     pasteNoteToCalendar, pasteNoteToProject,
     setSettings, addPhotoCategory, removePhotoCategory, replaceAllData,
