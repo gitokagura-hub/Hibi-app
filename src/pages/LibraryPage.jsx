@@ -450,7 +450,7 @@ function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, 
       {images.length > 1 && (
         <div className="absolute bottom-[4.5rem] left-0 right-0 flex justify-center gap-1.5 pointer-events-none">
           {images.map((_, i) => (
-            <span key={i} className={`w-1.5 h-1.5 rounded-full ${i === index ? "bg-ink" : "bg-ink-sub/30"}`} />
+            <span key={i} className={`w-2 h-2 rounded-full ${i === index ? "bg-ink" : "border border-ink-sub bg-transparent"}`} />
           ))}
         </div>
       )}
