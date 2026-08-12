@@ -50,6 +50,7 @@ export default function SearchPage({ setTab }) {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [uploadStatus, setUploadStatus] = useState(null); // { type: "ok"|"error", text }
   const fileInputRef = useRef(null);
 
   // 全ファイル(Notes/Calendarメモ/Projectsのメモ)を横断的に集約する。
@@ -93,8 +94,31 @@ export default function SearchPage({ setTab }) {
     e.target.value = "";
     setAddMenuOpen(false);
     if (!files.length) return;
-    const withData = await Promise.all(files.map((f) => fileToDataUrl(f)));
-    addLibraryFiles(withData, openFolderId);
+
+    const MAX_BYTES = 8 * 1024 * 1024; // 8MB上限
+    const tooLarge = files.filter((f) => f.size > MAX_BYTES);
+    const okFiles = files.filter((f) => f.size <= MAX_BYTES);
+
+    try {
+      const results = await Promise.allSettled(okFiles.map((f) => fileToDataUrl(f)));
+      const succeeded = results.filter((r) => r.status === "fulfilled").map((r) => r.value);
+      const failedCount = results.filter((r) => r.status === "rejected").length;
+
+      if (succeeded.length > 0) addLibraryFiles(succeeded, openFolderId);
+
+      const parts = [];
+      if (succeeded.length > 0) parts.push(`${succeeded.length}件追加しました`);
+      if (tooLarge.length > 0) parts.push(`${tooLarge.map((f) => f.name).join("、")}は大きすぎるため追加できません(8MB上限)`);
+      if (failedCount > 0) parts.push(`${failedCount}件の読み込みに失敗しました`);
+
+      if (parts.length > 0) {
+        setUploadStatus({ type: succeeded.length > 0 && failedCount === 0 && tooLarge.length === 0 ? "ok" : "error", text: parts.join(" / ") });
+        setTimeout(() => setUploadStatus(null), 5000);
+      }
+    } catch (err) {
+      setUploadStatus({ type: "error", text: `追加に失敗しました: ${err?.message || "不明なエラー"}` });
+      setTimeout(() => setUploadStatus(null), 5000);
+    }
   }
 
   function handleCreateFolder() {
@@ -165,6 +189,12 @@ export default function SearchPage({ setTab }) {
             <input ref={fileInputRef} type="file" multiple onChange={handlePickFiles} className="hidden" />
           </div>
         </div>
+
+        {uploadStatus && (
+          <p className={`text-xs mb-4 ${uploadStatus.type === "ok" ? "text-green-600" : "text-red-500"}`}>
+            {uploadStatus.text}
+          </p>
+        )}
 
         {openFolderId ? (
           <>
