@@ -303,15 +303,15 @@ export default function LibraryPage({ onHome }) {
 
       {viewerSrc && (
         <div className="fixed inset-0 z-[90] bg-black/95 flex flex-col" onClick={(e) => e.stopPropagation()}>
-          <div className="flex-1 flex items-center justify-center p-8 pb-2 min-h-0">
-            <img src={viewerSrc.src} alt="" className="max-w-full max-h-full object-contain rounded-2xl" />
+          <div className="flex-1 flex items-center justify-center p-6 pb-2 min-h-0">
+            <img src={viewerSrc.src} alt="" className="max-w-full max-h-full object-contain" />
           </div>
-          <div className="px-5 pb-8" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
+          <div className="bg-app-bg px-5 py-3 border-t border-app-line" style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}>
             <input
               value={commentMap[viewerSrc.src] || ""}
               onChange={(e) => setCommentMap((prev) => ({ ...prev, [viewerSrc.src]: e.target.value }))}
-              placeholder="コメントを追加..."
-              className="w-full rounded-full bg-app-surface/90 text-ink placeholder:text-ink-sub text-sm px-4 py-2.5 outline-none"
+              placeholder="キャプションを追加"
+              className="w-full bg-transparent text-ink placeholder:text-ink-sub text-[15px] outline-none"
             />
           </div>
           {viewerSrc.libraryPhotoId && (
