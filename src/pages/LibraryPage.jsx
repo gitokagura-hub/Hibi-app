@@ -351,7 +351,11 @@ function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, 
   const [frameH, setFrameH] = useState(null);
   function recalcHeight() {
     if (scaleRef.current > 1) return;
-    const ar = aspects.current[indexRef.current];
+    let ar = aspects.current[indexRef.current];
+    if (!ar && imgRef.current && imgRef.current.naturalWidth) {
+      ar = imgRef.current.naturalWidth / imgRef.current.naturalHeight;
+      aspects.current[indexRef.current] = ar;
+    }
     const maxH = window.innerHeight * 0.75;
     if (!ar) { setFrameH(maxH); return; }
     const w = window.innerWidth - 16; // p-2ぶん左右8px×2
@@ -495,7 +499,7 @@ function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, 
   if (!current) return null;
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-[90] bg-app-bg flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+    <div ref={containerRef} className="fixed inset-0 z-[90] bg-app-bg flex flex-col justify-center overflow-hidden" onClick={(e) => e.stopPropagation()}>
       <div ref={photoAreaRef} className="relative min-h-0 touch-none" style={{ height: frameH ? `${frameH}px` : "min(75vh, 100% - 5rem)", transition: "height 0.25s ease" }}>
         <div
           ref={stripRef}
@@ -506,6 +510,7 @@ function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, 
             <div key={i} className="w-screen shrink-0 flex items-center justify-center p-2">
               {images[i] && (
                 <img
+                  ref={i === index ? imgRef : undefined}
                   src={images[i].src}
                   alt=""
                   draggable={false}
@@ -523,11 +528,15 @@ function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, 
       </div>
 
       {images.length > 1 && (
-        <div className="flex justify-center gap-1.5 pb-2 shrink-0">
-          {images.map((_, i) => (
-            <span key={i} className={`w-2 h-2 rounded-full ${i === index ? "bg-ink" : "border border-ink-sub bg-transparent"}`} />
-          ))}
-        </div>
+        images.length > 10 ? (
+          <div className="text-center text-xs text-ink-sub pb-2 shrink-0">{index + 1} / {images.length}</div>
+        ) : (
+          <div className="flex justify-center gap-1.5 pb-2 shrink-0 max-w-full overflow-hidden">
+            {images.map((_, i) => (
+              <span key={i} className={`w-2 h-2 rounded-full shrink-0 ${i === index ? "bg-ink" : "border border-ink-sub bg-transparent"}`} />
+            ))}
+          </div>
+        )
       )}
 
       <div className="bg-app-bg px-5 pt-1 pb-2 border-t border-app-line shrink-0" style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}>
