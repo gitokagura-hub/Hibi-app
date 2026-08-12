@@ -109,7 +109,7 @@ function TagPickerSheet({ selected, available, onAddCategory, onClose, onSave })
 export default function LibraryPage({ onHome }) {
   useSwipeBack(onHome);
   const { data, addLibraryPhotos, deleteLibraryPhoto } = useData();
-  const [viewerSrc, setViewerSrc] = useState(null);
+  const [viewerIndex, setViewerIndex] = useState(null);
   const [tagMap, setTagMap] = useState(() => loadTagMap());
   const [commentMap, setCommentMap] = useState(() => loadCommentMap());
   const [categories, setCategories] = useState(() => loadCategories());
@@ -277,7 +277,7 @@ export default function LibraryPage({ onHome }) {
             {filteredImages.map((img, i) => (
               <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-app-raised">
                 <button
-                  onClick={() => setViewerSrc(img)}
+                  onClick={() => setViewerIndex(i)}
                   className="w-full h-full block"
                   title={img.source}
                 >
@@ -301,35 +301,16 @@ export default function LibraryPage({ onHome }) {
         )}
       </main>
 
-      {viewerSrc && (
-        <div className="fixed inset-0 z-[90] bg-app-bg flex flex-col" onClick={(e) => e.stopPropagation()}>
-          <div className="flex-1 flex items-center justify-center p-6 pb-2 min-h-0">
-            <img src={viewerSrc.src} alt="" className="max-w-full max-h-full object-contain" />
-          </div>
-          <div className="bg-app-bg px-5 py-3 border-t border-app-line" style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}>
-            <input
-              value={commentMap[viewerSrc.src] || ""}
-              onChange={(e) => setCommentMap((prev) => ({ ...prev, [viewerSrc.src]: e.target.value }))}
-              placeholder="キャプションを追加"
-              className="w-full bg-transparent text-ink placeholder:text-ink-sub text-[15px] outline-none"
-            />
-          </div>
-          {viewerSrc.libraryPhotoId && (
-            <button
-              onClick={async (e) => {
-                e.stopPropagation();
-                deleteLibraryPhoto(viewerSrc.libraryPhotoId);
-                setViewerSrc(null);
-              }}
-              className="absolute top-14 left-5 h-9 px-3 rounded-full bg-red-600/90 text-white text-xs font-semibold flex items-center justify-center"
-            >削除</button>
-          )}
-          <button
-            onClick={(e) => { e.stopPropagation(); setViewerSrc(null); }}
-            className="absolute top-14 right-3 w-10 h-10 flex items-center justify-center text-ink"
-            aria-label="戻る"
-          ><ChevronLeft size={24} /></button>
-        </div>
+      {viewerIndex !== null && (
+        <PhotoViewerModal
+          images={filteredImages}
+          index={viewerIndex}
+          setIndex={setViewerIndex}
+          commentMap={commentMap}
+          setCommentMap={setCommentMap}
+          deleteLibraryPhoto={deleteLibraryPhoto}
+          onClose={() => setViewerIndex(null)}
+        />
       )}
 
       {taggingSrc && (
@@ -341,6 +322,154 @@ export default function LibraryPage({ onHome }) {
           onSave={(tags) => saveTagsFor(taggingSrc, tags)}
         />
       )}
+    </div>
+  );
+}
+
+function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, deleteLibraryPhoto, onClose }) {
+  const containerRef = useRef(null);
+  const stripRef = useRef(null);
+  const swipe = useRef(null); // { startX, startY, lastX, lastT, v, dragging, finalDragX }
+  const indexRef = useRef(index);
+  useEffect(() => { indexRef.current = index; }, [index]);
+
+  const current = images[index];
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const W = window.innerWidth;
+
+    function setStripX(x, withTransition) {
+      const strip = stripRef.current;
+      if (!strip) return;
+      strip.style.transition = withTransition ? "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)" : "none";
+      strip.style.transform = `translate3d(${x}px,0,0)`;
+    }
+
+    function handleTouchStart(e) {
+      if (e.touches.length !== 1) return;
+      const now = performance.now();
+      swipe.current = {
+        startX: e.touches[0].clientX, startY: e.touches[0].clientY,
+        lastX: e.touches[0].clientX, lastT: now, v: 0, dragging: false, finalDragX: 0,
+      };
+    }
+
+    function handleTouchMove(e) {
+      const s = swipe.current;
+      if (!s || e.touches.length !== 1) return;
+      const x = e.touches[0].clientX;
+      const dx = x - s.startX;
+      const dy = e.touches[0].clientY - s.startY;
+      if (!s.dragging && Math.abs(dx) < Math.abs(dy) + 10) return;
+      s.dragging = true;
+      e.preventDefault();
+
+      let dragX = dx;
+      if ((indexRef.current === 0 && dx > 0) || (indexRef.current === images.length - 1 && dx < 0)) {
+        dragX = dx * 0.35;
+      }
+
+      const now = performance.now();
+      const dt = now - s.lastT;
+      if (dt > 0) s.v = (x - s.lastX) / dt;
+      s.lastX = x;
+      s.lastT = now;
+      s.finalDragX = dragX;
+
+      setStripX(dragX, false);
+    }
+
+    function handleTouchEnd() {
+      const s = swipe.current;
+      if (!s || !s.dragging) { swipe.current = null; return; }
+
+      const dragX = s.finalDragX || 0;
+      const commit = Math.abs(dragX) > W * 0.35 || Math.abs(s.v) > 0.5;
+      const dir = (dragX < 0 || s.v < -0.5) ? -1 : 1;
+      const atEdge = (dir === -1 && indexRef.current === images.length - 1) || (dir === 1 && indexRef.current === 0);
+
+      if (commit && !atEdge) {
+        const target = dir === -1 ? -W : W;
+        setStripX(target, true);
+        setTimeout(() => {
+          setIndex((i) => Math.max(0, Math.min(images.length - 1, i - dir)));
+        }, 400);
+      } else {
+        setStripX(0, true);
+      }
+      swipe.current = null;
+    }
+
+    el.addEventListener("touchstart", handleTouchStart, { passive: false });
+    el.addEventListener("touchmove", handleTouchMove, { passive: false });
+    el.addEventListener("touchend", handleTouchEnd, { passive: false });
+    return () => {
+      el.removeEventListener("touchstart", handleTouchStart);
+      el.removeEventListener("touchmove", handleTouchMove);
+      el.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [images.length, setIndex]);
+
+  // インデックスが変わったら(スワイプ確定後)ストリップを瞬時に0へ戻す
+  useEffect(() => {
+    if (stripRef.current) {
+      stripRef.current.style.transition = "none";
+      stripRef.current.style.transform = "translate3d(0,0,0)";
+    }
+  }, [index]);
+
+  if (!current) return null;
+
+  return (
+    <div ref={containerRef} className="fixed inset-0 z-[90] bg-app-bg flex flex-col overflow-hidden touch-none" onClick={(e) => e.stopPropagation()}>
+      <div className="flex-1 relative min-h-0">
+        <div
+          ref={stripRef}
+          className="absolute inset-0 flex items-stretch"
+          style={{ width: "300vw", left: "-100vw", willChange: "transform", transform: "translate3d(0,0,0)" }}
+        >
+          {[index - 1, index, index + 1].map((i) => (
+            <div key={i} className="w-screen shrink-0 flex items-center justify-center p-6">
+              {images[i] && <img src={images[i].src} alt="" draggable={false} className="max-w-full max-h-full object-contain" />}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-app-bg px-5 py-3 border-t border-app-line" style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}>
+        <input
+          value={commentMap[current.src] || ""}
+          onChange={(e) => setCommentMap((prev) => ({ ...prev, [current.src]: e.target.value }))}
+          placeholder="キャプションを追加"
+          className="w-full bg-transparent text-ink placeholder:text-ink-sub text-[15px] outline-none"
+        />
+      </div>
+
+      {images.length > 1 && (
+        <div className="absolute bottom-[4.5rem] left-0 right-0 flex justify-center gap-1.5 pointer-events-none">
+          {images.map((_, i) => (
+            <span key={i} className={`w-1.5 h-1.5 rounded-full ${i === index ? "bg-ink" : "bg-ink-sub/30"}`} />
+          ))}
+        </div>
+      )}
+
+      {current.libraryPhotoId && (
+        <button
+          onClick={async (e) => {
+            e.stopPropagation();
+            deleteLibraryPhoto(current.libraryPhotoId);
+            onClose();
+          }}
+          className="absolute top-14 left-5 h-9 px-3 rounded-full bg-red-600/90 text-white text-xs font-semibold flex items-center justify-center"
+        >削除</button>
+      )}
+      <button
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+        className="absolute top-14 right-3 w-10 h-10 flex items-center justify-center text-ink"
+        aria-label="戻る"
+      ><ChevronLeft size={24} /></button>
     </div>
   );
 }
