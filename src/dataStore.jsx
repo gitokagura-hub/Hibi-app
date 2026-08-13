@@ -275,6 +275,12 @@ export function DataProvider({ children }) {
   function deleteLibraryFile(id) {
     setData(prev => ({ ...prev, libraryFiles: (prev.libraryFiles || []).filter(f => f.id !== id) }));
   }
+  function renameLibraryFile(id, name) {
+    setData(prev => ({ ...prev, libraryFiles: (prev.libraryFiles || []).map(f => f.id === id ? { ...f, name } : f) }));
+  }
+  function renameLibraryFolder(id, name) {
+    setData(prev => ({ ...prev, libraryFolders: (prev.libraryFolders || []).map(f => f.id === id ? { ...f, name } : f) }));
+  }
   function addLibraryFolder(name) {
     const folder = { id: uid(), name, createdAt: Date.now() };
     setData(prev => ({ ...prev, libraryFolders: [...(prev.libraryFolders || []), folder] }));
@@ -613,7 +619,7 @@ export function DataProvider({ children }) {
     getMemo, setMemo, addMemoImages, removeMemoImage, updateMemoImageCategories, addMemoFiles, removeMemoFile,
     addNote, deleteNote, updateNote,
     addLibraryPhotos, deleteLibraryPhoto,
-    addLibraryFiles, deleteLibraryFile, addLibraryFolder, deleteLibraryFolder,
+    addLibraryFiles, deleteLibraryFile, renameLibraryFile, addLibraryFolder, deleteLibraryFolder, renameLibraryFolder,
     addProject, setProjectDriveFolderId, setProjectDriveFiles, addProjectDriveFile, removeProjectDriveFile, updateProjectItem, addProjectItem, deleteProject, deleteProjectItem, sendToProject,
     pasteNoteToCalendar, pasteNoteToProject,
     setSettings, addPhotoCategory, removePhotoCategory, replaceAllData,
