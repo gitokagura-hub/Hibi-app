@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { ChevronLeft, Image as ImageIcon, Plus, Camera, Tag } from "lucide-react";
 import { useData, fileToCompressedDataUrl } from "../dataStore";
 import { useSwipeBack } from "../useSwipeBack";
+import { handleEnterToConfirm } from "../useEnterConfirm";
 
 // Library-only tagging: kept entirely separate from Notes/Calendar/Projects
 // data so tagging can never affect those screens. Keyed by the image's src
@@ -82,7 +83,7 @@ function TagPickerSheet({ selected, available, onAddCategory, onClose, onSave })
           <input
             value={newCat}
             onChange={(e) => setNewCat(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") handleAddNew(); }}
+            onKeyDown={(e) => handleEnterToConfirm(e, handleAddNew)}
             placeholder="新しいタグ名（例：人、料理、名刺）..."
             className="flex-1 rounded-xl border p-2.5 text-sm"
           />
@@ -560,6 +561,7 @@ function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, 
         <input
           value={commentMap[current.src] || ""}
           onChange={(e) => setCommentMap((prev) => ({ ...prev, [current.src]: e.target.value }))}
+          onKeyDown={(e) => handleEnterToConfirm(e, () => {})}
           placeholder="キャプションを追加"
           className="w-full bg-transparent text-ink placeholder:text-ink-sub text-[15px] outline-none"
         />

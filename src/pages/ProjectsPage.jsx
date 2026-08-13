@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Copy, Check, Trash2 } from "lucide-react";
 import { Layout } from "../components";
 import { useData, formatDateTime } from "../dataStore";
+import { handleEnterToConfirm } from "../useEnterConfirm";
 import { isDriveConnected, ensureAppFolder, ensureProjectFolder, uploadFileToProjectFolder, listProjectFiles, deleteProjectFile, getTeamRootFolderId } from "../googleDrive";
 import { useConfirm } from "../components/ConfirmModal";
 
@@ -334,12 +335,7 @@ export default function ProjectsPage({ setTab }) {
                         <textarea
                           value={newMemoText[p.id] || ""}
                           onChange={(e) => setNewMemoText((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              handleAddMemo(p.id);
-                            }
-                          }}
+                          onKeyDown={(e) => handleEnterToConfirm(e, () => handleAddMemo(p.id), { allowShiftNewline: true })}
                           placeholder="このプロジェクトに新しいメモを書く..."
                           className="w-full rounded-lg border p-2 text-xs bg-app-surface resize-none mb-1.5"
                           rows={2}
@@ -410,7 +406,7 @@ export default function ProjectsPage({ setTab }) {
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
+            onKeyDown={(e) => handleEnterToConfirm(e, handleAdd)}
             placeholder="New project name..."
             className="w-full rounded-2xl border p-4 mb-2"
           />

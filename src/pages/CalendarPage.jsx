@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Plus, Paperclip, Camera, PencilLine, FileText } from "lucide-react";
 import { useData, todayStr, fileToCompressedDataUrl, fileToDataUrl } from "../dataStore";
+import { handleEnterToConfirm } from "../useEnterConfirm";
 import BottomNavigation from "../components/BottomNavigation";
 import SpaceSwitcher from "../components/SpaceSwitcher";
 import { useConfirm } from "../components/ConfirmModal";
@@ -360,7 +361,7 @@ export default function CalendarPage({ setTab }) {
                         autoFocus
                         value={editingEventText}
                         onChange={(ev) => setEditingEventText(ev.target.value)}
-                        onKeyDown={(ev) => { if (ev.key === "Enter") saveEditEvent(); if (ev.key === "Escape") cancelEditEvent(); }}
+                        onKeyDown={(ev) => { if (ev.key === "Escape") { cancelEditEvent(); return; } handleEnterToConfirm(ev, saveEditEvent); }}
                         className="flex-1 outline-none border-b border-app-line text-sm"
                       />
                       <button onClick={saveEditEvent} className="flex-shrink-0 text-xs font-semibold bg-ink text-app-bg rounded-lg px-2.5 py-1">保存</button>
@@ -408,7 +409,7 @@ export default function CalendarPage({ setTab }) {
                     type="text"
                     value={draft.title}
                     onChange={(ev) => updateEventDraft(draft.id, { title: ev.target.value })}
-                    onKeyDown={(ev) => { if (ev.key === "Enter") handleAddEvent(draft.id); }}
+                    onKeyDown={(ev) => handleEnterToConfirm(ev, () => handleAddEvent(draft.id))}
                     placeholder="Add schedule..."
                     className="flex-1 rounded-2xl border p-4"
                   />
@@ -442,7 +443,7 @@ export default function CalendarPage({ setTab }) {
                       autoFocus
                       value={editingTaskText}
                       onChange={(e) => setEditingTaskText(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") saveEditTask(); if (e.key === "Escape") cancelEditTask(); }}
+                      onKeyDown={(e) => { if (e.key === "Escape") { cancelEditTask(); return; } handleEnterToConfirm(e, saveEditTask); }}
                       className="flex-1 outline-none border-b border-app-line"
                     />
                     <button onClick={saveEditTask} className="flex-shrink-0 text-xs font-semibold bg-ink text-app-bg rounded-lg px-2.5 py-1">保存</button>
@@ -473,7 +474,7 @@ export default function CalendarPage({ setTab }) {
               <textarea
                 value={draft.text}
                 onChange={(e) => updateTaskDraft(draft.id, { text: e.target.value })}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitTaskDraft(draft.id); } }}
+                onKeyDown={(e) => handleEnterToConfirm(e, () => commitTaskDraft(draft.id), { allowShiftNewline: true })}
                 placeholder="Add Task..."
                 className="w-full h-24 rounded-xl border p-3 mb-2"
               />

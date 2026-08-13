@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { useSukima, GROUPS, CARD_DEFS } from "../sukimaStore";
+import { handleEnterToConfirm } from "../useEnterConfirm";
 import { useSwipeBack } from "../useSwipeBack";
 import DriveGallery from "../components/DriveGallery";
 
@@ -36,7 +37,7 @@ function TagsEditor({ value, onChange }) {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && add()}
+          onKeyDown={(e) => handleEnterToConfirm(e, add)}
           placeholder="タグを入力してEnter"
           className="flex-1 border border-app-line rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500"
         />
@@ -86,7 +87,7 @@ function ChecklistEditor({ value, onChange }) {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && add()}
+          onKeyDown={(e) => handleEnterToConfirm(e, add)}
           placeholder="次に調べることを自由に追加"
           className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-ink-sub"
         />

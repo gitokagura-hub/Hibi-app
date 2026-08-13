@@ -3,6 +3,7 @@ import { FileText, Folder, Plus, ChevronLeft, X, Search, MoreHorizontal } from "
 import { Layout } from "../components";
 import { useConfirm } from "../components/ConfirmModal";
 import { useData, fileToDataUrl } from "../dataStore";
+import { handleEnterToConfirm } from "../useEnterConfirm";
 
 function formatBytes(dataUrl) {
   if (!dataUrl) return "";
@@ -371,7 +372,7 @@ export default function SearchPage({ setTab }) {
             <input
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleCreateFolder(); }}
+              onKeyDown={(e) => handleEnterToConfirm(e, handleCreateFolder)}
               placeholder="フォルダ名"
               autoFocus
               className="w-full border-b border-files-line pb-2.5 text-[14px] font-sans text-files-ink outline-none mb-6 bg-transparent"
@@ -397,7 +398,7 @@ export default function SearchPage({ setTab }) {
             <input
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") commitRename(); }}
+              onKeyDown={(e) => handleEnterToConfirm(e, commitRename)}
               autoFocus
               className="w-full border-b border-files-line pb-2.5 text-[14px] font-sans text-files-ink outline-none mb-6 bg-transparent"
             />
