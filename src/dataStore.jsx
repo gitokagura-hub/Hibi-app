@@ -78,6 +78,9 @@ function emptyData() {
     libraryPhotos: [], // { id, src, createdAt } — Photos画面から直接追加された写真(他の画面のメモ等には紐付かない)
     libraryFiles: [], // { id, name, type, dataUrl, folderId, createdAt } — Files画面から直接追加されたファイル。folderId=nullはルート直下
     libraryFolders: [], // { id, name, createdAt } — Files画面のフォルダ
+    libraryTags: {}, // { [src]: string[] } — Photos画面の写真タグ(以前はlocalStorageのみで保護されていなかった)
+    libraryComments: {}, // { [src]: string } — Photos画面の写真キャプション
+    libraryCategories: [], // string[] — Photos画面のタグカテゴリー一覧
     settings: { geminiKey: '', chatgptKey: '', claudeKey: '', photoCategories: [] },
   };
 }
@@ -280,6 +283,15 @@ export function DataProvider({ children }) {
   }
   function renameLibraryFolder(id, name) {
     setData(prev => ({ ...prev, libraryFolders: (prev.libraryFolders || []).map(f => f.id === id ? { ...f, name } : f) }));
+  }
+  function setLibraryTags(tagMap) {
+    setData(prev => ({ ...prev, libraryTags: tagMap }));
+  }
+  function setLibraryComments(commentMap) {
+    setData(prev => ({ ...prev, libraryComments: commentMap }));
+  }
+  function setLibraryCategories(categories) {
+    setData(prev => ({ ...prev, libraryCategories: categories }));
   }
   function addLibraryFolder(name) {
     const folder = { id: uid(), name, createdAt: Date.now() };
@@ -620,6 +632,7 @@ export function DataProvider({ children }) {
     addNote, deleteNote, updateNote,
     addLibraryPhotos, deleteLibraryPhoto,
     addLibraryFiles, deleteLibraryFile, renameLibraryFile, addLibraryFolder, deleteLibraryFolder, renameLibraryFolder,
+    setLibraryTags, setLibraryComments, setLibraryCategories,
     addProject, setProjectDriveFolderId, setProjectDriveFiles, addProjectDriveFile, removeProjectDriveFile, updateProjectItem, addProjectItem, deleteProject, deleteProjectItem, sendToProject,
     pasteNoteToCalendar, pasteNoteToProject,
     setSettings, addPhotoCategory, removePhotoCategory, replaceAllData,

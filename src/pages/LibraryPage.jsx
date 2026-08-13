@@ -108,11 +108,30 @@ function TagPickerSheet({ selected, available, onAddCategory, onClose, onSave })
 
 export default function LibraryPage({ onHome }) {
   useSwipeBack(onHome);
-  const { data, addLibraryPhotos, deleteLibraryPhoto } = useData();
+  const { data, addLibraryPhotos, deleteLibraryPhoto, setLibraryTags, setLibraryComments, setLibraryCategories } = useData();
   const [viewerIndex, setViewerIndex] = useState(null);
-  const [tagMap, setTagMap] = useState(() => loadTagMap());
-  const [commentMap, setCommentMap] = useState(() => loadCommentMap());
-  const [categories, setCategories] = useState(() => loadCategories());
+  const tagMap = data.libraryTags && Object.keys(data.libraryTags).length > 0 ? data.libraryTags : loadTagMap();
+  const commentMap = data.libraryComments && Object.keys(data.libraryComments).length > 0 ? data.libraryComments : loadCommentMap();
+  const categories = data.libraryCategories && data.libraryCategories.length > 0 ? data.libraryCategories : loadCategories();
+
+  // 既存のlocalStorageデータ(このバックアップ対応より前に保存されていた
+  // タグ/コメント/カテゴリー)を、初回マウント時にdata本体へ一度だけ
+  // 移行する。これでD1同期+Drive自動バックアップの保護下に入る。
+  useEffect(() => {
+    if ((!data.libraryTags || Object.keys(data.libraryTags).length === 0)) {
+      const legacy = loadTagMap();
+      if (Object.keys(legacy).length > 0) setLibraryTags(legacy);
+    }
+    if ((!data.libraryComments || Object.keys(data.libraryComments).length === 0)) {
+      const legacy = loadCommentMap();
+      if (Object.keys(legacy).length > 0) setLibraryComments(legacy);
+    }
+    if ((!data.libraryCategories || data.libraryCategories.length === 0)) {
+      const legacy = loadCategories();
+      if (legacy.length > 0) setLibraryCategories(legacy);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [activeCategory, setActiveCategory] = useState(null); // null = すべて
   const [taggingSrc, setTaggingSrc] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -120,9 +139,7 @@ export default function LibraryPage({ onHome }) {
   const galleryInputRef = useRef(null);
   const cameraInputRef = useRef(null);
 
-  useEffect(() => { saveTagMap(tagMap); }, [tagMap]);
-  useEffect(() => { saveCommentMap(commentMap); }, [commentMap]);
-  useEffect(() => { saveCategories(categories); }, [categories]);
+
 
   async function handlePickFiles(e) {
     const files = Array.from(e.target.files || []);
@@ -154,10 +171,10 @@ export default function LibraryPage({ onHome }) {
   }
 
   function addCategory(name) {
-    setCategories((prev) => (prev.includes(name) ? prev : [...prev, name]));
+    if (!categories.includes(name)) setLibraryCategories([...categories, name]);
   }
   function saveTagsFor(src, tags) {
-    setTagMap((prev) => ({ ...prev, [src]: tags }));
+    setLibraryTags({ ...tagMap, [src]: tags });
     setTaggingSrc(null);
   }
 
@@ -307,7 +324,7 @@ export default function LibraryPage({ onHome }) {
           index={viewerIndex}
           setIndex={setViewerIndex}
           commentMap={commentMap}
-          setCommentMap={setCommentMap}
+          setCommentMap={(updater) => setLibraryComments(typeof updater === "function" ? updater(commentMap) : updater)}
           deleteLibraryPhoto={deleteLibraryPhoto}
           onClose={() => setViewerIndex(null)}
         />
