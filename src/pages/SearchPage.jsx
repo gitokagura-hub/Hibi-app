@@ -141,15 +141,23 @@ export default function SearchPage({ setTab }) {
   async function openFile(f) {
     if (!f.dataUrl) return;
     const blob = dataUrlToBlob(f.dataUrl);
+    const type = blob.type || "";
+
+    // PDF/画像はSafariがネイティブにプレビューできるため、共有シートを
+    // 経由せず直接新規タブで開く方が「タップ→即座に表示」に近い体験になる。
+    if (type === "application/pdf" || type.startsWith("image/")) {
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      return;
+    }
+
+    // docx等、Safariが直接描画できない形式はWeb Share経由が最も確実
+    // (共有シートから「Pagesで開く」「ファイルに保存」等が選べる)。
     const file = new File([blob], f.name, { type: blob.type });
-    // iOSはWeb Share経由が最も確実: 共有シートから「見る」「Pagesで開く」等が選べる
-    // (data:URL+download属性のアンカークリックだと、iOSはダウンロード確認
-    // ダイアログを出すだけで、docx等ブラウザが描画できない形式は
-    // 「表示」を押しても真っ白になっていた)
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try { await navigator.share({ files: [file] }); return; } catch (e) { if (e.name === "AbortError") return; }
     }
-    // フォールバック: blob URLを新規タブで(PDF/画像はSafariがプレビュー可能)
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank");
     setTimeout(() => URL.revokeObjectURL(url), 60000);
