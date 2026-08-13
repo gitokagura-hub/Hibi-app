@@ -241,20 +241,17 @@ export default function SearchPage({ setTab }) {
 
   return (
     <Layout title={currentFolder ? currentFolder.name : "Files"} current="search" setTab={setTab} hideSpaceSwitcher>
+      {openFolderId && (
+        <button
+          onClick={() => setOpenFolderId(null)}
+          className="fixed top-14 right-3 z-30 w-10 h-10 flex items-center justify-center text-files-indigo"
+          aria-label="戻る"
+        >
+          <ChevronLeft size={24} />
+        </button>
+      )}
       <div className="bg-files-paper -mx-5 px-5 pb-24" style={{ minHeight: "calc(100vh - 200px)" }}>
-        {/* 見出し: 台帳の表紙のような扱い。細い罫線一本で下を区切る */}
-        <div className="pt-2 pb-6 border-b border-files-ink/15">
-          {openFolderId ? (
-            <button onClick={() => setOpenFolderId(null)} className="flex items-center gap-1.5 text-[11px] font-sans tracking-widest text-files-ink/45 mb-3">
-              <ChevronLeft size={13} /> ARCHIVE
-            </button>
-          ) : (
-            <p className="text-[11px] font-sans tracking-[0.2em] text-files-ink/45 mb-2">ARCHIVE</p>
-          )}
-          <h1 className="font-mincho text-[26px] leading-tight text-files-ink">
-            {currentFolder ? currentFolder.name : "資料庫"}
-          </h1>
-        </div>
+        <div className="pt-2 pb-6 border-b border-files-ink/15" />
 
         {/* 検索: 下線のみのミニマルな一行。虫眼鏡は小さく添える程度 */}
         <div className="flex items-center gap-3 py-4 border-b border-files-line">
