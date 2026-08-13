@@ -29,12 +29,13 @@ export function handleEnterToConfirm(e, action, { allowShiftNewline = false } = 
   action();
   inputEl.blur();
   // フォーカスを外すだけではスクロール位置は動かないため、明示的に
-  // 一番上へ戻す。実際にスクロールしている祖先要素をDOMから自動で
-  // 探すことで、画面ごとにLayout.jsxのmainRef/独自のoverflow-y-auto/
-  // window全体スクロールのどれを使っていても対応できる。
-  requestAnimationFrame(() => {
+  // 一番上へ戻す。iOSはキーボードが閉じるアニメーション自体が
+  // ビューポートのリサイズ/スクロールを引き起こすことがあり、
+  // それが直後のscrollToを上書きしてしまうため、キーボードが
+  // 完全に閉じ切るのを待ってからスクロールする。
+  setTimeout(() => {
     const scrollEl = findScrollableAncestor(inputEl);
     if (scrollEl) scrollEl.scrollTo({ top: 0, behavior: "smooth" });
     else window.scrollTo({ top: 0, behavior: "smooth" });
-  });
+  }, 350);
 }
