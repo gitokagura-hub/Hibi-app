@@ -55,7 +55,7 @@ export default function Layout({ title, subtitle, current, setTab, barLeft, barR
       </div>
 
       {/* Content */}
-      <main ref={mainRef} className="flex-1 overflow-y-auto pb-24">
+      <main ref={mainRef} data-scroll-root className="flex-1 overflow-y-auto pb-24">
         <header
           className="bg-app-bg px-5 pb-2"
           style={{ paddingTop: `calc(env(safe-area-inset-top) + ${BAR_H}px)` }}

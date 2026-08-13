@@ -7,18 +7,18 @@
 // 「リターンしたら一番上に戻る画面」と「下の方に留まる画面」が
 // 混在する原因になっていた。
 //
-// このヘルパーを使えば、確定処理(action)を実行した直後に必ず
-// input/textareaからフォーカスを外し、キーボードを閉じる挙動を
-// 統一できる。
-function findScrollableAncestor(el) {
-  let node = el?.parentElement;
-  while (node) {
-    const style = window.getComputedStyle(node);
-    const canScrollY = /(auto|scroll)/.test(style.overflowY);
-    if (canScrollY && node.scrollHeight > node.clientHeight) return node;
-    node = node.parentElement;
-  }
-  return null; // 見つからなければwindow自体をスクロールする
+// ファーブル5設計: 祖先要素をDOMから辿る方式は、確定処理で入力欄が
+// アンマウントされると孤児化して辿れなくなるため、iOSでは高確率で
+// 外れる。代わりに、アプリのスクロール実体(Layout.jsx/CalendarPage.jsx
+// の<main data-scroll-root>)を data-scroll-root 属性で直接掴む方式にする。
+
+// アプリの唯一のスクロール実体を先頭に戻す。
+// smooth指定はiOSのキーボード遷移中は無視されがちなので使わない。
+export function scrollAppTop() {
+  const el = document.querySelector("[data-scroll-root]");
+  if (el) { el.scrollTop = 0; return; }
+  window.scrollTo(0, 0);
+  if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
 }
 
 export function handleEnterToConfirm(e, action, { allowShiftNewline = false } = {}) {
@@ -28,14 +28,17 @@ export function handleEnterToConfirm(e, action, { allowShiftNewline = false } = 
   const inputEl = e.target;
   action();
   inputEl.blur();
-  // フォーカスを外すだけではスクロール位置は動かないため、明示的に
-  // 一番上へ戻す。iOSはキーボードが閉じるアニメーション自体が
-  // ビューポートのリサイズ/スクロールを引き起こすことがあり、
-  // それが直後のscrollToを上書きしてしまうため、キーボードが
-  // 完全に閉じ切るのを待ってからスクロールする。
-  setTimeout(() => {
-    const scrollEl = findScrollableAncestor(inputEl);
-    if (scrollEl) scrollEl.scrollTo({ top: 0, behavior: "smooth" });
-    else window.scrollTo({ top: 0, behavior: "smooth" });
-  }, 350);
+  // キーボード収納の完了を待たず「複数回」効かせるのがiOSでは確実。
+  // 最後にvisualViewportのresize(キーボードが閉じ切った瞬間)を検知して
+  // もう一度確定させる。
+  scrollAppTop();
+  setTimeout(scrollAppTop, 120);
+  setTimeout(scrollAppTop, 400);
+  if (window.visualViewport) {
+    const onResize = () => {
+      scrollAppTop();
+      window.visualViewport.removeEventListener("resize", onResize);
+    };
+    window.visualViewport.addEventListener("resize", onResize);
+  }
 }

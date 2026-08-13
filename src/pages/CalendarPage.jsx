@@ -247,7 +247,7 @@ export default function CalendarPage({ setTab }) {
   return (
     <div className="h-[100dvh] bg-app-bg flex flex-col">
       {/* Full Screen Scroll */}
-      <main ref={mainRef} className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
+      <main ref={mainRef} data-scroll-root className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
         <header className="bg-app-bg px-5 pt-6 pb-2">
           <h1 className="text-lg font-bold text-center">Dayliy Brains</h1>
         </header>
