@@ -20,6 +20,13 @@
   --pill-6: #8E24AA;
   --pill-7: #F4511E;
   --pill-8: #616161;
+
+  /* Files画面専用トークン(和モダン×建築図面×工業製品)。
+     アプリ全体のトークンとは独立させ、Files画面のみに適用する。 */
+  --files-paper: #F0EFEA;
+  --files-ink: #1C1C1A;
+  --files-indigo: #2B4257;
+  --files-line: #D8D5CC;
 }
 
 html, body, #root {
@@ -33,4 +40,20 @@ body {
 }
 input, textarea, button {
   font-family: inherit;
+}
+
+/* Files画面: 隅切り(Cut Corner)ユーティリティ。建築図面・製図の
+   角の処理を意識した、直線的でわずかに削られたコーナー。 */
+.cut-corner-sm {
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+}
+.cut-corner {
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+.cut-corner-both {
+  clip-path: polygon(
+    10px 0, calc(100% - 10px) 0, 100% 10px,
+    100% calc(100% - 10px), calc(100% - 10px) 100%,
+    10px 100%, 0 calc(100% - 10px), 0 10px
+  );
 }

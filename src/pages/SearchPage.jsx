@@ -17,34 +17,49 @@ function formatBytes(dataUrl) {
 function formatDate(ts) {
   if (!ts) return "";
   const d = new Date(ts);
-  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// 建築図面の記号を思わせる、線だけで構成したフォルダ標(しるし)。
+// iOS標準の塗りつぶし青フォルダの代わりに、細い線と一つの隅切りだけで
+// 「フォルダである」ことを示す。
+function FolderMark({ size = 22 }) {
+  return (
+    <svg width={size} height={size * 0.78} viewBox="0 0 22 17" fill="none">
+      <path
+        d="M1 2.2C1 1.5 1.5 1 2.2 1H8L9.6 3.1H19.8C20.5 3.1 21 3.6 21 4.3V14.8C21 15.5 20.5 16 19.8 16H2.2C1.5 16 1 15.5 1 14.8V2.2Z"
+        stroke="currentColor"
+        strokeWidth="1"
+      />
+    </svg>
+  );
 }
 
 function TileMenu({ onRename, onDelete }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="absolute top-0.5 right-0.5 z-10">
+    <div className="relative shrink-0">
       <button
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        className="w-6 h-6 rounded-full bg-app-bg/80 flex items-center justify-center"
+        className="w-7 h-7 flex items-center justify-center text-files-ink/40"
         aria-label="メニュー"
       >
-        <MoreHorizontal size={14} className="text-ink-sub" />
+        <MoreHorizontal size={15} />
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-20" onClick={(e) => { e.stopPropagation(); setOpen(false); }} />
-          <div className="absolute right-0 top-7 z-30 w-36 bg-app-surface border border-app-line rounded-xl overflow-hidden shadow-lg">
+          <div className="absolute right-0 top-8 z-30 w-32 bg-files-paper border border-files-ink/15 cut-corner-sm">
             <button
               onClick={(e) => { e.stopPropagation(); setOpen(false); onRename(); }}
-              className="w-full px-3 py-2.5 text-xs text-left"
+              className="w-full px-3.5 py-2.5 text-[12px] text-left font-sans tracking-wide text-files-ink"
             >
               名前を変更
             </button>
-            <div className="h-px bg-app-line" />
+            <div className="h-px bg-files-line" />
             <button
               onClick={(e) => { e.stopPropagation(); setOpen(false); onDelete(); }}
-              className="w-full px-3 py-2.5 text-xs text-left text-red-500"
+              className="w-full px-3.5 py-2.5 text-[12px] text-left font-sans tracking-wide text-files-indigo"
             >
               削除
             </button>
@@ -55,32 +70,22 @@ function TileMenu({ onRename, onDelete }) {
   );
 }
 
-function FileTile({ file, onClick, onRename, onDelete }) {
+// 資料庫の台帳のような1行。No.(通し番号)・標(フォルダ/ファイル種別)・
+// 名称(明朝)・付帯情報(日付/サイズ、細字サンセリフ)を、罫線一本で区切る。
+function ArchiveRow({ index, icon, title, meta, onClick, onRename, onDelete }) {
   return (
-    <div className="relative flex flex-col items-center text-center">
+    <div className="flex items-center gap-4 py-4 border-b border-files-line group">
+      <span className="w-6 shrink-0 text-[11px] font-sans text-files-ink/35 tabular-nums text-right">
+        {String(index + 1).padStart(2, "0")}
+      </span>
+      <button onClick={onClick} className="flex-1 min-w-0 flex items-center gap-4 text-left">
+        <span className="shrink-0 text-files-indigo">{icon}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-mincho text-[15px] leading-snug text-files-ink truncate">{title}</span>
+          <span className="block mt-0.5 text-[11px] font-sans tracking-wide text-files-ink/45">{meta}</span>
+        </span>
+      </button>
       {onRename && onDelete && <TileMenu onRename={onRename} onDelete={onDelete} />}
-      <button onClick={onClick} className="w-full flex flex-col items-center text-center">
-        <div className="w-full aspect-square rounded-xl bg-app-surface border border-app-line flex items-center justify-center mb-1.5">
-          <FileText size={28} className="text-ink-sub" />
-        </div>
-        <div className="text-xs w-full truncate">{file.name}</div>
-        <div className="text-[10px] text-ink-sub">{formatDate(file.createdAt)}{file.dataUrl ? ` ・ ${formatBytes(file.dataUrl)}` : ""}</div>
-      </button>
-    </div>
-  );
-}
-
-function FolderTile({ folder, count, onClick, onRename, onDelete }) {
-  return (
-    <div className="relative flex flex-col items-center text-center">
-      <TileMenu onRename={onRename} onDelete={onDelete} />
-      <button onClick={onClick} className="w-full flex flex-col items-center text-center">
-        <div className="w-full aspect-square flex items-center justify-center mb-1.5">
-          <Folder size={52} className="text-sky-400" fill="currentColor" fillOpacity={0.15} />
-        </div>
-        <div className="text-xs w-full truncate">{folder.name}</div>
-        <div className="text-[10px] text-ink-sub">{count}項目</div>
-      </button>
     </div>
   );
 }
@@ -236,50 +241,57 @@ export default function SearchPage({ setTab }) {
 
   return (
     <Layout title={currentFolder ? currentFolder.name : "Files"} current="search" setTab={setTab} hideSpaceSwitcher>
-      <div className="px-5">
-        {openFolderId && (
-          <button onClick={() => setOpenFolderId(null)} className="flex items-center gap-1 text-sm text-ink-sub mb-3">
-            <ChevronLeft size={16} /> Files
-          </button>
-        )}
+      <div className="bg-files-paper -mx-5 px-5 pb-24" style={{ minHeight: "calc(100vh - 200px)" }}>
+        {/* 見出し: 台帳の表紙のような扱い。細い罫線一本で下を区切る */}
+        <div className="pt-2 pb-6 border-b border-files-ink/15">
+          {openFolderId ? (
+            <button onClick={() => setOpenFolderId(null)} className="flex items-center gap-1.5 text-[11px] font-sans tracking-widest text-files-ink/45 mb-3">
+              <ChevronLeft size={13} /> ARCHIVE
+            </button>
+          ) : (
+            <p className="text-[11px] font-sans tracking-[0.2em] text-files-ink/45 mb-2">ARCHIVE</p>
+          )}
+          <h1 className="font-mincho text-[26px] leading-tight text-files-ink">
+            {currentFolder ? currentFolder.name : "資料庫"}
+          </h1>
+        </div>
 
-        <div className="flex items-center gap-2 mb-4">
-          <div className="flex-1 relative">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-sub" />
-            <input
-              type="text"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="検索"
-              className="w-full rounded-full bg-app-surface px-4 py-2.5 pl-10 text-sm outline-none"
-            />
-          </div>
+        {/* 検索: 下線のみのミニマルな一行。虫眼鏡は小さく添える程度 */}
+        <div className="flex items-center gap-3 py-4 border-b border-files-line">
+          <Search size={14} className="text-files-ink/35 shrink-0" />
+          <input
+            type="text"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="検索"
+            className="flex-1 bg-transparent text-[13px] font-sans tracking-wide text-files-ink placeholder:text-files-ink/35 outline-none"
+          />
           <div className="relative shrink-0">
             <button
               onClick={() => setAddMenuOpen((v) => !v)}
-              className="w-9 h-9 rounded-full bg-app-raised text-ink flex items-center justify-center"
-              aria-label="メニュー"
+              className="w-7 h-7 flex items-center justify-center text-files-indigo border border-files-ink/20 cut-corner-sm"
+              aria-label="追加"
             >
-              <Plus size={18} />
+              <Plus size={14} />
             </button>
             {addMenuOpen && (
               <>
                 <div className="fixed inset-0 z-20" onClick={() => setAddMenuOpen(false)} />
-                <div className="absolute right-0 top-11 z-30 w-44 bg-app-surface border border-app-line rounded-2xl overflow-hidden shadow-lg">
+                <div className="absolute right-0 top-9 z-30 w-44 bg-files-paper border border-files-ink/15 cut-corner">
                   <button
                     onClick={() => { setAddMenuOpen(false); fileInputRef.current?.click(); }}
-                    className="w-full flex items-center gap-2 px-4 py-3 text-sm text-left"
+                    className="w-full flex items-center gap-2.5 px-4 py-3 text-[12px] font-sans tracking-wide text-left text-files-ink"
                   >
-                    <FileText size={16} /> ファイルを追加
+                    <FileText size={13} className="text-files-ink/50" /> ファイルを追加
                   </button>
                   {!openFolderId && (
                     <>
-                      <div className="h-px bg-app-line" />
+                      <div className="h-px bg-files-line" />
                       <button
                         onClick={() => { setAddMenuOpen(false); setNewFolderOpen(true); }}
-                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-left"
+                        className="w-full flex items-center gap-2.5 px-4 py-3 text-[12px] font-sans tracking-wide text-left text-files-ink"
                       >
-                        <Folder size={16} /> 新規フォルダ
+                        <FolderMark size={13} /> 新規フォルダ
                       </button>
                     </>
                   )}
@@ -291,67 +303,73 @@ export default function SearchPage({ setTab }) {
         </div>
 
         {uploadStatus && (
-          <p className={`text-xs mb-4 ${uploadStatus.type === "ok" ? "text-green-600" : "text-red-500"}`}>
+          <p className={`text-[11px] font-sans tracking-wide mt-3 ${uploadStatus.type === "ok" ? "text-files-indigo" : "text-red-700"}`}>
             {uploadStatus.text}
           </p>
         )}
 
+        {/* 一覧: 台帳形式。フォルダを先に、次いでファイルを通し番号で並べる */}
         {openFolderId ? (
-          <>
-            {filteredFolderFiles.length === 0 ? (
-              <p className="text-ink-sub text-sm mt-8 text-center">まだファイルがありません</p>
-            ) : (
-              <div className="grid grid-cols-3 gap-4">
-                {filteredFolderFiles.map((f) => (
-                  <FileTile key={f.id} file={f} onClick={() => openFile(f)} onRename={() => startRenameFile(f)} onDelete={() => handleDeleteFile(f)} />
-                ))}
-              </div>
-            )}
-          </>
+          filteredFolderFiles.length === 0 ? (
+            <p className="text-[12px] font-sans tracking-wide text-files-ink/40 mt-10 text-center">まだ何も収められていません</p>
+          ) : (
+            <div className="mt-1">
+              {filteredFolderFiles.map((f, i) => (
+                <ArchiveRow
+                  key={f.id}
+                  index={i}
+                  icon={<FileText size={16} strokeWidth={1.4} />}
+                  title={f.name}
+                  meta={`${formatDate(f.createdAt)}${f.dataUrl ? `　${formatBytes(f.dataUrl)}` : ""}`}
+                  onClick={() => openFile(f)}
+                  onRename={() => startRenameFile(f)}
+                  onDelete={() => handleDeleteFile(f)}
+                />
+              ))}
+            </div>
+          )
         ) : (
           <>
-            {filteredFolders.length > 0 && (
-              <div className="grid grid-cols-3 gap-4 mb-6">
-                {filteredFolders.map((folder) => (
-                  <FolderTile
+            {filteredRootFiles.length === 0 && filteredFolders.length === 0 ? (
+              <p className="text-[12px] font-sans tracking-wide text-files-ink/40 mt-10 text-center">まだ何も収められていません</p>
+            ) : (
+              <div className="mt-1">
+                {filteredFolders.map((folder, i) => (
+                  <ArchiveRow
                     key={folder.id}
-                    folder={folder}
-                    count={libraryFiles.filter((f) => f.folderId === folder.id).length}
+                    index={i}
+                    icon={<FolderMark size={17} />}
+                    title={folder.name}
+                    meta={`${libraryFiles.filter((f) => f.folderId === folder.id).length}項目`}
                     onClick={() => setOpenFolderId(folder.id)}
                     onRename={() => startRenameFolder(folder)}
                     onDelete={() => handleDeleteFolder(folder)}
                   />
                 ))}
+                {filteredRootFiles.map((f, i) => (
+                  <ArchiveRow
+                    key={f.id || `c${i}`}
+                    index={filteredFolders.length + i}
+                    icon={<FileText size={16} strokeWidth={1.4} />}
+                    title={f.name}
+                    meta={f.source ? f.source : `${formatDate(f.createdAt)}${f.dataUrl ? `　${formatBytes(f.dataUrl)}` : ""}`}
+                    onClick={() => openFile(f)}
+                    onRename={f.id ? () => startRenameFile(f) : undefined}
+                    onDelete={f.id ? () => handleDeleteFile(f) : undefined}
+                  />
+                ))}
               </div>
-            )}
-
-            {filteredRootFiles.length === 0 && filteredFolders.length === 0 ? (
-              <p className="text-ink-sub text-sm mt-8 text-center">まだファイルがありません</p>
-            ) : (
-              filteredRootFiles.length > 0 && (
-                <div className="grid grid-cols-3 gap-4">
-                  {filteredRootFiles.map((f, i) => (
-                    <FileTile
-                      key={f.id || i}
-                      file={f}
-                      onClick={() => openFile(f)}
-                      onRename={f.id ? () => startRenameFile(f) : undefined}
-                      onDelete={f.id ? () => handleDeleteFile(f) : undefined}
-                    />
-                  ))}
-                </div>
-              )
             )}
           </>
         )}
       </div>
 
       {newFolderOpen && (
-        <div className="fixed inset-0 z-40 flex items-end bg-black/30" onClick={() => setNewFolderOpen(false)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full bg-app-surface rounded-t-3xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold">新規フォルダ</h2>
-              <button onClick={() => setNewFolderOpen(false)} className="text-ink-sub"><X size={18} /></button>
+        <div className="fixed inset-0 z-40 flex items-end bg-files-ink/30" onClick={() => setNewFolderOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full bg-files-paper cut-corner p-7">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-mincho text-[17px] text-files-ink">新規フォルダ</h2>
+              <button onClick={() => setNewFolderOpen(false)} className="text-files-ink/40"><X size={17} /></button>
             </div>
             <input
               value={newFolderName}
@@ -359,39 +377,39 @@ export default function SearchPage({ setTab }) {
               onKeyDown={(e) => { if (e.key === "Enter") handleCreateFolder(); }}
               placeholder="フォルダ名"
               autoFocus
-              className="w-full rounded-xl border border-app-line px-4 py-3 text-sm outline-none mb-4"
+              className="w-full border-b border-files-line pb-2.5 text-[14px] font-sans text-files-ink outline-none mb-6 bg-transparent"
             />
             <button
               onClick={handleCreateFolder}
               disabled={!newFolderName.trim()}
-              className="w-full h-12 rounded-full bg-ink text-app-bg text-sm font-semibold disabled:opacity-30"
+              className="w-full h-11 bg-files-indigo text-files-paper text-[12px] font-sans tracking-widest cut-corner-sm disabled:opacity-25"
             >
-              作成
+              作成する
             </button>
           </div>
         </div>
       )}
 
       {renameTarget && (
-        <div className="fixed inset-0 z-40 flex items-end bg-black/30" onClick={() => setRenameTarget(null)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full bg-app-surface rounded-t-3xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold">名前を変更</h2>
-              <button onClick={() => setRenameTarget(null)} className="text-ink-sub"><X size={18} /></button>
+        <div className="fixed inset-0 z-40 flex items-end bg-files-ink/30" onClick={() => setRenameTarget(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full bg-files-paper cut-corner p-7">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-mincho text-[17px] text-files-ink">名前を変更</h2>
+              <button onClick={() => setRenameTarget(null)} className="text-files-ink/40"><X size={17} /></button>
             </div>
             <input
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") commitRename(); }}
               autoFocus
-              className="w-full rounded-xl border border-app-line px-4 py-3 text-sm outline-none mb-4"
+              className="w-full border-b border-files-line pb-2.5 text-[14px] font-sans text-files-ink outline-none mb-6 bg-transparent"
             />
             <button
               onClick={commitRename}
               disabled={!renameValue.trim()}
-              className="w-full h-12 rounded-full bg-ink text-app-bg text-sm font-semibold disabled:opacity-30"
+              className="w-full h-11 bg-files-indigo text-files-paper text-[12px] font-sans tracking-widest cut-corner-sm disabled:opacity-25"
             >
-              保存
+              保存する
             </button>
           </div>
         </div>

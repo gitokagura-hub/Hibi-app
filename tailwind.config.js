@@ -8,6 +8,7 @@ export default {
           '-apple-system', 'BlinkMacSystemFont', '"Hiragino Sans"', '"Hiragino Kaku Gothic ProN"',
           '"Segoe UI"', 'system-ui', 'sans-serif',
         ],
+        mincho: ['"Zen Old Mincho"', '"Hiragino Mincho ProN"', 'serif'],
       },
       fontSize: {
         base: ['16.5px', { lineHeight: '1.5' }],
@@ -36,6 +37,12 @@ export default {
           6: "var(--pill-6)",
           7: "var(--pill-7)",
           8: "var(--pill-8)",
+        },
+        files: {
+          paper: "var(--files-paper)",
+          ink: "var(--files-ink)",
+          indigo: "var(--files-indigo)",
+          line: "var(--files-line)",
         },
       },
     },
