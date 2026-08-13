@@ -23,7 +23,7 @@
 
   /* Files画面専用トークン(和モダン×建築図面×工業製品)。
      アプリ全体のトークンとは独立させ、Files画面のみに適用する。 */
-  --files-paper: #F0EFEA;
+  --files-paper: #FFFFFF;
   --files-ink: #1C1C1A;
   --files-indigo: #2B4257;
   --files-line: #D8D5CC;
