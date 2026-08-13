@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from "react";
-import { FileText, Folder, Plus, ChevronLeft, X } from "lucide-react";
+import { FileText, Folder, Plus, ChevronLeft, X, Search } from "lucide-react";
 import { Layout } from "../components";
 import { useData, fileToDataUrl } from "../dataStore";
 
@@ -164,7 +164,7 @@ export default function SearchPage({ setTab }) {
   }
 
   return (
-    <Layout title={currentFolder ? currentFolder.name : "Files"} current="search" setTab={setTab}>
+    <Layout title={currentFolder ? currentFolder.name : "Files"} current="search" setTab={setTab} hideSpaceSwitcher>
       <div className="px-5">
         {openFolderId && (
           <button onClick={() => setOpenFolderId(null)} className="flex items-center gap-1 text-sm text-ink-sub mb-3">
@@ -173,13 +173,16 @@ export default function SearchPage({ setTab }) {
         )}
 
         <div className="flex items-center gap-2 mb-4">
-          <input
-            type="text"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="検索"
-            className="flex-1 rounded-xl bg-app-surface border border-app-line px-4 py-2.5 text-sm outline-none"
-          />
+          <div className="flex-1 relative">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-sub" />
+            <input
+              type="text"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="検索"
+              className="w-full rounded-full bg-app-surface px-4 py-2.5 pl-10 text-sm outline-none"
+            />
+          </div>
           <div className="relative shrink-0">
             <button
               onClick={() => setAddMenuOpen((v) => !v)}

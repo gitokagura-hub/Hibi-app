@@ -11,7 +11,7 @@ import SpaceSwitcher from "./SpaceSwitcher";
 // 監視するだけなので、毎フレームの計算が無くスクロールが重くならない。
 const BAR_H = 44; // コンパクトバーの高さ(px)
 
-export default function Layout({ title, subtitle, current, setTab, barLeft, barRight, children }) {
+export default function Layout({ title, subtitle, current, setTab, barLeft, barRight, hideSpaceSwitcher, children }) {
   const mainRef = useRef(null);
   const sentinelRef = useRef(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -65,7 +65,7 @@ export default function Layout({ title, subtitle, current, setTab, barLeft, barR
         </header>
         {/* 番兵: ここがバーの下に潜ったら collapsed */}
         <div ref={sentinelRef} className="h-px" />
-        <SpaceSwitcher />
+        {!hideSpaceSwitcher && <SpaceSwitcher />}
         {children}
       </main>
 
