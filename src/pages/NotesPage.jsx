@@ -612,8 +612,8 @@ function FullScreenComposer({
       </button>
 
       <div ref={mainRef} className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
-        <header className="px-5 pb-3" style={{ paddingTop: `calc(env(safe-area-inset-top) + ${COMPOSER_BAR_H}px)` }}>
-          <h1 className="text-[28px] leading-tight font-bold tracking-tight mb-3">{titleText}</h1>
+        <header className="px-5 pb-3 flex items-center justify-between" style={{ paddingTop: `calc(env(safe-area-inset-top) + ${COMPOSER_BAR_H}px)` }}>
+          <h1 className="text-[28px] leading-tight font-bold tracking-tight">{titleText}</h1>
           <div className="flex items-center gap-2">
             <button onClick={onAIAssist} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center" aria-label="AIに頼む"><Sparkles size={15} /></button>
             <button onClick={onVoice} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center" aria-label="ボイチャ"><Mic size={15} /></button>
