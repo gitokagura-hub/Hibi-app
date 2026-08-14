@@ -619,6 +619,9 @@ function FullScreenComposer({
             <button onClick={onVoice} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center" aria-label="ボイチャ"><Mic size={15} /></button>
             <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center" aria-label="ファイル"><Paperclip size={15} /></button>
             <button onClick={() => photoInputRef.current?.click()} disabled={uploading} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center" aria-label="写真"><Camera size={15} /></button>
+            <button onClick={() => setIsTextFullscreen((v) => !v)} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center text-ink-sub" aria-label={isTextFullscreen ? "縮小" : "拡大"}>
+              {isTextFullscreen ? <Shrink size={15} /> : <Expand size={15} />}
+            </button>
           </div>
         </header>
         {/* 番兵: ここがバーの下に潜ったら collapsed */}
@@ -633,13 +636,6 @@ function FullScreenComposer({
             placeholder="思いつきやアイデアを書き出す（壁打ち）..."
             className="w-full px-5 py-4 text-[16px] outline-none resize-none block"
           />
-          <button
-            onClick={() => setIsTextFullscreen((v) => !v)}
-            className="absolute top-2 right-3 w-8 h-8 rounded-full bg-app-surface border border-app-line flex items-center justify-center text-ink-sub"
-            aria-label={isTextFullscreen ? "縮小" : "拡大"}
-          >
-            {isTextFullscreen ? <Shrink size={14} /> : <Expand size={14} />}
-          </button>
         </div>
 
         <div className="px-5">
