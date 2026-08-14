@@ -660,7 +660,9 @@ function FullScreenComposer({
           )}
         </div>
 
-        <div className="px-5 pb-8 pt-4 border-t border-app-line" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
+        <div className="min-h-[12vh]" />
+
+        <div className="px-5 pb-8 pt-6 border-t border-app-line" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
           <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={onPickPhoto} className="hidden" />
           <input ref={fileInputRef} type="file" multiple onChange={onPickFile} className="hidden" />
           <div className="flex gap-2">
