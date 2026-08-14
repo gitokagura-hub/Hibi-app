@@ -535,7 +535,7 @@ function FullScreenComposer({
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.max(el.scrollHeight, 160)}px`;
+    el.style.height = `${Math.max(el.scrollHeight, window.innerHeight * 0.35)}px`;
   }, [text]);
 
   // Layout.jsxのラージタイトル方式と同じパターン(IntersectionObserver+
@@ -659,8 +659,6 @@ function FullScreenComposer({
             </div>
           )}
         </div>
-
-        <div className="min-h-[12vh]" />
 
         <div className="px-5 pb-8 pt-6 border-t border-app-line" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
           <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={onPickPhoto} className="hidden" />
