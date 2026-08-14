@@ -14,7 +14,10 @@ function getMonthGrid(y, m) {
   const cells = [];
   for (let i = 0; i < startWeekday; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-  while (cells.length < 42) cells.push(null);
+  // 最後の週を7の倍数まで埋めたら終わり(6週目が丸々空になる月では、
+  // その空白行を作らない。以前は常に42マス固定だったため、8月の
+  // ように5週間で収まる月でも6週目分の空白が下に残っていた)。
+  while (cells.length % 7 !== 0) cells.push(null);
   return cells;
 }
 

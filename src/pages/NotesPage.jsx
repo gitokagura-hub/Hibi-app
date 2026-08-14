@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Copy, Check, ChevronLeft } from "lucide-react";
+import { Copy, Check, ChevronLeft, Sparkles, Mic, Paperclip, Camera } from "lucide-react";
 import { Layout, AIConnections } from "../components";
 import { useData, todayStr, fileToCompressedDataUrl, fileToDataUrl, formatDateTime } from "../dataStore";
 import { runAIOnNote } from "../aiAssist";
@@ -650,17 +650,17 @@ function FullScreenComposer({
 
         <div className="px-5 pb-8" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
           <div className="flex items-center gap-2 border-t border-app-line pt-3 mb-3">
-            <button onClick={onAIAssist} className="rounded-xl border px-2.5 py-1.5 text-xs bg-app-surface whitespace-nowrap">✨ AIに頼む</button>
-            <button onClick={onVoice} className="rounded-xl border px-2.5 py-1.5 text-xs bg-app-surface whitespace-nowrap">🎤 ボイチャ</button>
-            <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="rounded-xl border px-2.5 py-1.5 text-xs bg-app-surface whitespace-nowrap">📎 ファイル</button>
-            <button onClick={() => photoInputRef.current?.click()} disabled={uploading} className="rounded-xl border px-2.5 py-1.5 text-xs bg-app-surface whitespace-nowrap">📷 写真</button>
+            <button onClick={onAIAssist} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center" aria-label="AIに頼む"><Sparkles size={15} /></button>
+            <button onClick={onVoice} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center" aria-label="ボイチャ"><Mic size={15} /></button>
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center" aria-label="ファイル"><Paperclip size={15} /></button>
+            <button onClick={() => photoInputRef.current?.click()} disabled={uploading} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center" aria-label="写真"><Camera size={15} /></button>
           </div>
           <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={onPickPhoto} className="hidden" />
           <input ref={fileInputRef} type="file" multiple onChange={onPickFile} className="hidden" />
           <div className="flex gap-2">
-            <button onClick={onSave} className="flex-1 rounded-xl border px-4 py-3 text-sm font-semibold">保存</button>
+            <button onClick={onSave} className="flex-1 rounded-xl bg-app-surface border border-app-line px-4 py-3 text-sm font-semibold">保存</button>
             {!isEditing && (
-              <button onClick={onSend} className="flex-1 rounded-xl bg-ink text-app-bg px-4 py-3 text-sm font-semibold">📤 Send</button>
+              <button onClick={onSend} className="flex-1 rounded-xl bg-app-surface border border-app-line px-4 py-3 text-sm font-semibold">Send</button>
             )}
           </div>
         </div>
