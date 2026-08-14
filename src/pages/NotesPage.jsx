@@ -582,9 +582,7 @@ function FullScreenComposer({
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
         <div className="relative flex items-center justify-between px-2" style={{ height: COMPOSER_BAR_H }}>
-          <button onClick={onClose} className="flex items-center min-w-[44px] text-accent-yellow p-2" aria-label="閉じる">
-            <ChevronLeft size={22} />
-          </button>
+          <div className="min-w-[44px]" />
           <span
             className={`absolute left-1/2 -translate-x-1/2 text-[15px] font-semibold transition-opacity duration-200 ${
               collapsed ? "opacity-100" : "opacity-0"
@@ -602,9 +600,23 @@ function FullScreenComposer({
         </div>
       </div>
 
+      <button
+        onClick={onClose}
+        className="fixed bottom-6 right-5 z-40 w-11 h-11 rounded-full bg-sky-100/90 backdrop-blur border border-sky-200 flex items-center justify-center shadow-sm"
+        aria-label="戻る"
+      >
+        <ChevronLeft size={18} className="text-sky-700" />
+      </button>
+
       <div ref={mainRef} className="flex-1 overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
-        <header className="px-5 pb-2" style={{ paddingTop: `calc(env(safe-area-inset-top) + ${COMPOSER_BAR_H}px)` }}>
+        <header className="px-5 pb-3 flex items-center justify-between" style={{ paddingTop: `calc(env(safe-area-inset-top) + ${COMPOSER_BAR_H}px)` }}>
           <h1 className="text-[28px] leading-tight font-bold tracking-tight">{titleText}</h1>
+          <div className="flex items-center gap-2">
+            <button onClick={onAIAssist} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center" aria-label="AIに頼む"><Sparkles size={15} /></button>
+            <button onClick={onVoice} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center" aria-label="ボイチャ"><Mic size={15} /></button>
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center" aria-label="ファイル"><Paperclip size={15} /></button>
+            <button onClick={() => photoInputRef.current?.click()} disabled={uploading} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center" aria-label="写真"><Camera size={15} /></button>
+          </div>
         </header>
         {/* 番兵: ここがバーの下に潜ったら collapsed */}
         <div ref={sentinelRef} className="h-px" />
@@ -648,13 +660,7 @@ function FullScreenComposer({
           )}
         </div>
 
-        <div className="px-5 pb-8" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
-          <div className="flex items-center gap-2 border-t border-app-line pt-3 mb-3">
-            <button onClick={onAIAssist} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center" aria-label="AIに頼む"><Sparkles size={15} /></button>
-            <button onClick={onVoice} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center" aria-label="ボイチャ"><Mic size={15} /></button>
-            <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center" aria-label="ファイル"><Paperclip size={15} /></button>
-            <button onClick={() => photoInputRef.current?.click()} disabled={uploading} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center" aria-label="写真"><Camera size={15} /></button>
-          </div>
+        <div className="px-5 pb-8 pt-4 border-t border-app-line" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
           <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={onPickPhoto} className="hidden" />
           <input ref={fileInputRef} type="file" multiple onChange={onPickFile} className="hidden" />
           <div className="flex gap-2">
