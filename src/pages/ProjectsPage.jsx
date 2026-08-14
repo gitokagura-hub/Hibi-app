@@ -293,9 +293,6 @@ export default function ProjectsPage({ setTab }) {
                             onChange={(e) => { handleGalleryUpload(p, e.target.files); e.target.value = ""; }}
                           />
 
-                          {!isDriveConnected() && (
-                            <p className="text-[11px] text-ink-sub">SettingsでGoogle Driveと連携すると使えます</p>
-                          )}
                           {galleryError[p.id] && <p className="text-[11px] text-red-500">{galleryError[p.id]}</p>}
 
                           {p.driveFiles && p.driveFiles.length > 0 && (
