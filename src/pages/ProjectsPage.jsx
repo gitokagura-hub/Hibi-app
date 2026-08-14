@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Copy, Check, Trash2 } from "lucide-react";
+import { Copy, Check, Trash2, Paperclip, Camera } from "lucide-react";
 import { Layout } from "../components";
 import { useData, formatDateTime } from "../dataStore";
 import { handleEnterToConfirm } from "../useEnterConfirm";
@@ -228,8 +228,8 @@ export default function ProjectsPage({ setTab }) {
       <div className="px-5">
         <div className="rounded-3xl border border-app-line overflow-hidden mb-6">
           <div className="px-4 py-3 bg-app-surface border-b border-app-line flex items-center justify-between">
-            <span className="font-bold text-[15px]">項目名（プロジェクト名）</span>
-            <span className="text-xs text-ink-sub font-semibold">作成日</span>
+            <span className="font-bold text-[15px]">Item</span>
+            <span className="text-xs text-ink-sub font-semibold">Date</span>
           </div>
 
           {projects.length === 0 && (
@@ -256,33 +256,29 @@ export default function ProjectsPage({ setTab }) {
                 {isOpen && (
                   <div className="px-4 pb-5">
                     <div className="bg-app-raised rounded-2xl p-3.5">
-                      <div className="text-xs font-bold text-ink-sub mb-2">📂 連携ルーム・統合レイヤー</div>
-
-                      <div className="text-[13px] text-ink mb-3 space-y-1">
-                        <div>• [ノート連携] ノートから転送されたアイデアを{p.items.length}件格納</div>
-                        {isTeam && (
+                      {isTeam && (
+                        <div className="text-[13px] text-ink mb-3">
                           <div>• [作成者] {p.author || "名無し"}</div>
-                        )}
-                      </div>
+                        </div>
+                      )}
 
                       {/* File & photo gallery — backed by a real Drive folder (Personal: personal folder, Team: shared folder) */}
                       <div className="mb-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-bold text-ink-sub">📎 ファイル・写真</span>
+                          <div className="flex items-center justify-end mb-2">
                             <div className="flex gap-1.5">
                               <button
                                 onClick={() => fileInputRefs.current[p.id]?.click()}
                                 disabled={galleryUploading[p.id]}
-                                className="rounded-lg border px-2.5 py-1 text-xs bg-app-surface"
+                                className="w-8 h-8 rounded-full border bg-app-surface flex items-center justify-center"
                               >
-                                {galleryUploading[p.id] ? "…" : "📎 ファイル"}
+                                {galleryUploading[p.id] ? "…" : <Paperclip size={14} />}
                               </button>
                               <button
                                 onClick={() => photoInputRefs.current[p.id]?.click()}
                                 disabled={galleryUploading[p.id]}
-                                className="rounded-lg border px-2.5 py-1 text-xs bg-app-surface"
+                                className="w-8 h-8 rounded-full border bg-app-surface flex items-center justify-center"
                               >
-                                {galleryUploading[p.id] ? "…" : "📷 写真"}
+                                {galleryUploading[p.id] ? "…" : <Camera size={14} />}
                               </button>
                             </div>
                           </div>
@@ -336,7 +332,7 @@ export default function ProjectsPage({ setTab }) {
                           value={newMemoText[p.id] || ""}
                           onChange={(e) => setNewMemoText((prev) => ({ ...prev, [p.id]: e.target.value }))}
                           onKeyDown={(e) => handleEnterToConfirm(e, () => handleAddMemo(p.id), { allowShiftNewline: true })}
-                          placeholder="このプロジェクトに新しいメモを書く..."
+                          placeholder="テキスト"
                           className="w-full rounded-lg border p-2 text-xs bg-app-surface resize-none mb-1.5"
                           rows={2}
                         />
@@ -344,7 +340,7 @@ export default function ProjectsPage({ setTab }) {
                           onClick={() => handleAddMemo(p.id)}
                           className="w-full rounded-lg bg-ink text-app-bg text-xs font-semibold py-1.5"
                         >
-                          ＋ メモを追加
+                          Add
                         </button>
                       </div>
 
