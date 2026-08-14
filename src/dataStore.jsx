@@ -117,6 +117,11 @@ const DataContext = createContext(null);
 export function DataProvider({ children }) {
   const [data, setData] = useState(() => loadData());
   const [storageError, setStorageError] = useState(false);
+  // クラウド(D1)保存の失敗を可視化する。以前は .catch(() => {}) で完全に
+  // 握り潰しており、データサイズ超過などで恒久的に保存が失敗していても
+  // ユーザーに一切知らされず、端末のlocalStorageにしか残らない状態に
+  // なっていた(データ消失の温床)。
+  const [cloudError, setCloudError] = useState(null);
   const saveTimer = useRef(null);
   const initialLoad = useRef(true);
 
@@ -183,7 +188,19 @@ export function DataProvider({ children }) {
     saveTimer.current = setTimeout(() => {
       const ok = saveData(data);
       setStorageError(!ok);
-      saveCloud('brains', data).catch(() => {}); // オフライン時は無視、次回保存時に再挑戦
+      // データサイズを常に把握しておく。base64の写真/ファイルが増えると
+      // D1の1行あたりの上限に達し、以後の保存が恒久的に失敗するため。
+      const payload = JSON.stringify(data);
+      const sizeMB = payload.length / 1024 / 1024;
+      saveCloud('brains', data)
+        .then(() => setCloudError(null))
+        .catch((err) => {
+          setCloudError({
+            message: err?.message || 'クラウド保存に失敗しました',
+            sizeMB: sizeMB.toFixed(1),
+            at: Date.now(),
+          });
+        });
     }, 400);
     // Driveへの自動バックアップ(1分間操作が止まったら)。D1保存とは別のタイマーで、
     // 頻繁なDrive API呼び出しを避ける。Drive未連携時は何もしない。
@@ -626,6 +643,7 @@ export function DataProvider({ children }) {
   const value = {
     data,
     storageError,
+    cloudError,
     addTask, toggleTask, deleteTask, updateTask,
     addEvent, deleteEvent, updateEvent,
     getMemo, setMemo, addMemoImages, removeMemoImage, updateMemoImageCategories, addMemoFiles, removeMemoFile,

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import BottomNavigation from "./BottomNavigation";
 import SpaceSwitcher from "./SpaceSwitcher";
+import { useData } from "../dataStore";
 
 // iOS標準アプリの「ラージタイトル」挙動:
 // - 画面上部に細いバーが常駐(戻る/操作ボタン用のスロット付き)
@@ -15,6 +16,7 @@ export default function Layout({ title, subtitle, current, setTab, barLeft, barR
   const mainRef = useRef(null);
   const sentinelRef = useRef(null);
   const [collapsed, setCollapsed] = useState(false);
+  const { cloudError } = useData();
 
   useEffect(() => {
     if (mainRef.current) mainRef.current.scrollTop = 0;
@@ -56,9 +58,19 @@ export default function Layout({ title, subtitle, current, setTab, barLeft, barR
 
       {/* Content */}
       <main ref={mainRef} data-scroll-root className="flex-1 overflow-y-auto pb-24">
+        {cloudError && (
+          <div className="bg-red-600 text-white px-4 py-3 text-[13px] leading-snug" style={{ paddingTop: `calc(env(safe-area-inset-top) + ${BAR_H}px)` }}>
+            <p className="font-bold">⚠ クラウド保存に失敗しています</p>
+            <p className="mt-1 opacity-90">
+              この端末にしか保存されていません。データ量: {cloudError.sizeMB}MB
+              {Number(cloudError.sizeMB) > 5 && "（写真やファイルが多すぎる可能性があります）"}
+            </p>
+            <p className="mt-1 opacity-75 text-[11px]">{cloudError.message}</p>
+          </div>
+        )}
         <header
           className="bg-app-bg px-5 pb-2"
-          style={{ paddingTop: `calc(env(safe-area-inset-top) + ${BAR_H}px)` }}
+          style={{ paddingTop: cloudError ? "1rem" : `calc(env(safe-area-inset-top) + ${BAR_H}px)` }}
         >
           <h1 className="text-[34px] leading-tight font-bold tracking-tight">{title}</h1>
           {subtitle && <p className="mt-1 text-sm text-ink-sub">{subtitle}</p>}
