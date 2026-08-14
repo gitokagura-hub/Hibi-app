@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Copy, Check, ChevronLeft, Sparkles, Mic, Paperclip, Camera } from "lucide-react";
+import { Copy, Check, ChevronLeft, Sparkles, Mic, Paperclip, Camera, Expand, Shrink } from "lucide-react";
 import { Layout, AIConnections } from "../components";
 import { useData, todayStr, fileToCompressedDataUrl, fileToDataUrl, formatDateTime } from "../dataStore";
 import { runAIOnNote } from "../aiAssist";
@@ -527,16 +527,19 @@ function FullScreenComposer({
   const mainRef = useRef(null);
   const sentinelRef = useRef(null);
   const [copied, setCopied] = useState(false);
+  const [isTextFullscreen, setIsTextFullscreen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
   // 内容の長さに応じてtextareaの高さを自動調整する。固定rows数だと
   // 短いメモの下に大きな空白が残ったり、逆に長文が窮屈になったりする。
+  // フルスクリーン切り替え時は、最低高さを画面のほぼ全体に広げる。
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
+    const minRatio = isTextFullscreen ? 0.75 : 0.35;
     el.style.height = "auto";
-    el.style.height = `${Math.max(el.scrollHeight, window.innerHeight * 0.35)}px`;
-  }, [text]);
+    el.style.height = `${Math.max(el.scrollHeight, window.innerHeight * minRatio)}px`;
+  }, [text, isTextFullscreen]);
 
   // Layout.jsxのラージタイトル方式と同じパターン(IntersectionObserver+
   // 1px番兵)をこの独立モーダル内でも再現する。scrollイベント不使用。
@@ -621,14 +624,23 @@ function FullScreenComposer({
         {/* 番兵: ここがバーの下に潜ったら collapsed */}
         <div ref={sentinelRef} className="h-px" />
 
-        <textarea
-          ref={textareaRef}
-          autoFocus={!isEditing}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="思いつきやアイデアを書き出す（壁打ち）..."
-          className="w-full px-5 py-4 text-[16px] outline-none resize-none block"
-        />
+        <div className="relative">
+          <textarea
+            ref={textareaRef}
+            autoFocus={!isEditing}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="思いつきやアイデアを書き出す（壁打ち）..."
+            className="w-full px-5 py-4 text-[16px] outline-none resize-none block"
+          />
+          <button
+            onClick={() => setIsTextFullscreen((v) => !v)}
+            className="absolute top-2 right-3 w-8 h-8 rounded-full bg-app-surface border border-app-line flex items-center justify-center text-ink-sub"
+            aria-label={isTextFullscreen ? "縮小" : "拡大"}
+          >
+            {isTextFullscreen ? <Shrink size={14} /> : <Expand size={14} />}
+          </button>
+        </div>
 
         <div className="px-5">
           {pendingImages.length > 0 && (
