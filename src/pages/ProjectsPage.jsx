@@ -377,16 +377,6 @@ export default function ProjectsPage({ setTab }) {
                         </div>
                       )}
 
-                      <div className="flex gap-2">
-                        <button onClick={() => loadGallery(p)} className="border border-app-line rounded-lg px-3 py-1.5 text-xs font-semibold bg-app-surface">
-                          🔄 ギャラリー更新
-                        </button>
-                        {!isTeam && (
-                          <button onClick={() => setTab("calendar")} className="border border-app-line rounded-lg px-3 py-1.5 text-xs font-semibold bg-app-surface">
-                            📅 カレンダー連携
-                          </button>
-                        )}
-                      </div>
                     </div>
                   </div>
                 )}
