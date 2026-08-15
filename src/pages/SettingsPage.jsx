@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Layout } from "../components";
 import { useData } from "../dataStore";
-import { isDriveConfigured, isDriveConnected, wasDriveConnectedBefore, connectDrive, disconnectDrive, ensureDriveConnection, backupDataToDrive, restoreDataFromDrive } from "../googleDrive";
+import { isDriveConfigured, isDriveConnected, wasDriveConnectedBefore, connectDrive, disconnectDrive, ensureDriveConnection, backupDataToDrive } from "../googleDrive";
 import { isTeamConfigured, isTeamConnected, connectTeam, disconnectTeam, getAuthorName, setAuthorName } from "../googleSheets";
 import { useConfirm } from "../components/ConfirmModal";
 import { isPushSupported, wasPushSubscribedBefore, notificationPermission, subscribeToPush, unsubscribeFromPush, resetServiceWorker } from "../pushNotifications";
@@ -204,26 +204,6 @@ export default function SettingsPage({ setTab }) {
     }
   }
 
-  async function handleRestore() {
-    setBackupMessage("");
-    if (!driveConnected) {
-      setBackupMessage("先にGoogle Driveと連携してください");
-      return;
-    }
-    if (!(await confirm("Driveに保存されているバックアップで、現在のデータを上書きします。よろしいですか？", { confirmLabel: "復元する" }))) return;
-    setBackupBusy(true);
-    try {
-      const { data: restored, modifiedTime } = await restoreDataFromDrive();
-      replaceAllData(restored);
-      setBackupMessage("復元完了（バックアップ日時: " + new Date(modifiedTime).toLocaleString("ja-JP") + "）");
-    } catch (err) {
-      if (err.message === "NO_BACKUP") setBackupMessage("Driveにバックアップが見つかりませんでした");
-      else setBackupMessage("復元に失敗しました。もう一度お試しください。");
-    } finally {
-      setBackupBusy(false);
-    }
-  }
-
   return (
     <Layout title="Settings" current="settings" setTab={setTab}>
       <div className="px-5">
@@ -343,23 +323,16 @@ export default function SettingsPage({ setTab }) {
             <div className="p-4">
               <p className="text-sm text-ink-sub mb-3">
                 {driveConnected
-                  ? "カレンダー・ノート・プロジェクトのすべてのデータをGoogle Driveに保存・復元できます。"
+                  ? "カレンダー・ノート・プロジェクトのすべてのデータをGoogle Driveに保存します。変更があると自動でも保存されます。"
                   : "バックアップを使うには、まず上のGoogle Driveと連携してください。"}
               </p>
-              <div className="flex gap-2 mb-2">
+              <div className="mb-2">
                 <button
                   onClick={handleBackup}
                   disabled={!driveConnected || backupBusy}
-                  className="flex-1 rounded-xl border border-app-line px-4 py-2.5 text-sm font-semibold bg-app-surface disabled:opacity-40"
+                  className="w-full rounded-xl border border-app-line px-4 py-2.5 text-sm font-semibold bg-app-surface disabled:opacity-40"
                 >
                   {backupBusy ? "…" : "バックアップする"}
-                </button>
-                <button
-                  onClick={handleRestore}
-                  disabled={!driveConnected || backupBusy}
-                  className="flex-1 rounded-xl border border-app-line px-4 py-2.5 text-sm font-semibold bg-app-surface disabled:opacity-40"
-                >
-                  {backupBusy ? "…" : "復元する"}
                 </button>
               </div>
               {backupMessage && <p className="text-xs text-ink-sub mt-1">{backupMessage}</p>}
@@ -472,10 +445,10 @@ export default function SettingsPage({ setTab }) {
               ※ 使うには、先に「Google Drive 連携」が必要です。Team空間ではまだ使えません（Personalのみ）。
             </UsageItem>
 
-            <UsageItem title="③ データのバックアップ・復元">
-              「データのバックアップ」から、カレンダー・ノート・プロジェクトの全データをGoogle Driveに保存できます。
+            <UsageItem title="③ データのバックアップ">
+              「データのバックアップ」から、カレンダー・ノート・プロジェクトの全データをGoogle Driveに保存できます。変更があると自動でも保存されます。
               <br /><br />
-              アプリを消してしまった、機種変更した、という時は「復元する」を押せば元に戻ります（Google Drive連携が必要です）。
+              写真やファイルはDrive上に実体が残るため、一覧が消えてしまった場合は「Driveの写真を取り込む」で戻せます。
             </UsageItem>
 
             <UsageItem title="④ まだ使えない機能">
