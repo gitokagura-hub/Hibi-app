@@ -5,6 +5,7 @@ import { handleEnterToConfirm } from "../useEnterConfirm";
 import BottomNavigation from "../components/BottomNavigation";
 import SpaceSwitcher from "../components/SpaceSwitcher";
 import { useConfirm } from "../components/ConfirmModal";
+import MediaImg from "../components/MediaImg";
 
 function pad(n) { return String(n).padStart(2, "0"); }
 function fmt(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
@@ -533,7 +534,7 @@ export default function CalendarPage({ setTab }) {
             <div className="flex gap-2 overflow-x-auto mb-3">
               {memo.images.map((src, i) => (
                 <div key={i} className="relative flex-shrink-0">
-                  <img src={src} alt="" className="w-20 h-20 object-cover rounded-xl border" />
+                  <MediaImg src={src} alt="" className="w-20 h-20 object-cover rounded-xl border" />
                   <button onClick={() => (isTeam ? removeTeamMemoImageAction(selectedDate, i) : removeMemoImage(selectedDate, i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-ink text-app-bg text-xs flex items-center justify-center">×</button>
                 </div>
               ))}

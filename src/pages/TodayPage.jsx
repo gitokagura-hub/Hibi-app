@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { Layout } from "../components";
 import { useData, todayStr, fileToCompressedDataUrl } from "../dataStore";
+import MediaImg from "../components/MediaImg";
 
 const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -86,7 +87,7 @@ export default function TodayPage({ setTab }) {
           <div className="flex gap-2 overflow-x-auto mb-3">
             {memo.images.map((src, i) => (
               <div key={i} className="relative flex-shrink-0">
-                <img src={src} alt="" className="w-16 h-16 object-cover rounded-xl border" />
+                <MediaImg src={src} alt="" className="w-16 h-16 object-cover rounded-xl border" />
                 <button
                   onClick={() => removeMemoImage(today, i)}
                   className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-ink text-app-bg text-xs flex items-center justify-center"

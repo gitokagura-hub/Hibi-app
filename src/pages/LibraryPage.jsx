@@ -3,6 +3,7 @@ import { ChevronLeft, Image as ImageIcon, Plus, Camera, Tag } from "lucide-react
 import { useData, fileToCompressedDataUrl } from "../dataStore";
 import { useSwipeBack } from "../useSwipeBack";
 import { handleEnterToConfirm } from "../useEnterConfirm";
+import MediaImg from "../components/MediaImg";
 
 // Library-only tagging: kept entirely separate from Notes/Calendar/Projects
 // data so tagging can never affect those screens. Keyed by the image's src
@@ -299,7 +300,7 @@ export default function LibraryPage({ onHome }) {
                   className="w-full h-full block"
                   title={img.source}
                 >
-                  <img src={img.src} alt={img.source} className="w-full h-full object-cover" />
+                  <MediaImg src={img.src} alt={img.source} className="w-full h-full object-cover" />
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); resetViewportZoom(); setTaggingSrc(img.src); }}
@@ -527,7 +528,7 @@ function PhotoViewerModal({ images, index, setIndex, commentMap, setCommentMap, 
           {[index - 1, index, index + 1].map((i) => (
             <div key={i} className="w-screen shrink-0 flex items-center justify-center p-2">
               {images[i] && (
-                <img
+                <MediaImg
                   ref={i === index ? imgRef : undefined}
                   src={images[i].src}
                   alt=""

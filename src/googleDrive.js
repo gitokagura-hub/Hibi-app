@@ -184,6 +184,72 @@ export async function uploadImage(file) {
   return data.id;
 }
 
+// ---- 写真・ファイルの実体をDriveに置くための仕組み ----
+//
+// これまで写真とファイルはbase64のままアプリのデータ本体(1つのJSON)に埋め込まれており、
+// D1の1行あたり2MB上限を超えた時点でクラウド保存が恒久的に失敗する作りだった
+// (2026-08-15に実際に発生: データ量2.4MB / cloud save failed: 500)。
+// 実体はDriveに1ファイルずつ置き、データ本体には参照(drive:ファイルID)だけを持たせる。
+
+const MEDIA_FOLDER_CACHE_KEY = 'hibi-drive-media-folder-id';
+
+// 「Daily Brains」フォルダの下に「Media」サブフォルダを用意して、そこに実体を置く。
+// メインのフォルダが写真で埋まらないように分けている。
+export async function ensureMediaFolder() {
+  const token = requireToken();
+  const cached = localStorage.getItem(MEDIA_FOLDER_CACHE_KEY);
+  if (cached) {
+    const check = await fetch(`https://www.googleapis.com/drive/v3/files/${cached}?fields=id,trashed`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (check.ok) {
+      const checkData = await check.json();
+      if (!checkData.trashed) return cached;
+    }
+  }
+
+  const parentId = await ensureAppFolder('Daily Brains');
+  const q = encodeURIComponent(
+    `name='Media' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`
+  );
+  const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const searchData = await searchRes.json();
+  if (searchData.files && searchData.files.length > 0) {
+    localStorage.setItem(MEDIA_FOLDER_CACHE_KEY, searchData.files[0].id);
+    return searchData.files[0].id;
+  }
+
+  const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Media', mimeType: 'application/vnd.google-apps.folder', parents: [parentId] }),
+  });
+  const createData = await createRes.json();
+  localStorage.setItem(MEDIA_FOLDER_CACHE_KEY, createData.id);
+  return createData.id;
+}
+
+// BlobでもFileでも受け取れるようにしている(写真は圧縮後のBlobになるため、
+// Fileと違ってnameを持たない)。戻り値はDriveのファイルID。
+export async function uploadMedia(blob, name) {
+  const token = requireToken();
+  const folderId = await ensureMediaFolder();
+  const metadata = { name: `${Date.now()}-${name}`, parents: [folderId] };
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', blob);
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) throw new Error('UPLOAD_FAILED');
+  const data = await res.json();
+  return data.id;
+}
+
 export async function getImageUrl(fileId) {
   if (blobUrlCache.has(fileId)) return blobUrlCache.get(fileId);
   const token = requireToken();

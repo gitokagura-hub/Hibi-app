@@ -4,9 +4,12 @@ import { Layout } from "../components";
 import { useConfirm } from "../components/ConfirmModal";
 import { useData, fileToDataUrl } from "../dataStore";
 import { handleEnterToConfirm } from "../useEnterConfirm";
+import { resolveMedia, isDriveRef } from "../media";
 
 function formatBytes(dataUrl) {
   if (!dataUrl) return "";
+  // "drive:ID" は参照だけでサイズ情報を持たない(実体はDrive上)。
+  if (dataUrl.startsWith("drive:")) return "";
   // data:xxx;base64,yyyy... のyyyy部分の長さからおおよそのバイト数を逆算
   const base64 = dataUrl.split(",")[1] || "";
   const bytes = Math.floor((base64.length * 3) / 4);
@@ -217,7 +220,19 @@ export default function SearchPage({ setTab }) {
 
   async function openFile(f) {
     if (!f.dataUrl) return;
-    const blob = dataUrlToBlob(f.dataUrl);
+    // "drive:ID" の場合はDriveから実体を取得する。旧base64はそのまま変換する。
+    let blob;
+    if (isDriveRef(f.dataUrl)) {
+      try {
+        const url = await resolveMedia(f.dataUrl);
+        blob = await (await fetch(url)).blob();
+      } catch {
+        alert("ファイルを取得できませんでした。");
+        return;
+      }
+    } else {
+      blob = dataUrlToBlob(f.dataUrl);
+    }
     const type = blob.type || "";
 
     // PDF/画像はSafariがネイティブにプレビューできるため、共有シートを

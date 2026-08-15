@@ -4,6 +4,8 @@ import { Layout, AIConnections } from "../components";
 import { useData, todayStr, fileToCompressedDataUrl, fileToDataUrl, formatDateTime } from "../dataStore";
 import { runAIOnNote } from "../aiAssist";
 import { useConfirm } from "../components/ConfirmModal";
+import MediaImg from "../components/MediaImg";
+import { resolveMedia, isDriveRef } from "../media";
 
 function deriveTitle(text) {
   const firstLine = text.split("\n")[0];
@@ -196,7 +198,7 @@ function PhotoViewer({ images, initialIndex = 0, onClose }) {
         {[index - 1, index, index + 1].map((i) => (
           <div key={i} className="w-screen h-full flex items-center justify-center p-8 shrink-0">
             {list[i] && (
-              <img
+              <MediaImg
                 src={list[i]}
                 alt=""
                 draggable={false}
@@ -261,7 +263,7 @@ function PhotoThumb({ src, images, index = 0, onDelete, confirm, size = "w-24 h-
 
   return (
     <>
-      <img
+      <MediaImg
         src={src}
         alt=""
         className={`${size} object-cover rounded-xl border flex-shrink-0`}
@@ -290,7 +292,9 @@ function PdfPreview({ file }) {
       // data:application/pdf;base64,xxxx... をBlobに変換してobject URLを作る。
       // iOS Safariはiframe src への巨大なdata: URLの直渡しが不安定
       // (静かに描画が止まることがある)なため、Blob URL経由にする。
-      const res = fetch(file.dataUrl);
+      // dataUrlは "data:..." (旧base64) か "drive:ID" (Drive上の実体)。
+      // resolveMediaがどちらも実際に取得できるURLに変換する。
+      const res = resolveMedia(file.dataUrl).then((u) => fetch(u));
       res
         .then((r) => r.blob())
         .then((blob) => {
@@ -899,9 +903,23 @@ export default function NotesPage({ setTab }) {
                     {n.files.map((f, i) => (
                       <a
                         key={i}
-                        href={f.dataUrl}
+                        href={isDriveRef(f.dataUrl) ? undefined : f.dataUrl}
                         download={f.name}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          // Drive上の実体は直接hrefに置けないので、取得してから保存させる。
+                          if (!isDriveRef(f.dataUrl)) return;
+                          e.preventDefault();
+                          try {
+                            const url = await resolveMedia(f.dataUrl);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = f.name;
+                            a.click();
+                          } catch {
+                            alert("ファイルを取得できませんでした。");
+                          }
+                        }}
                         className="flex items-center gap-1.5 text-xs rounded-lg border p-2 truncate text-indigo-600 active:bg-app-surface"
                       >
                         📄 {f.name}

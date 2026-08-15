@@ -13,13 +13,15 @@ function GroupHeader({ children }) {
 }
 
 export default function SettingsPage({ setTab }) {
-  const { data, setSettings, replaceAllData, refreshTeamData } = useData();
+  const { data, setSettings, replaceAllData, refreshTeamData, runMediaMigration } = useData();
   const confirm = useConfirm();
   const [driveConnected, setDriveConnected] = useState(isDriveConnected());
   const [driveBusy, setDriveBusy] = useState(false);
   const [driveError, setDriveError] = useState("");
   const [backupBusy, setBackupBusy] = useState(false);
   const [backupMessage, setBackupMessage] = useState("");
+  const [migrateBusy, setMigrateBusy] = useState(false);
+  const [migrateMessage, setMigrateMessage] = useState("");
   const driveReady = isDriveConfigured();
 
   const [pushSubscribed, setPushSubscribed] = useState(wasPushSubscribedBefore() && notificationPermission() === "granted");
@@ -136,6 +138,44 @@ export default function SettingsPage({ setTab }) {
       setBackupMessage("バックアップに失敗しました。もう一度お試しください。");
     } finally {
       setBackupBusy(false);
+    }
+  }
+
+  // 埋め込まれたままの写真・ファイルをDriveへ移す。これによりデータ本体が
+  // D1の2MB上限を下回り、止まっていたクラウド同期が復活する。
+  async function handleMediaMigration() {
+    setMigrateMessage("");
+    if (!driveConnected) {
+      setMigrateMessage("先にGoogle Driveと連携してください");
+      return;
+    }
+    setMigrateBusy(true);
+    try {
+      const result = await runMediaMigration((done, total) => {
+        setMigrateMessage(`Driveへ移行中… ${done} / ${total}`);
+      });
+
+      if (!result.ok) {
+        if (result.reason === "NOT_CONNECTED") setMigrateMessage("Google Driveと連携してください");
+        else setMigrateMessage("移行に失敗しました。データは変更していません。");
+        return;
+      }
+      if (result.migrated === 0) {
+        setMigrateMessage("移行が必要な写真・ファイルはありませんでした。");
+        return;
+      }
+
+      const before = result.beforeMB.toFixed(2);
+      const after = result.afterMB.toFixed(2);
+      let msg = `${result.migrated}件をDriveへ移しました（データ量 ${before}MB → ${after}MB）。`;
+      if (result.failures.length > 0) {
+        msg += ` ${result.failures.length}件は移せなかったため、そのまま残しています。`;
+      }
+      setMigrateMessage(msg);
+    } catch {
+      setMigrateMessage("移行に失敗しました。データは変更していません。");
+    } finally {
+      setMigrateBusy(false);
     }
   }
 
@@ -298,6 +338,22 @@ export default function SettingsPage({ setTab }) {
                 </button>
               </div>
               {backupMessage && <p className="text-xs text-ink-sub mt-1">{backupMessage}</p>}
+
+              <div className="mt-4 pt-4 border-t border-app-line">
+                <p className="text-sm text-ink-sub mb-3">
+                  写真やファイルがアプリのデータの中に直接埋め込まれていると、データが重くなり
+                  クラウド同期が止まります。Driveへ移すと同期が回復し、写真はDrive上で
+                  普通の画像ファイルとして開けるようになります。
+                </p>
+                <button
+                  onClick={handleMediaMigration}
+                  disabled={!driveConnected || migrateBusy}
+                  className="w-full rounded-xl border border-app-line px-4 py-2.5 text-sm font-semibold bg-app-surface disabled:opacity-40"
+                >
+                  {migrateBusy ? "…" : "写真・ファイルをDriveへ移行"}
+                </button>
+                {migrateMessage && <p className="text-xs text-ink-sub mt-2">{migrateMessage}</p>}
+              </div>
             </div>
           </div>
         </div>

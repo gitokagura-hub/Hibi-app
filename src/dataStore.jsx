@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { reconcileOnStartup, saveCloud } from './cloudSync';
 import { scheduleAutoBackup } from './driveAutoBackup';
 import { backupDataToDrive } from './googleDrive';
+import { saveImage, saveAttachment } from './media';
+import { migrateMediaToDrive } from './migrateMedia';
 import {
   isTeamConnected, getAuthorName, ensureTeamSheetReady,
   fetchTeamNotes, addTeamNote, updateTeamNote, deleteTeamNote,
@@ -29,43 +31,22 @@ export function formatDateTime(ts) {
   return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// Reads an image file and resizes/compresses it to a base64 data URL,
-// so photos can be stored directly in the browser without any external service.
-export function fileToCompressedDataUrl(file, maxDim = 1280, quality = 0.7) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        let { width, height } = img;
-        if (width > maxDim || height > maxDim) {
-          if (width > height) { height = Math.round((height * maxDim) / width); width = maxDim; }
-          else { width = Math.round((width * maxDim) / height); height = maxDim; }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.onerror = reject;
-      img.src = reader.result;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+// 写真を保存し、保存先を指す文字列を返す。
+//
+// 以前はここで base64 の data URL を作り、それをアプリのデータ本体にそのまま
+// 埋め込んでいた。しかし Cloudflare D1 には1行あたり2MBの上限があるため、写真が
+// 増えるといずれ必ずクラウド保存が失敗する作りだった(2026-08-15に実際に発生)。
+// 現在は media.js を通して実体を Google Drive に置き、ここでは "drive:ID" という
+// 短い参照文字列だけを返す。戻り値が文字列である点は以前と同じなので、呼び出し側の
+// 変更は不要。表示側は <MediaImg> が drive参照と旧base64の両方を扱う。
+export function fileToCompressedDataUrl(file) {
+  return saveImage(file);
 }
 
-// Reads any file (not just images) as a plain base64 data URL, no compression.
-// Used for the generic "file attachment" feature.
+// 画像以外の添付ファイル。戻り値の形 { name, type, dataUrl } は以前のままで、
+// dataUrl の中身が "drive:ID" になる(Drive未連携時のみ従来通り base64)。
 export function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve({ name: file.name, type: file.type, dataUrl: reader.result });
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+  return saveAttachment(file);
 }
 
 function emptyData() {
@@ -640,10 +621,22 @@ export function DataProvider({ children }) {
     setData({ ...emptyData(), ...restored, memos: migratedMemos, projects: migratedProjects, settings: { ...emptyData().settings, ...(restored.settings || {}) } });
   }
 
+
+  // 既存のbase64写真・ファイルをDriveへ移行する。アップロードが全部終わってから
+  // 一度だけsetDataするため、途中で失敗しても現在のデータには影響しない。
+  async function runMediaMigration(onProgress) {
+    const result = await migrateMediaToDrive(data, onProgress);
+    if (result.ok && result.data) {
+      setData(result.data);
+    }
+    return result;
+  }
+
   const value = {
     data,
     storageError,
     cloudError,
+    runMediaMigration,
     addTask, toggleTask, deleteTask, updateTask,
     addEvent, deleteEvent, updateEvent,
     getMemo, setMemo, addMemoImages, removeMemoImage, updateMemoImageCategories, addMemoFiles, removeMemoFile,
