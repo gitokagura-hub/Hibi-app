@@ -4,6 +4,7 @@ import { scheduleAutoBackup } from './driveAutoBackup';
 import { backupDataToDrive } from './googleDrive';
 import { saveImage, saveAttachment } from './media';
 import { migrateMediaToDrive } from './migrateMedia';
+import { recoverLibraryFromDrive } from './recoverLibrary';
 import {
   isTeamConnected, getAuthorName, ensureTeamSheetReady,
   fetchTeamNotes, addTeamNote, updateTeamNote, deleteTeamNote,
@@ -624,6 +625,16 @@ export function DataProvider({ children }) {
 
   // 既存のbase64写真・ファイルをDriveへ移行する。アップロードが全部終わってから
   // 一度だけsetDataするため、途中で失敗しても現在のデータには影響しない。
+  // Drive上に残っている実体から、空になった写真・ファイル一覧を作り直す。
+  // 追加のみで既存項目は消さないため、何度実行しても安全。
+  async function runLibraryRecovery() {
+    const result = await recoverLibraryFromDrive(data);
+    if (result.ok && result.data) {
+      setData(result.data);
+    }
+    return result;
+  }
+
   async function runMediaMigration(onProgress) {
     const result = await migrateMediaToDrive(data, onProgress);
     if (result.ok && result.data) {
@@ -637,6 +648,7 @@ export function DataProvider({ children }) {
     storageError,
     cloudError,
     runMediaMigration,
+    runLibraryRecovery,
     addTask, toggleTask, deleteTask, updateTask,
     addEvent, deleteEvent, updateEvent,
     getMemo, setMemo, addMemoImages, removeMemoImage, updateMemoImageCategories, addMemoFiles, removeMemoFile,

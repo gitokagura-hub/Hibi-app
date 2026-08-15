@@ -26,7 +26,9 @@ function corsHeaders() {
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json", ...corsHeaders() },
+    // charset=utf-8 を明示する。これが無いとSafariが別の文字コードとして解釈し、
+    // 日本語が文字化けして見える(データ自体は壊れていないが、内容の確認が困難になる)。
+    headers: { "Content-Type": "application/json; charset=utf-8", ...corsHeaders() },
   });
 }
 

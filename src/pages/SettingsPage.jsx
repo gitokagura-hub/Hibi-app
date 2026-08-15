@@ -13,7 +13,7 @@ function GroupHeader({ children }) {
 }
 
 export default function SettingsPage({ setTab }) {
-  const { data, setSettings, replaceAllData, refreshTeamData, runMediaMigration } = useData();
+  const { data, setSettings, replaceAllData, refreshTeamData, runMediaMigration, runLibraryRecovery } = useData();
   const confirm = useConfirm();
   const [driveConnected, setDriveConnected] = useState(isDriveConnected());
   const [driveBusy, setDriveBusy] = useState(false);
@@ -21,6 +21,7 @@ export default function SettingsPage({ setTab }) {
   const [backupBusy, setBackupBusy] = useState(false);
   const [backupMessage, setBackupMessage] = useState("");
   const [migrateBusy, setMigrateBusy] = useState(false);
+  const [recoverBusy, setRecoverBusy] = useState(false);
   const [migrateMessage, setMigrateMessage] = useState("");
   const driveReady = isDriveConfigured();
 
@@ -143,6 +144,30 @@ export default function SettingsPage({ setTab }) {
 
   // 埋め込まれたままの写真・ファイルをDriveへ移す。これによりデータ本体が
   // D1の2MB上限を下回り、止まっていたクラウド同期が復活する。
+  // Drive上の実体から写真・ファイル一覧を復旧する。
+  async function handleLibraryRecovery() {
+    setMigrateMessage("");
+    setRecoverBusy(true);
+    try {
+      const result = await runLibraryRecovery();
+      if (!result.ok) {
+        setMigrateMessage("Google Driveと連携してください");
+        return;
+      }
+      if (result.addedPhotos === 0 && result.addedFiles === 0) {
+        setMigrateMessage("Drive上に、まだ取り込んでいない写真・ファイルはありませんでした。");
+        return;
+      }
+      setMigrateMessage(
+        `写真${result.addedPhotos}枚・ファイル${result.addedFiles}件をDriveから取り込みました。Photos画面をご確認ください。`
+      );
+    } catch {
+      setMigrateMessage("取り込みに失敗しました。データは変更していません。");
+    } finally {
+      setRecoverBusy(false);
+    }
+  }
+
   async function handleMediaMigration() {
     setMigrateMessage("");
     if (!driveConnected) {
@@ -351,6 +376,13 @@ export default function SettingsPage({ setTab }) {
                   className="w-full rounded-xl border border-app-line px-4 py-2.5 text-sm font-semibold bg-app-surface disabled:opacity-40"
                 >
                   {migrateBusy ? "…" : "写真・ファイルをDriveへ移行"}
+                </button>
+                <button
+                  onClick={handleLibraryRecovery}
+                  disabled={recoverBusy || migrateBusy}
+                  className="w-full mt-2 rounded-xl border border-app-line px-4 py-2.5 text-sm font-semibold bg-app-surface disabled:opacity-40"
+                >
+                  {recoverBusy ? "…" : "Driveの写真を取り込む"}
                 </button>
                 {migrateMessage && <p className="text-xs text-ink-sub mt-2">{migrateMessage}</p>}
               </div>
