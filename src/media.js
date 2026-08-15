@@ -21,7 +21,7 @@
  * という事態は避ける)。ただしその場合はデータ本体が太るため、呼び出し元に警告を返す。
  */
 
-import { isDriveConnected, uploadMedia, getImageUrl } from './googleDrive';
+import { ensureDriveReady, uploadMedia, getImageUrl } from './googleDrive';
 
 const DRIVE_PREFIX = 'drive:';
 
@@ -80,7 +80,7 @@ function fileToBase64DataUrl(file) {
  */
 export async function saveImage(file) {
   const blob = await compressToBlob(file);
-  if (isDriveConnected()) {
+  if (await ensureDriveReady()) {
     try {
       const id = await uploadMedia(blob, (file.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg');
       return DRIVE_PREFIX + id;
@@ -96,7 +96,7 @@ export async function saveImage(file) {
  * dataUrl の中身が "drive:ID" になる点だけが違う。呼び出し元を変えずに済ませるため。
  */
 export async function saveAttachment(file) {
-  if (isDriveConnected()) {
+  if (await ensureDriveReady()) {
     try {
       const id = await uploadMedia(file, file.name);
       return { name: file.name, type: file.type, dataUrl: DRIVE_PREFIX + id };

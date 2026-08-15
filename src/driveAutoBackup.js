@@ -12,7 +12,7 @@
  * 何もしない(エラーも出さない)。
  */
 
-import { isDriveConnected } from './googleDrive';
+import { isDriveConnected, ensureDriveReady, wasDriveConnectedBefore } from './googleDrive';
 
 const DEBOUNCE_MS = 60 * 1000; // 1分操作が止まったら書き込む
 const timers = {};
@@ -22,14 +22,19 @@ const pending = {};
 // 実際のDrive書き込み関数は呼び出し元から渡してもらう(googleDrive.jsのbackupDataToDriveや、
 // アプリ専用の保存関数など、appごとに形が違う可能性があるため)。
 export function scheduleAutoBackup(key, data, writeFn) {
-  if (!isDriveConnected()) return; // 未連携なら何もしない(エラーも出さない)
+  // 一度も連携していないなら何もしない。トークンが切れているだけの場合は、
+  // 実際の書き込み直前に ensureDriveReady() で取り直すので、ここでは弾かない。
+  if (!isDriveConnected() && !wasDriveConnectedBefore()) return;
   pending[key] = { data, writeFn };
   if (timers[key]) clearTimeout(timers[key]);
   timers[key] = setTimeout(async () => {
     const job = pending[key];
     delete pending[key];
     delete timers[key];
-    if (!job || !isDriveConnected()) return;
+    if (!job) return;
+    // 1時間でトークンが切れている場合、以前はここで静かに諦めてバックアップが
+    // 取られないままになっていた。まず裏で再接続を試みる。
+    if (!(await ensureDriveReady())) return;
     try {
       await job.writeFn(job.data);
     } catch {

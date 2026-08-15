@@ -19,7 +19,7 @@
  *   張り替えと同時にキーも移し替える(これを忘れるとタグが迷子になる)。
  */
 
-import { isDriveConnected, uploadMedia } from './googleDrive';
+import { ensureDriveReady, uploadMedia } from './googleDrive';
 
 function isBase64Ref(v) {
   return typeof v === 'string' && v.startsWith('data:');
@@ -153,7 +153,7 @@ function rewrite(data, map) {
  * この関数自体は副作用を持たせない(途中で止まってもデータが壊れないようにするため)。
  */
 export async function migrateMediaToDrive(data, onProgress) {
-  if (!isDriveConnected()) {
+  if (!(await ensureDriveReady())) {
     return { ok: false, reason: 'NOT_CONNECTED' };
   }
 

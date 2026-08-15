@@ -118,6 +118,36 @@ function requireToken() {
   return accessToken;
 }
 
+// Googleのアクセストークンは約1時間で必ず切れる(Google側の仕様で、アプリからは
+// 24時間などに延ばせない)。これまでは切れた瞬間から isDriveConnected() が false に
+// なり、自動バックアップも写真アップロードも「静かに何もしない」状態に入っていた。
+// ユーザーからは連携済みに見えるのに実際は保存されていない、という気づけない
+// 事故につながるため、Drive操作の直前に必ず裏で取り直す。
+//
+// ensureDriveConnection() は prompt:'' で同意画面を出さずに再取得する。Googleの
+// セッションが生きていれば操作なしで通るので、体感上は切れなくなる。
+//
+// 複数の処理が同時に走ったときに再取得が何本も飛ばないよう、進行中の1本を共有する。
+let refreshInFlight = null;
+
+export async function ensureDriveReady() {
+  if (isDriveConnected()) return true;
+  if (!wasDriveConnectedBefore()) return false;
+  if (!refreshInFlight) {
+    refreshInFlight = ensureDriveConnection()
+      .then(() => true)
+      .catch(() => false)
+      .finally(() => { refreshInFlight = null; });
+  }
+  return refreshInFlight;
+}
+
+// 各Drive APIはこれを通してトークンを取る。切れていれば黙って取り直してから返す。
+async function ensureToken() {
+  await ensureDriveReady();
+  return requireToken();
+}
+
 async function getOrCreateFolder(rootFolderId) {
   return rootFolderId || ROOT_FOLDER_ID;
 }
@@ -132,7 +162,7 @@ export async function getTeamRootFolderId() {
 const APP_FOLDER_CACHE_PREFIX = 'hibi-drive-app-folder-';
 
 export async function ensureAppFolder(appName) {
-  const token = requireToken();
+  const token = await ensureToken();
   const cacheKey = APP_FOLDER_CACHE_PREFIX + appName;
   const cached = localStorage.getItem(cacheKey);
   if (cached) {
@@ -168,7 +198,7 @@ export async function ensureAppFolder(appName) {
 }
 
 export async function uploadImage(file) {
-  const token = requireToken();
+  const token = await ensureToken();
   const folderId = await getOrCreateFolder();
   const metadata = { name: `${Date.now()}-${file.name}`, parents: [folderId] };
   const form = new FormData();
@@ -196,7 +226,7 @@ const MEDIA_FOLDER_CACHE_KEY = 'hibi-drive-media-folder-id';
 // 「Daily Brains」フォルダの下に「Media」サブフォルダを用意して、そこに実体を置く。
 // メインのフォルダが写真で埋まらないように分けている。
 export async function ensureMediaFolder() {
-  const token = requireToken();
+  const token = await ensureToken();
   const cached = localStorage.getItem(MEDIA_FOLDER_CACHE_KEY);
   if (cached) {
     const check = await fetch(`https://www.googleapis.com/drive/v3/files/${cached}?fields=id,trashed`, {
@@ -234,7 +264,7 @@ export async function ensureMediaFolder() {
 // BlobでもFileでも受け取れるようにしている(写真は圧縮後のBlobになるため、
 // Fileと違ってnameを持たない)。戻り値はDriveのファイルID。
 export async function uploadMedia(blob, name) {
-  const token = requireToken();
+  const token = await ensureToken();
   const folderId = await ensureMediaFolder();
   const metadata = { name: `${Date.now()}-${name}`, parents: [folderId] };
   const form = new FormData();
@@ -252,7 +282,7 @@ export async function uploadMedia(blob, name) {
 
 export async function getImageUrl(fileId) {
   if (blobUrlCache.has(fileId)) return blobUrlCache.get(fileId);
-  const token = requireToken();
+  const token = await ensureToken();
   const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -270,7 +300,7 @@ const BACKUP_FILE_ID_KEY = 'hibi-drive-backup-file-id';
 // Overwrites the previous backup file if one already exists, so there's always
 // just one "latest" backup rather than an ever-growing pile of files.
 export async function backupDataToDrive(data) {
-  const token = requireToken();
+  const token = await ensureToken();
   const folderId = await getOrCreateFolder();
   const json = JSON.stringify(data);
   const blob = new Blob([json], { type: 'application/json' });
@@ -318,7 +348,7 @@ export async function backupDataToDrive(data) {
 // Fetches the latest backup JSON from Drive and returns the parsed data object.
 // Throws NO_BACKUP if no backup file exists yet.
 export async function restoreDataFromDrive() {
-  const token = requireToken();
+  const token = await ensureToken();
   const folderId = await getOrCreateFolder();
   const q = encodeURIComponent(`name='${BACKUP_FILE_NAME}' and '${folderId}' in parents and trashed=false`);
   const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,modifiedTime)&orderBy=modifiedTime desc`, {
@@ -343,7 +373,7 @@ export async function restoreDataFromDrive() {
 // dayliybrains-backup.json — that gap is exactly what caused Sukima's data
 // to go missing on 2026-08-05, since it was never included in any backup.
 export async function backupNamedDataToDrive(fileName, fileIdCacheKey, data) {
-  const token = requireToken();
+  const token = await ensureToken();
   const folderId = await getOrCreateFolder();
   const json = JSON.stringify(data);
   const blob = new Blob([json], { type: 'application/json' });
@@ -389,7 +419,7 @@ export async function backupNamedDataToDrive(fileName, fileIdCacheKey, data) {
 }
 
 export async function restoreNamedDataFromDrive(fileName, fileIdCacheKey) {
-  const token = requireToken();
+  const token = await ensureToken();
   const folderId = await getOrCreateFolder();
   const q = encodeURIComponent(`name='${fileName}' and '${folderId}' in parents and trashed=false`);
   const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,modifiedTime)&orderBy=modifiedTime desc`, {
@@ -412,7 +442,7 @@ export async function restoreNamedDataFromDrive(fileName, fileIdCacheKey) {
 // calls don't need to search every time — caller passes it in and stores
 // whatever this returns back onto the project.
 async function getOrCreateProjectFolder(projectId, projectName, cachedFolderId, rootFolderId) {
-  const token = requireToken();
+  const token = await ensureToken();
   if (cachedFolderId) {
     const check = await fetch(`https://www.googleapis.com/drive/v3/files/${cachedFolderId}?fields=id,trashed`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -450,7 +480,7 @@ export async function ensureProjectFolder(projectId, projectName, cachedFolderId
 
 // Uploads a single File into a project's Drive folder. Returns { fileId, name, mimeType, webViewLink }.
 export async function uploadFileToProjectFolder(file, folderId) {
-  const token = requireToken();
+  const token = await ensureToken();
   const metadata = { name: file.name, parents: [folderId] };
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
@@ -466,7 +496,7 @@ export async function uploadFileToProjectFolder(file, folderId) {
 
 // Lists all non-folder files currently inside a project's Drive folder.
 export async function listProjectFiles(folderId) {
-  const token = requireToken();
+  const token = await ensureToken();
   const q = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
   const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType,webViewLink,thumbnailLink,createdTime)&orderBy=createdTime desc`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -477,7 +507,7 @@ export async function listProjectFiles(folderId) {
 }
 
 export async function deleteProjectFile(fileId) {
-  const token = requireToken();
+  const token = await ensureToken();
   await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
@@ -489,7 +519,7 @@ export async function deleteProjectFile(fileId) {
 }
 
 export async function deleteImage(fileId) {
-  const token = requireToken();
+  const token = await ensureToken();
   await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
