@@ -270,6 +270,34 @@ export function DataProvider({ children }) {
   function deleteLibraryPhoto(id) {
     setData(prev => ({ ...prev, libraryPhotos: (prev.libraryPhotos || []).filter(p => p.id !== id) }));
   }
+
+  // Photos画面に並ぶ写真は、Photosライブラリだけでなく Notes / Calendar / Projects
+  // からも集められている。libraryPhotos だけを消す deleteLibraryPhoto では、
+  // ノートやメモに貼られた写真が一覧から消せなかった。
+  // ここでは写真の参照(src)そのものを手がかりに、すべての置き場所から取り除く。
+  // 同じsrcが複数箇所から参照されていれば、そのすべてから消える。
+  function deletePhotosBySrc(srcList) {
+    const targets = new Set(srcList);
+    if (targets.size === 0) return;
+    const keep = (s) => !targets.has(s);
+
+    setData(prev => {
+      const memos = {};
+      for (const [date, memo] of Object.entries(prev.memos || {})) {
+        memos[date] = { ...memo, images: (memo.images || []).filter(keep) };
+      }
+      return {
+        ...prev,
+        memos,
+        notes: (prev.notes || []).map(n => ({ ...n, images: (n.images || []).filter(keep) })),
+        projects: (prev.projects || []).map(p => ({
+          ...p,
+          items: (p.items || []).map(it => ({ ...it, images: (it.images || []).filter(keep) })),
+        })),
+        libraryPhotos: (prev.libraryPhotos || []).filter(p => keep(p.src)),
+      };
+    });
+  }
   function addLibraryFiles(files, folderId = null) {
     const withIds = files.map(f => ({ id: uid(), ...f, folderId, createdAt: Date.now() }));
     setData(prev => ({ ...prev, libraryFiles: [...(prev.libraryFiles || []), ...withIds] }));
@@ -653,7 +681,7 @@ export function DataProvider({ children }) {
     addEvent, deleteEvent, updateEvent,
     getMemo, setMemo, addMemoImages, removeMemoImage, updateMemoImageCategories, addMemoFiles, removeMemoFile,
     addNote, deleteNote, updateNote,
-    addLibraryPhotos, deleteLibraryPhoto,
+    addLibraryPhotos, deleteLibraryPhoto, deletePhotosBySrc,
     addLibraryFiles, deleteLibraryFile, renameLibraryFile, addLibraryFolder, deleteLibraryFolder, renameLibraryFolder,
     setLibraryTags, setLibraryComments, setLibraryCategories,
     addProject, setProjectDriveFolderId, setProjectDriveFiles, addProjectDriveFile, removeProjectDriveFile, updateProjectItem, addProjectItem, deleteProject, deleteProjectItem, sendToProject,

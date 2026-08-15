@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from "react";
-import { ChevronLeft, Image as ImageIcon, Plus, Camera, Tag } from "lucide-react";
+import { ChevronLeft, Image as ImageIcon, Plus, Camera, Tag, Trash2, Check, X } from "lucide-react";
 import { useData, fileToCompressedDataUrl } from "../dataStore";
 import { useSwipeBack } from "../useSwipeBack";
 import { handleEnterToConfirm } from "../useEnterConfirm";
@@ -110,10 +110,11 @@ function TagPickerSheet({ selected, available, onAddCategory, onClose, onSave })
 
 export default function LibraryPage({ onHome }) {
   useSwipeBack(onHome);
-  const [pendingDelete, setPendingDelete] = useState(null);
-  const longPressTimer = useRef(null);
-  const longPressFired = useRef(false);
-  const { data, addLibraryPhotos, deleteLibraryPhoto, setLibraryTags, setLibraryComments, setLibraryCategories } = useData();
+  // 選択モード。ゴミ箱アイコンで入り、写真をタップして選び、まとめて削除する。
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedSrcs, setSelectedSrcs] = useState([]);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const { data, addLibraryPhotos, deleteLibraryPhoto, deletePhotosBySrc, setLibraryTags, setLibraryComments, setLibraryCategories } = useData();
   const [viewerIndex, setViewerIndex] = useState(null);
   const tagMap = data.libraryTags && Object.keys(data.libraryTags).length > 0 ? data.libraryTags : loadTagMap();
   const commentMap = data.libraryComments && Object.keys(data.libraryComments).length > 0 ? data.libraryComments : loadCommentMap();
@@ -234,7 +235,19 @@ export default function LibraryPage({ onHome }) {
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Photos</h1>
         </div>
-        <div className="relative shrink-0 mt-1">
+        <div className="relative shrink-0 mt-1 flex items-center gap-2">
+          <button
+            onClick={() => {
+              setSelectMode((v) => !v);
+              setSelectedSrcs([]);
+            }}
+            className={`w-10 h-10 rounded-full flex items-center justify-center border ${
+              selectMode ? "bg-ink text-app-bg border-ink" : "bg-app-surface text-ink border-app-line"
+            }`}
+            aria-label={selectMode ? "選択をやめる" : "写真を選んで削除"}
+          >
+            {selectMode ? <X size={18} /> : <Trash2 size={18} />}
+          </button>
           <button
             onClick={() => setAddMenuOpen((v) => !v)}
             disabled={uploading}
@@ -300,32 +313,39 @@ export default function LibraryPage({ onHome }) {
               <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-app-raised">
                 <button
                   onClick={() => {
-                    // 長押しで削除確認を出した直後は、指を離したときの通常タップで
-                    // 拡大表示が開かないようにする。
-                    if (longPressFired.current) { longPressFired.current = false; return; }
-                    setViewerIndex(i);
+                    if (!selectMode) { setViewerIndex(i); return; }
+                    setSelectedSrcs((prev) =>
+                      prev.includes(img.src) ? prev.filter((s) => s !== img.src) : [...prev, img.src]
+                    );
                   }}
-                  onTouchStart={() => {
-                    longPressFired.current = false;
-                    clearTimeout(longPressTimer.current);
-                    longPressTimer.current = setTimeout(() => {
-                      longPressFired.current = true;
-                      if (img.libraryPhotoId) setPendingDelete(img);
-                    }, 500);
-                  }}
-                  onTouchEnd={() => clearTimeout(longPressTimer.current)}
-                  onTouchMove={() => clearTimeout(longPressTimer.current)}
-                  onContextMenu={(e) => e.preventDefault()}
                   className="w-full h-full block"
                   title={img.source}
-                  style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none" }}
                 >
-                  <MediaImg src={img.src} alt={img.source} className="w-full h-full object-cover pointer-events-none" />
+                  <MediaImg src={img.src} alt={img.source} className="w-full h-full object-cover" />
                 </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); resetViewportZoom(); setTaggingSrc(img.src); }}
-                  className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center"
-                ><Tag size={12} /></button>
+                {selectMode && (
+                  <div
+                    className={`absolute inset-0 pointer-events-none transition-colors ${
+                      selectedSrcs.includes(img.src) ? "bg-ink/40" : "bg-transparent"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-1 left-1 w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                        selectedSrcs.includes(img.src)
+                          ? "bg-ink border-ink text-app-bg"
+                          : "border-white/90 bg-black/25"
+                      }`}
+                    >
+                      {selectedSrcs.includes(img.src) && <Check size={14} />}
+                    </span>
+                  </div>
+                )}
+                {!selectMode && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); resetViewportZoom(); setTaggingSrc(img.src); }}
+                    className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center"
+                  ><Tag size={12} /></button>
+                )}
                 {img.tags.length > 0 && (
                   <span className="absolute bottom-1 left-1 max-w-[65%] truncate rounded-full bg-black/60 text-white text-[9px] px-1.5 py-0.5">
                     {img.tags.join(" / ")}
@@ -340,30 +360,39 @@ export default function LibraryPage({ onHome }) {
         )}
       </main>
 
-      {pendingDelete && (
-        <div
-          className="fixed inset-0 z-50 bg-black/40 flex items-end"
-          onClick={() => setPendingDelete(null)}
-        >
-          <div
-            className="w-full bg-app-bg rounded-t-2xl p-5 pb-8"
-            onClick={(e) => e.stopPropagation()}
+      {selectMode && (
+        <div className="fixed bottom-0 inset-x-0 z-40 bg-app-bg border-t border-app-line px-5 py-3 pb-7 flex items-center justify-between gap-3">
+          <span className="text-sm text-ink-sub">{selectedSrcs.length}件を選択中</span>
+          <button
+            onClick={() => setConfirmingDelete(true)}
+            disabled={selectedSrcs.length === 0}
+            className="rounded-xl bg-red-600 text-white px-5 py-2.5 text-sm font-semibold disabled:opacity-40"
           >
-            <p className="text-sm text-ink mb-1">この写真を一覧から削除しますか？</p>
+            削除
+          </button>
+        </div>
+      )}
+
+      {confirmingDelete && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end" onClick={() => setConfirmingDelete(false)}>
+          <div className="w-full bg-app-bg rounded-t-2xl p-5 pb-8" onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm text-ink mb-1">{selectedSrcs.length}件の写真を削除しますか？</p>
             <p className="text-xs text-ink-sub mb-4">
-              Google Drive上のファイルは削除されません。
+              ノートやカレンダーに貼られている場合、そちらからも消えます。Google Drive上のファイルは残ります。
             </p>
             <button
               onClick={() => {
-                deleteLibraryPhoto(pendingDelete.libraryPhotoId);
-                setPendingDelete(null);
+                deletePhotosBySrc(selectedSrcs);
+                setSelectedSrcs([]);
+                setConfirmingDelete(false);
+                setSelectMode(false);
               }}
               className="w-full rounded-xl bg-red-600 text-white px-4 py-3 text-sm font-semibold mb-2"
             >
               削除する
             </button>
             <button
-              onClick={() => setPendingDelete(null)}
+              onClick={() => setConfirmingDelete(false)}
               className="w-full rounded-xl border border-app-line px-4 py-3 text-sm font-semibold"
             >
               キャンセル
