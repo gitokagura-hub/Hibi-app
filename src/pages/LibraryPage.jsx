@@ -110,6 +110,9 @@ function TagPickerSheet({ selected, available, onAddCategory, onClose, onSave })
 
 export default function LibraryPage({ onHome }) {
   useSwipeBack(onHome);
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const longPressTimer = useRef(null);
+  const longPressFired = useRef(false);
   const { data, addLibraryPhotos, deleteLibraryPhoto, setLibraryTags, setLibraryComments, setLibraryCategories } = useData();
   const [viewerIndex, setViewerIndex] = useState(null);
   const tagMap = data.libraryTags && Object.keys(data.libraryTags).length > 0 ? data.libraryTags : loadTagMap();
@@ -296,11 +299,28 @@ export default function LibraryPage({ onHome }) {
             {filteredImages.map((img, i) => (
               <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-app-raised">
                 <button
-                  onClick={() => setViewerIndex(i)}
+                  onClick={() => {
+                    // 長押しで削除確認を出した直後は、指を離したときの通常タップで
+                    // 拡大表示が開かないようにする。
+                    if (longPressFired.current) { longPressFired.current = false; return; }
+                    setViewerIndex(i);
+                  }}
+                  onTouchStart={() => {
+                    longPressFired.current = false;
+                    clearTimeout(longPressTimer.current);
+                    longPressTimer.current = setTimeout(() => {
+                      longPressFired.current = true;
+                      if (img.libraryPhotoId) setPendingDelete(img);
+                    }, 500);
+                  }}
+                  onTouchEnd={() => clearTimeout(longPressTimer.current)}
+                  onTouchMove={() => clearTimeout(longPressTimer.current)}
+                  onContextMenu={(e) => e.preventDefault()}
                   className="w-full h-full block"
                   title={img.source}
+                  style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none" }}
                 >
-                  <MediaImg src={img.src} alt={img.source} className="w-full h-full object-cover" />
+                  <MediaImg src={img.src} alt={img.source} className="w-full h-full object-cover pointer-events-none" />
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); resetViewportZoom(); setTaggingSrc(img.src); }}
@@ -319,6 +339,39 @@ export default function LibraryPage({ onHome }) {
           <p className="mt-4 text-xs text-ink-sub text-center">未分類の写真: {untaggedCount}件</p>
         )}
       </main>
+
+      {pendingDelete && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-end"
+          onClick={() => setPendingDelete(null)}
+        >
+          <div
+            className="w-full bg-app-bg rounded-t-2xl p-5 pb-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm text-ink mb-1">この写真を一覧から削除しますか？</p>
+            <p className="text-xs text-ink-sub mb-4">
+              Google Drive上のファイルは削除されません。
+            </p>
+            <button
+              onClick={() => {
+                deleteLibraryPhoto(pendingDelete.libraryPhotoId);
+                setPendingDelete(null);
+              }}
+              className="w-full rounded-xl bg-red-600 text-white px-4 py-3 text-sm font-semibold mb-2"
+            >
+              削除する
+            </button>
+            <button
+              onClick={() => setPendingDelete(null)}
+              className="w-full rounded-xl border border-app-line px-4 py-3 text-sm font-semibold"
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
+      )}
+
 
       {viewerIndex !== null && (
         <PhotoViewerModal
