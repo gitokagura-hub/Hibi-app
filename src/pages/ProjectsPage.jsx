@@ -78,7 +78,8 @@ export default function ProjectsPage({ setTab }) {
     space, teamData, teamLoading, teamError,
     addTeamProjectAction, deleteTeamProjectAction, updateTeamProjectDriveAction, addTeamProjectItemAction, updateTeamProjectItemAction, deleteTeamProjectItemAction,
   } = useData();
-  const isTeam = space === "team";
+  // Projects画面でも切り替えを廃止し、常にPersonalとして扱う(理由はNotesPageと同じ)。
+  const isTeam = false;
   const confirm = useConfirm();
   const [name, setName] = useState("");
   const [openId, setOpenId] = useState(null);
@@ -225,7 +226,7 @@ export default function ProjectsPage({ setTab }) {
     : null;
 
   return (
-    <Layout title="Projects" current="projects" setTab={setTab}>
+    <Layout title="Projects" current="projects" setTab={setTab} hideSpaceSwitcher>
       <div className="px-5">
         <div className="rounded-3xl border border-app-line overflow-hidden mb-6">
           <div className="px-4 py-3 bg-app-surface border-b border-app-line flex items-center justify-between">

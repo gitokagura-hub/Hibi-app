@@ -693,7 +693,11 @@ export default function NotesPage({ setTab }) {
     space, teamData, teamLoading, teamError,
     addTeamNoteAction, updateTeamNoteAction, deleteTeamNoteAction,
   } = useData();
-  const isTeam = space === "team";
+  // Notes画面では Personal / ByMaeNikko Team の切り替えを廃止し、常にPersonalとして扱う。
+  // Team側の処理は将来また使う可能性があるため残してあるが、この画面からは到達しない。
+  // (切り替えUI自体は Layout の hideSpaceSwitcher で非表示にしている。Calendarでは
+  //  引き続き有効なため、space の状態そのものは残している)
+  const isTeam = false;
   const confirm = useConfirm();
   const DRAFT_KEY = "notes-composer-draft";
   const [text, setText] = useState(() => {
@@ -861,7 +865,7 @@ export default function NotesPage({ setTab }) {
   }
 
   return (
-    <Layout title="Notes" subtitle="Ideas & Conversations" current="notes" setTab={setTab}>
+    <Layout title="Notes" subtitle="Ideas & Conversations" current="notes" setTab={setTab} hideSpaceSwitcher>
       <div className="px-5">
         <div className="mb-4 overflow-x-auto">
           <AIConnections selected={selectedAI} onSelect={setSelectedAI} />
