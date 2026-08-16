@@ -522,7 +522,7 @@ function AIAssistSheet({ provider, apiKeyMissing, onClose, onRun, onApply }) {
 const COMPOSER_BAR_H = 44;
 
 function FullScreenComposer({
-  text, setText, pendingImages, setPendingImages, pendingFiles, setPendingFiles,
+  text, setText, heading, setHeading, pendingImages, setPendingImages, pendingFiles, setPendingFiles,
   uploading, onPickPhoto, onPickFile, onVoice, onSave, onSend, onClose, isEditing, onAIAssist, confirm,
 }) {
   const photoInputRef = useRef(null);
@@ -577,7 +577,9 @@ function FullScreenComposer({
     }
   }
 
-  const titleText = isEditing ? "Edit Note" : "New Note";
+  // 見出しが入力されていれば、それを上部バーに出す(iPhoneのメモと同じ挙動)。
+  // 未入力のうちは Edit / New を表示する。
+  const titleText = heading.trim() || (isEditing ? "Edit" : "New");
 
   return (
     <div className="fixed inset-0 z-50 bg-app-surface flex flex-col">
@@ -632,13 +634,22 @@ function FullScreenComposer({
         <div ref={sentinelRef} className="h-px" />
 
         <div className="relative">
+          {/* 見出し。textareaは行ごとに文字サイズを変えられないため、
+              見出しだけ独立した入力欄にしている(メモアプリと同じ見た目にするため)。 */}
+          <input
+            type="text"
+            value={heading}
+            onChange={(e) => setHeading(e.target.value)}
+            placeholder="見出し"
+            className="w-full px-5 pt-4 pb-1 text-[22px] font-bold outline-none block bg-transparent placeholder:text-ink-sub/50 placeholder:font-normal"
+          />
           <textarea
             ref={textareaRef}
             autoFocus={!isEditing}
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="思いつきやアイデアを書き出す（壁打ち）..."
-            className="w-full px-5 py-4 text-[16px] outline-none resize-none block"
+            className="w-full px-5 pt-1 pb-4 text-[16px] outline-none resize-none block"
           />
         </div>
 
@@ -703,6 +714,9 @@ export default function NotesPage({ setTab }) {
   const [text, setText] = useState(() => {
     try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || "null")?.text || ""; } catch { return ""; }
   });
+  const [heading, setHeading] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || "null")?.heading || ""; } catch { return ""; }
+  });
   const [pendingImages, setPendingImages] = useState(() => {
     try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || "null")?.images || []; } catch { return []; }
   });
@@ -739,6 +753,7 @@ export default function NotesPage({ setTab }) {
 
   function resetComposer() {
     setText("");
+    setHeading("");
     setPendingImages([]);
     setPendingFiles([]);
     try { localStorage.removeItem(DRAFT_KEY); } catch {}
@@ -749,14 +764,14 @@ export default function NotesPage({ setTab }) {
   // (editingNoteId有り)は下書き扱いにしない。
   useEffect(() => {
     if (editingNoteId) return;
-    if (!text.trim() && pendingImages.length === 0 && pendingFiles.length === 0) {
+    if (!text.trim() && !heading.trim() && pendingImages.length === 0 && pendingFiles.length === 0) {
       try { localStorage.removeItem(DRAFT_KEY); } catch {}
       return;
     }
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ text, images: pendingImages, files: pendingFiles }));
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ text, heading, images: pendingImages, files: pendingFiles }));
     } catch {}
-  }, [text, pendingImages, pendingFiles, editingNoteId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [text, heading, pendingImages, pendingFiles, editingNoteId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSaveNote() {
     if (isTeam) {
@@ -768,14 +783,14 @@ export default function NotesPage({ setTab }) {
       return;
     }
     if (editingNoteId) {
-      updateNote(editingNoteId, text.trim(), pendingImages, pendingFiles);
+      updateNote(editingNoteId, text.trim(), pendingImages, pendingFiles, heading.trim());
       resetComposer();
       setEditingNoteId(null);
       setComposerOpen(false);
       return;
     }
-    if (!text.trim() && pendingImages.length === 0 && pendingFiles.length === 0) return;
-    addNote(text.trim(), "text", pendingImages, pendingFiles);
+    if (!text.trim() && !heading.trim() && pendingImages.length === 0 && pendingFiles.length === 0) return;
+    addNote(text.trim(), "text", pendingImages, pendingFiles, heading.trim());
     resetComposer();
     setComposerOpen(false);
   }
@@ -783,6 +798,7 @@ export default function NotesPage({ setTab }) {
   function handleOpenNote(n) {
     setEditingNoteId(n.id);
     setText(n.text || "");
+    setHeading(n.heading || "");
     setPendingImages(n.images || []);
     setPendingFiles(n.files || []);
     setComposerOpen(true);
@@ -886,15 +902,35 @@ export default function NotesPage({ setTab }) {
           {sorted.map((n) => (
             <div key={n.id} className={`rounded-2xl border p-4 ${isTeam ? "border-blue-100 bg-blue-50" : "border-app-line bg-app-surface"}`}>
               <button onClick={() => handleOpenNote(n)} className="w-full text-left">
-                {n.text && (
-                  <p className="text-[15px] mb-3 leading-relaxed">
-                    {n.source === "voice" ? "🎤 " : ""}
-                    {(() => {
-                      const flat = n.text.replace(/[\r\n\t]+/g, " ").replace(/ {2,}/g, " ").trim();
-                      return flat.length > 60 ? flat.slice(0, 60) + "…" : flat;
-                    })()}
-                  </p>
-                )}
+                {(() => {
+                  // 一覧は「見出し(太字)＋本文1行(薄字)」の2段。
+                  // 見出しが未入力のノート(既存のものはすべてそう)は、本文の1行目を
+                  // 見出しの位置に出して見た目を揃える。
+                  const lines = (n.text || "")
+                    .split(/[\r\n]+/)
+                    .map((l) => l.trim())
+                    .filter(Boolean);
+                  const hasHeading = Boolean((n.heading || "").trim());
+                  const headLine = hasHeading ? n.heading.trim() : lines[0] || "";
+                  const bodyLine = hasHeading ? lines[0] || "" : lines[1] || "";
+                  const clip = (v, max) => (v.length > max ? v.slice(0, max) + "…" : v);
+                  if (!headLine && !bodyLine) return null;
+                  return (
+                    <div className="mb-3">
+                      {headLine && (
+                        <p className="text-[15px] font-bold leading-snug">
+                          {n.source === "voice" ? "🎤 " : ""}
+                          {clip(headLine, 40)}
+                        </p>
+                      )}
+                      {bodyLine && (
+                        <p className="text-[13px] text-ink-sub leading-snug mt-0.5">
+                          {clip(bodyLine, 50)}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
                 {n.images && n.images.length > 0 && (
                   <div className="flex gap-2 overflow-x-auto mb-3">
                     {n.images.map((src, i) => (
@@ -965,6 +1001,7 @@ export default function NotesPage({ setTab }) {
       {composerOpen && (
         <FullScreenComposer
           text={text} setText={setText}
+          heading={heading} setHeading={setHeading}
           pendingImages={pendingImages} setPendingImages={setPendingImages}
           pendingFiles={pendingFiles} setPendingFiles={setPendingFiles}
           uploading={uploading}

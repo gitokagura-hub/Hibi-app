@@ -255,8 +255,10 @@ export function DataProvider({ children }) {
       return { ...prev, memos: { ...prev.memos, [date]: { ...existing, files: existing.files.filter((_, i) => i !== index) } } };
     });
   }
-  function addNote(text, source, images, files) {
-    const note = { id: uid(), text, source: source || 'text', images: images || [], files: files || [], createdAt: Date.now() };
+  // heading はノートの見出し。iPhoneのメモのように一覧で太字で出す。
+  // 未入力なら空文字のままで、一覧側が本文の1行目を代わりに表示する。
+  function addNote(text, source, images, files, heading) {
+    const note = { id: uid(), heading: heading || '', text, source: source || 'text', images: images || [], files: files || [], createdAt: Date.now() };
     setData(prev => ({ ...prev, notes: [...prev.notes, note] }));
     return note;
   }
@@ -332,11 +334,17 @@ export function DataProvider({ children }) {
       libraryFiles: (prev.libraryFiles || []).filter(f => f.folderId !== id),
     }));
   }
-  function updateNote(id, text, images, files) {
+  function updateNote(id, text, images, files, heading) {
     setData(prev => ({
       ...prev,
       notes: prev.notes.map(n => n.id === id
-        ? { ...n, text, images: images !== undefined ? images : n.images, files: files !== undefined ? files : n.files }
+        ? {
+            ...n,
+            text,
+            heading: heading !== undefined ? heading : n.heading,
+            images: images !== undefined ? images : n.images,
+            files: files !== undefined ? files : n.files,
+          }
         : n),
     }));
   }
