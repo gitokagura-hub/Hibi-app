@@ -577,9 +577,9 @@ function FullScreenComposer({
     }
   }
 
-  // 見出しが入力されていれば、それを上部バーに出す(iPhoneのメモと同じ挙動)。
-  // 未入力のうちは Edit / New を表示する。
-  const titleText = heading.trim() || (isEditing ? "Edit" : "New");
+  // 上部バーは常に Edit / New。すぐ下に見出し入力欄があるため、
+  // ここに見出しを出すと同じ文字が二重に見えてしまう。
+  const titleText = isEditing ? "Edit" : "New";
 
   return (
     <div className="fixed inset-0 z-50 bg-app-surface flex flex-col">
