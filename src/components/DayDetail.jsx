@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { X, Grid3x3, List, Plus, Trash2 } from "lucide-react";
+import { X, Plus, Trash2 } from "lucide-react";
 import { useData } from "../dataStore";
 
 // ===== 共通: 指定した1日ぶんの予定・タスク・メモを組み立てる =====
@@ -296,72 +296,106 @@ function DayGrid({ items, onEditItem, className = "flex-1 overflow-y-auto" }) {
 export default function DayDetailScreen({ date, onClose }) {
   const { data, teamData, space, addTask, updateTask, deleteTask, addEvent, updateEvent, deleteEvent } = useData();
   const isTeam = space === "team";
-  const [mode, setMode] = useState("list"); // "list" | "grid"
-  const [editingGridItem, setEditingGridItem] = useState(null);
 
   const { items } = useMemo(() => getDayItems(data, teamData, isTeam, date), [data, teamData, isTeam, date]);
   const d = new Date(date + "T00:00:00");
   const wd = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
-
-  function saveGridItem(item, values) {
-    if (item.kind === "task") updateTask(item.id, values.title, values.time, values.endTime);
-    else updateEvent(item.id, values.time, values.title, values.endTime);
-    setEditingGridItem(null);
-  }
 
   return (
     <div className="fixed inset-0 z-50 bg-app-bg flex flex-col">
       <div className="flex items-center justify-between px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-3 border-b border-app-line shrink-0">
         <button onClick={onClose} className="p-1"><X size={20} /></button>
         <h2 className="text-base font-bold">{d.getMonth() + 1}月{d.getDate()}日・{wd}曜日</h2>
-        <button
-          onClick={() => setMode((m) => (m === "list" ? "grid" : "list"))}
-          className="p-1"
-          aria-label={mode === "list" ? "時間グリッドに切替" : "リストに切替"}
-        >
-          {mode === "list" ? <Grid3x3 size={20} /> : <List size={20} />}
-        </button>
+        <span className="w-7" />
       </div>
 
-      {mode === "list" ? (
-        <DayList date={date} items={items} />
-      ) : (
-        <DayGrid items={items} onEditItem={setEditingGridItem} />
-      )}
+      <DayList date={date} items={items} />
 
-      {mode === "grid" && editingGridItem && (
-        <div className="fixed inset-0 z-[60] bg-black/40 flex items-end" onClick={() => setEditingGridItem(null)}>
-          <div className="w-full bg-app-bg rounded-t-2xl p-4 pb-8" onClick={(e) => e.stopPropagation()}>
-            <ItemEditForm
-              item={editingGridItem}
-              onCancel={() => setEditingGridItem(null)}
-              onSave={(v) => saveGridItem(editingGridItem, v)}
-              onDelete={() => {
-                if (editingGridItem.kind === "task") deleteTask(editingGridItem.id);
-                else deleteEvent(editingGridItem.id);
-                setEditingGridItem(null);
-              }}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
 
-// ===== A画面の中にそのまま埋め込む縦列表示(D) =====
-// 月表示(A)と同列の関係で使う。日付を切り替えずに、選択中の1日を時間軸で見る。
-// 項目をタップすると、その場で編集シートが開く。
-export function DayGridInline({ date }) {
+
+// ===== D: 日付が縦に並ぶリスト =====
+// A(月表示)と同列の関係で、上部のボタンで行き来する。
+// 日付をタップすると E(その日の時間軸表示) を開く。
+export function DateListView({ month, onOpenDate }) {
+  const { data, teamData, space } = useData();
+  const isTeam = space === "team";
+
+  // 表示中の月の全日付を並べる。項目が無い日も出す(日付を選ぶための一覧なので、
+  // 空の日が抜けていると目当ての日を押せなくなる)。
+  const days = useMemo(() => {
+    const last = new Date(month.y, month.m + 1, 0).getDate();
+    const out = [];
+    for (let d = 1; d <= last; d++) {
+      const ds = `${month.y}-${String(month.m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const { items } = getDayItems(data, teamData, isTeam, ds);
+      out.push({ date: ds, day: d, items });
+    }
+    return out;
+  }, [month.y, month.m, data, teamData, isTeam]);
+
+  return (
+    <div>
+      {days.map((d) => {
+        const wd = ["日", "月", "火", "水", "木", "金", "土"][new Date(d.date + "T00:00:00").getDay()];
+        const isWeekend = wd === "日" || wd === "土";
+        return (
+          <button
+            key={d.date}
+            onClick={() => onOpenDate(d.date)}
+            className="w-full flex items-start gap-3 px-5 py-3 border-b border-app-line/70 text-left"
+          >
+            <span className={`w-12 shrink-0 text-[15px] font-bold ${isWeekend ? "text-ink-sub" : "text-ink"}`}>
+              {d.day}
+              <span className="text-[11px] font-normal ml-1">{wd}</span>
+            </span>
+            <span className="flex-1 min-w-0 space-y-0.5">
+              {d.items.length === 0 ? (
+                <span className="block text-sm text-ink-sub/50">—</span>
+              ) : (
+                d.items.slice(0, 3).map((it) => (
+                  <span key={it.id} className="flex items-center gap-1.5 text-sm">
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${it.kind === "event" ? "bg-blue-500" : "bg-green-500"}`} />
+                    <span className="truncate flex-1">{it.title || "（無題）"}</span>
+                    <span className="text-xs text-ink-sub shrink-0">{it.time || ""}</span>
+                  </span>
+                ))
+              )}
+              {d.items.length > 3 && (
+                <span className="block text-xs text-ink-sub">ほか{d.items.length - 3}件</span>
+              )}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ===== E: その日の時間軸表示(全画面) =====
+// D の日付をタップすると開く。5:00始まりの24時間グリッド。
+export function TimeGridScreen({ date, onClose }) {
   const { data, teamData, space, updateTask, deleteTask, updateEvent, deleteEvent } = useData();
   const isTeam = space === "team";
   const [editing, setEditing] = useState(null);
   const { items } = useMemo(() => getDayItems(data, teamData, isTeam, date), [data, teamData, isTeam, date]);
 
+  const d = new Date(date + "T00:00:00");
+  const wd = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+
   return (
-    <>
-      <DayGrid items={items} onEditItem={setEditing} className="overflow-visible" />
+    <div className="fixed inset-0 z-50 bg-app-bg flex flex-col">
+      <div className="flex items-center justify-between px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-3 border-b border-app-line shrink-0">
+        <button onClick={onClose} className="p-1"><X size={20} /></button>
+        <h2 className="text-base font-bold">{d.getMonth() + 1}月{d.getDate()}日・{wd}曜日</h2>
+        <span className="w-7" />
+      </div>
+
+      <DayGrid items={items} onEditItem={setEditing} />
+
       {editing && (
         <div className="fixed inset-0 z-[60] bg-black/40 flex items-end" onClick={() => setEditing(null)}>
           <div className="w-full bg-app-bg rounded-t-2xl p-4 pb-8" onClick={(e) => e.stopPropagation()}>
@@ -382,6 +416,6 @@ export function DayGridInline({ date }) {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

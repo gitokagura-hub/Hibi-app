@@ -6,7 +6,7 @@ import BottomNavigation from "../components/BottomNavigation";
 import SpaceSwitcher from "../components/SpaceSwitcher";
 import { useConfirm } from "../components/ConfirmModal";
 import MediaImg from "../components/MediaImg";
-import DayDetailScreen, { DayGridInline } from "../components/DayDetail";
+import DayDetailScreen, { DateListView, TimeGridScreen } from "../components/DayDetail";
 
 function pad(n) { return String(n).padStart(2, "0"); }
 function fmt(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
@@ -62,7 +62,9 @@ export default function CalendarPage({ setTab }) {
   // Agendaの日付見出しをタップすると、その日専用の画面(C: リスト / D: グリッド)を開く。
   const [dayDetailDate, setDayDetailDate] = useState(null);
   // A(月表示) と D(縦列の時間表示) の切り替え。同列の関係で、上部のボタンで行き来する。
-  const [calView, setCalView] = useState("month"); // "month" | "day"
+  const [calView, setCalView] = useState("month"); // "month"(A) | "list"(D)
+  // D の日付タップで開く E(その日の時間軸表示)
+  const [timeGridDate, setTimeGridDate] = useState(null);
   const [editingEventText, setEditingEventText] = useState("");
   const [editingEventTime, setEditingEventTime] = useState("");
   const [editingEventIsAllDay, setEditingEventIsAllDay] = useState(false);
@@ -102,14 +104,11 @@ export default function CalendarPage({ setTab }) {
   const memoText = isTeam && teamMemoDraft !== null ? teamMemoDraft : memo.text;
 
   function selectDate(ds) {
-    // 1回目のタップはその日を選ぶだけ(下のB欄で新規入力するため)。
-    // すでに選ばれている日をもう一度タップすると、その日専用の画面(C)を開く。
-    if (ds === selectedDate) {
-      setDayDetailDate(ds);
-      return;
-    }
+    // A(月表示)の日付タップ → C(その日のリスト)を開く。
+    // 下のB欄が対象にする日も合わせて切り替える。
     setSelectedDate(ds);
     setTeamMemoDraft(null);
+    setDayDetailDate(ds);
   }
 
   function commitTaskDraft(draftId) {
@@ -346,9 +345,9 @@ export default function CalendarPage({ setTab }) {
           </div>
           </>
           ) : (
-            /* D: 縦列の時間表示。選択中の日を時間軸で見る。
-               A(月表示)と同列の関係で、上部のボタンで行き来する。 */
-            <DayGridInline date={selectedDate} />
+            /* D: 日付が縦に並ぶリスト。A(月表示)と同列で、上部のボタンで行き来する。
+               日付をタップすると E(その日の時間軸表示)を開く。 */
+            <DateListView month={calMonth} onOpenDate={setTimeGridDate} />
           )}
         </section>
 
@@ -588,6 +587,10 @@ export default function CalendarPage({ setTab }) {
 
       {dayDetailDate && (
         <DayDetailScreen date={dayDetailDate} onClose={() => setDayDetailDate(null)} />
+      )}
+
+      {timeGridDate && (
+        <TimeGridScreen date={timeGridDate} onClose={() => setTimeGridDate(null)} />
       )}
     </div>
   );
