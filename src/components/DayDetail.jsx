@@ -252,12 +252,12 @@ function layoutItems(items) {
   return placed;
 }
 
-function DayGrid({ items, onEditItem }) {
+function DayGrid({ items, onEditItem, className = "flex-1 overflow-y-auto" }) {
   const laidOut = useMemo(() => layoutItems(items), [items]);
   const hours = Array.from({ length: 24 }, (_, i) => (5 + i) % 24);
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className={className}>
       <div className="relative" style={{ height: 24 * PX_PER_HOUR }}>
         {hours.map((h, i) => (
           <div
@@ -346,5 +346,42 @@ export default function DayDetailScreen({ date, onClose }) {
         </div>
       )}
     </div>
+  );
+}
+
+
+// ===== A画面の中にそのまま埋め込む縦列表示(D) =====
+// 月表示(A)と同列の関係で使う。日付を切り替えずに、選択中の1日を時間軸で見る。
+// 項目をタップすると、その場で編集シートが開く。
+export function DayGridInline({ date }) {
+  const { data, teamData, space, updateTask, deleteTask, updateEvent, deleteEvent } = useData();
+  const isTeam = space === "team";
+  const [editing, setEditing] = useState(null);
+  const { items } = useMemo(() => getDayItems(data, teamData, isTeam, date), [data, teamData, isTeam, date]);
+
+  return (
+    <>
+      <DayGrid items={items} onEditItem={setEditing} className="overflow-visible" />
+      {editing && (
+        <div className="fixed inset-0 z-[60] bg-black/40 flex items-end" onClick={() => setEditing(null)}>
+          <div className="w-full bg-app-bg rounded-t-2xl p-4 pb-8" onClick={(e) => e.stopPropagation()}>
+            <ItemEditForm
+              item={editing}
+              onCancel={() => setEditing(null)}
+              onSave={(v) => {
+                if (editing.kind === "task") updateTask(editing.id, v.title, v.time, v.endTime);
+                else updateEvent(editing.id, v.time, v.title, v.endTime);
+                setEditing(null);
+              }}
+              onDelete={() => {
+                if (editing.kind === "task") deleteTask(editing.id);
+                else deleteEvent(editing.id);
+                setEditing(null);
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </>
   );
 }

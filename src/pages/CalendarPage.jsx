@@ -1,12 +1,12 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Plus, Paperclip, Camera, PencilLine, FileText } from "lucide-react";
+import { Plus, Paperclip, Camera, PencilLine, FileText, Rows3, CalendarDays } from "lucide-react";
 import { useData, todayStr, fileToCompressedDataUrl, fileToDataUrl } from "../dataStore";
 import { handleEnterToConfirm } from "../useEnterConfirm";
 import BottomNavigation from "../components/BottomNavigation";
 import SpaceSwitcher from "../components/SpaceSwitcher";
 import { useConfirm } from "../components/ConfirmModal";
 import MediaImg from "../components/MediaImg";
-import DayDetailScreen from "../components/DayDetail";
+import DayDetailScreen, { DayGridInline } from "../components/DayDetail";
 
 function pad(n) { return String(n).padStart(2, "0"); }
 function fmt(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
@@ -61,6 +61,8 @@ export default function CalendarPage({ setTab }) {
   const [editingEventId, setEditingEventId] = useState(null);
   // Agendaの日付見出しをタップすると、その日専用の画面(C: リスト / D: グリッド)を開く。
   const [dayDetailDate, setDayDetailDate] = useState(null);
+  // A(月表示) と D(縦列の時間表示) の切り替え。同列の関係で、上部のボタンで行き来する。
+  const [calView, setCalView] = useState("month"); // "month" | "day"
   const [editingEventText, setEditingEventText] = useState("");
   const [editingEventTime, setEditingEventTime] = useState("");
   const [editingEventIsAllDay, setEditingEventIsAllDay] = useState(false);
@@ -275,12 +277,22 @@ export default function CalendarPage({ setTab }) {
               <h2 className="text-[32px] leading-none font-bold text-ink">{MONTH_NAMES[calMonth.m]}</h2>
               <span className="text-sm text-ink-sub">{calMonth.y}</span>
             </div>
-            <div className="flex items-center gap-5 pb-1 text-ink-sub">
+            <div className="flex items-center gap-4 pb-1 text-ink-sub">
+              {/* A(月表示) ⇄ D(縦列) の切り替え */}
+              <button
+                className="p-1"
+                onClick={() => setCalView((v) => (v === "month" ? "day" : "month"))}
+                aria-label={calView === "month" ? "縦列表示に切替" : "月表示に切替"}
+              >
+                {calView === "month" ? <Rows3 size={18} /> : <CalendarDays size={18} />}
+              </button>
               <button className="text-xl leading-none px-1" onClick={() => setCalMonth(({ y, m }) => m === 0 ? { y: y - 1, m: 11 } : { y, m: m - 1 })}>{"‹"}</button>
               <button className="text-xl leading-none px-1" onClick={() => setCalMonth(({ y, m }) => m === 11 ? { y: y + 1, m: 0 } : { y, m: m + 1 })}>{"›"}</button>
             </div>
           </div>
 
+          {calView === "month" ? (
+          <>
           {/* Week — 11pxグレー、下に髪の毛ライン */}
           <div className="grid grid-cols-7 text-center text-[11px] font-medium text-ink-sub py-1.5 border-b border-app-line/70">
             {WEEKDAYS.map((w) => <div key={w}>{w}</div>)}
@@ -332,6 +344,12 @@ export default function CalendarPage({ setTab }) {
               );
             })}
           </div>
+          </>
+          ) : (
+            /* D: 縦列の時間表示。選択中の日を時間軸で見る。
+               A(月表示)と同列の関係で、上部のボタンで行き来する。 */
+            <DayGridInline date={selectedDate} />
+          )}
         </section>
 
         {/* ========= PAGE 2 ========= */}
