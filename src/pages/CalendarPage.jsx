@@ -6,6 +6,7 @@ import BottomNavigation from "../components/BottomNavigation";
 import SpaceSwitcher from "../components/SpaceSwitcher";
 import { useConfirm } from "../components/ConfirmModal";
 import MediaImg from "../components/MediaImg";
+import DayDetailScreen from "../components/DayDetail";
 
 function pad(n) { return String(n).padStart(2, "0"); }
 function fmt(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
@@ -58,6 +59,8 @@ export default function CalendarPage({ setTab }) {
   const [editingTaskText, setEditingTaskText] = useState("");
   const [editingTaskReminderTime, setEditingTaskReminderTime] = useState("");
   const [editingEventId, setEditingEventId] = useState(null);
+  // Agendaの日付見出しをタップすると、その日専用の画面(C: リスト / D: グリッド)を開く。
+  const [dayDetailDate, setDayDetailDate] = useState(null);
   const [editingEventText, setEditingEventText] = useState("");
   const [editingEventTime, setEditingEventTime] = useState("");
   const [editingEventIsAllDay, setEditingEventIsAllDay] = useState(false);
@@ -399,9 +402,12 @@ export default function CalendarPage({ setTab }) {
               const isToday = day.date === todayStr();
               return (
                 <div key={day.date} className="mb-6">
-                  <h3 className={`text-lg font-bold mb-2 ${isToday ? "text-red-500" : "text-ink"}`}>
+                  <button
+                    onClick={() => setDayDetailDate(day.date)}
+                    className={`text-lg font-bold mb-2 text-left ${isToday ? "text-red-500" : "text-ink"}`}
+                  >
                     {d.getMonth() + 1}月{d.getDate()}日・{wd}曜日
-                  </h3>
+                  </button>
                   <div className="border-t border-app-line">
                     {day.items.map((item) => (
                       <button
@@ -687,6 +693,10 @@ export default function CalendarPage({ setTab }) {
       </main>
 
       <BottomNavigation current="calendar" setTab={setTab} />
+
+      {dayDetailDate && (
+        <DayDetailScreen date={dayDetailDate} onClose={() => setDayDetailDate(null)} />
+      )}
     </div>
   );
 }

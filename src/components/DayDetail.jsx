@@ -1,0 +1,350 @@
+import { useMemo, useState } from "react";
+import { X, Grid3x3, List, Plus, Trash2 } from "lucide-react";
+import { useData } from "../dataStore";
+
+// ===== 共通: 指定した1日ぶんの予定・タスク・メモを組み立てる =====
+// AgendaのagendaDaysと同じ考え方だが、範囲を絞らず単一の日付だけを対象にする。
+// (Agendaが+-1ヶ月の外にある日をこの画面で開く可能性は低いが、念のため独立させている)
+export function getDayItems(data, teamData, isTeam, date) {
+  const events = isTeam ? teamData.events : data.events;
+  const tasks = isTeam ? teamData.tasks : data.tasks;
+  const memo = (data.memos || {})[date];
+
+  const items = [];
+  events
+    .filter((e) => e.date === date)
+    .forEach((e) =>
+      items.push({ kind: "event", id: e.id, time: e.time || "", endTime: e.endTime || "", title: e.title, raw: e })
+    );
+  tasks
+    .filter((t) => t.date === date)
+    .forEach((t) =>
+      items.push({
+        kind: "task",
+        id: t.id,
+        time: t.reminderTime || "",
+        endTime: t.endTime || "",
+        title: t.title,
+        completed: t.completed,
+        raw: t,
+      })
+    );
+
+  items.sort((a, b) => {
+    if (!a.time && !b.time) return 0;
+    if (!a.time) return 1;
+    if (!b.time) return -1;
+    return a.time.localeCompare(b.time);
+  });
+
+  const hasMemo = Boolean((memo?.text || "").trim() || (memo?.images || []).length || (memo?.files || []).length);
+  return { items, memoText: memo?.text || "", hasMemo };
+}
+
+// "HH:MM" の10分刻み選択肢。5:00始まりで24時間分(翌4:50まで)を、グリッドの並びと揃えて生成する。
+function buildTimeOptions() {
+  const opts = [];
+  for (let i = 0; i < 24 * 6; i++) {
+    const totalMin = (5 * 60 + i * 10) % (24 * 60);
+    const h = String(Math.floor(totalMin / 60)).padStart(2, "0");
+    const m = String(totalMin % 60).padStart(2, "0");
+    opts.push(`${h}:${m}`);
+  }
+  return opts;
+}
+const TIME_OPTIONS = buildTimeOptions();
+
+function TimeSelect({ value, onChange, placeholder }) {
+  return (
+    <select
+      value={value || ""}
+      onChange={(e) => onChange(e.target.value)}
+      className="rounded-lg border border-app-line bg-app-surface px-2 py-1.5 text-sm"
+    >
+      <option value="">{placeholder || "--:--"}</option>
+      {TIME_OPTIONS.map((t) => (
+        <option key={t} value={t}>{t}</option>
+      ))}
+    </select>
+  );
+}
+
+// 予定・タスク1件ぶんの編集フォーム。C(リスト)・D(グリッド)の両方から使う。
+function ItemEditForm({ item, onSave, onDelete, onCancel }) {
+  const [title, setTitle] = useState(item?.title || "");
+  const [time, setTime] = useState(item?.time || "");
+  const [endTime, setEndTime] = useState(item?.endTime || "");
+
+  return (
+    <div className="rounded-xl border border-app-line bg-app-surface p-3 space-y-2">
+      <input
+        autoFocus
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder={item?.kind === "task" ? "タスク名" : "予定名"}
+        className="w-full rounded-lg border border-app-line px-3 py-2 text-sm bg-app-bg"
+      />
+      <div className="flex items-center gap-2">
+        <TimeSelect value={time} onChange={setTime} placeholder="開始" />
+        <span className="text-ink-sub text-sm">〜</span>
+        <TimeSelect value={endTime} onChange={setEndTime} placeholder="終了(任意)" />
+      </div>
+      <div className="flex items-center justify-between pt-1">
+        {onDelete ? (
+          <button onClick={onDelete} className="text-red-500 text-sm flex items-center gap-1">
+            <Trash2 size={14} /> 削除
+          </button>
+        ) : <span />}
+        <div className="flex gap-2">
+          <button onClick={onCancel} className="text-sm text-ink-sub px-3 py-1.5">キャンセル</button>
+          <button
+            onClick={() => title.trim() && onSave({ title: title.trim(), time, endTime })}
+            className="text-sm font-semibold bg-ink text-app-bg rounded-lg px-3 py-1.5"
+          >
+            保存
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===== C: 日専用リスト =====
+function DayList({ date, items }) {
+  const { addTask, updateTask, deleteTask, toggleTask, addEvent, updateEvent, deleteEvent, space } = useData();
+  const isTeam = space === "team";
+  const [editingId, setEditingId] = useState(null);
+  const [adding, setAdding] = useState(null); // "event" | "task" | null
+
+  function save(item, values) {
+    if (item.kind === "task") updateTask(item.id, values.title, values.time, values.endTime);
+    else updateEvent(item.id, values.time, values.title, values.endTime);
+    setEditingId(null);
+  }
+  function addNew(kind, values) {
+    if (kind === "task") addTask(date, values.title, values.time, values.endTime);
+    else addEvent(date, values.time, values.title, values.endTime);
+    setAdding(null);
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+      {items.length === 0 && !adding && (
+        <p className="text-sm text-ink-sub py-6 text-center">この日にはまだ何もありません</p>
+      )}
+      {items.map((item) =>
+        editingId === item.id ? (
+          <ItemEditForm
+            key={item.id}
+            item={item}
+            onCancel={() => setEditingId(null)}
+            onSave={(v) => save(item, v)}
+            onDelete={() => {
+              if (item.kind === "task") deleteTask(item.id); else deleteEvent(item.id);
+              setEditingId(null);
+            }}
+          />
+        ) : (
+          <button
+            key={item.id}
+            onClick={() => setEditingId(item.id)}
+            className="w-full flex items-center gap-3 py-2.5 border-b border-app-line text-left"
+          >
+            <span
+              className={`w-2.5 h-2.5 rounded-full shrink-0 ${item.kind === "event" ? "bg-blue-500" : "bg-green-500"}`}
+              onClick={(e) => {
+                if (item.kind === "task") {
+                  e.stopPropagation();
+                  if (isTeam) return;
+                  toggleTask(item.id);
+                }
+              }}
+            />
+            <span className={`flex-1 text-[15px] truncate ${item.kind === "task" && item.completed ? "line-through text-ink-sub" : "text-ink"}`}>
+              {item.title || "（無題）"}
+            </span>
+            <span className="text-sm text-ink-sub shrink-0">
+              {item.time ? (item.endTime ? `${item.time}〜${item.endTime}` : item.time) : "終日"}
+            </span>
+          </button>
+        )
+      )}
+
+      {adding && (
+        <ItemEditForm
+          item={{ kind: adding }}
+          onCancel={() => setAdding(null)}
+          onSave={(v) => addNew(adding, v)}
+        />
+      )}
+
+      {!adding && (
+        <div className="flex gap-2 pt-2">
+          <button
+            onClick={() => setAdding("event")}
+            className="flex-1 rounded-xl border border-app-line py-2.5 text-sm font-semibold flex items-center justify-center gap-1"
+          >
+            <Plus size={14} /> 予定
+          </button>
+          <button
+            onClick={() => setAdding("task")}
+            className="flex-1 rounded-xl border border-app-line py-2.5 text-sm font-semibold flex items-center justify-center gap-1"
+          >
+            <Plus size={14} /> タスク
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===== D: 時間グリッド =====
+// 5:00始まり24時間。1時間=60px。10分刻みでの入力と揃えるため、開始位置と高さは分単位で計算する。
+const GRID_START_MIN = 5 * 60; // 5:00
+const PX_PER_HOUR = 60;
+const MIN_BLOCK_MIN = 30; // 終了時刻未指定の項目の既定の長さ
+
+function minutesFromGridStart(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  let total = h * 60 + m - GRID_START_MIN;
+  if (total < 0) total += 24 * 60;
+  return total;
+}
+
+// 重なっているものを横に並べるための、簡易な列割り当て。
+function layoutItems(items) {
+  const timed = items
+    .filter((it) => it.time)
+    .map((it) => {
+      const start = minutesFromGridStart(it.time);
+      const dur = it.endTime ? Math.max(10, minutesFromGridStart(it.endTime) - start) : MIN_BLOCK_MIN;
+      return { ...it, _start: start, _end: start + dur };
+    })
+    .sort((a, b) => a._start - b._start);
+
+  const clusters = [];
+  let current = [];
+  let clusterEnd = -1;
+  timed.forEach((it) => {
+    if (current.length && it._start >= clusterEnd) {
+      clusters.push(current);
+      current = [];
+    }
+    current.push(it);
+    clusterEnd = Math.max(clusterEnd, it._end);
+  });
+  if (current.length) clusters.push(current);
+
+  const placed = [];
+  clusters.forEach((cluster) => {
+    const colEnds = []; // 各列の使用中の終了時刻
+    const clusterPlaced = [];
+    cluster.forEach((it) => {
+      let col = colEnds.findIndex((end) => end <= it._start);
+      if (col === -1) { col = colEnds.length; colEnds.push(it._end); }
+      else colEnds[col] = it._end;
+      clusterPlaced.push({ ...it, _col: col });
+    });
+    const maxCol = colEnds.length;
+    clusterPlaced.forEach((p) => { p._cols = maxCol; placed.push(p); });
+  });
+
+  return placed;
+}
+
+function DayGrid({ items, onEditItem }) {
+  const laidOut = useMemo(() => layoutItems(items), [items]);
+  const hours = Array.from({ length: 24 }, (_, i) => (5 + i) % 24);
+
+  return (
+    <div className="flex-1 overflow-y-auto">
+      <div className="relative" style={{ height: 24 * PX_PER_HOUR }}>
+        {hours.map((h, i) => (
+          <div
+            key={i}
+            className="absolute left-0 right-0 border-t border-app-line flex items-start"
+            style={{ top: i * PX_PER_HOUR }}
+          >
+            <span className="text-[11px] text-ink-sub w-10 -mt-2 pl-1 bg-app-bg shrink-0">
+              {String(h).padStart(2, "0")}:00
+            </span>
+          </div>
+        ))}
+        {laidOut.map((it) => (
+          <button
+            key={it.id}
+            onClick={() => onEditItem(it)}
+            className={`absolute rounded-md px-1.5 py-0.5 text-left overflow-hidden text-[11px] leading-tight text-white ${
+              it.kind === "event" ? "bg-blue-500" : it.completed ? "bg-green-300 line-through" : "bg-green-500"
+            }`}
+            style={{
+              top: (it._start / 60) * PX_PER_HOUR,
+              height: Math.max(18, ((it._end - it._start) / 60) * PX_PER_HOUR - 2),
+              left: `calc(3rem + ${(it._col / it._cols) * 100}%)`,
+              width: `calc(${100 / it._cols}% - 3rem - 4px)`,
+            }}
+          >
+            {it.title || "（無題）"}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ===== 全体: 日専用画面(モーダル) =====
+export default function DayDetailScreen({ date, onClose }) {
+  const { data, teamData, space, addTask, updateTask, deleteTask, addEvent, updateEvent, deleteEvent } = useData();
+  const isTeam = space === "team";
+  const [mode, setMode] = useState("list"); // "list" | "grid"
+  const [editingGridItem, setEditingGridItem] = useState(null);
+
+  const { items } = useMemo(() => getDayItems(data, teamData, isTeam, date), [data, teamData, isTeam, date]);
+  const d = new Date(date + "T00:00:00");
+  const wd = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+
+  function saveGridItem(item, values) {
+    if (item.kind === "task") updateTask(item.id, values.title, values.time, values.endTime);
+    else updateEvent(item.id, values.time, values.title, values.endTime);
+    setEditingGridItem(null);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-app-bg flex flex-col">
+      <div className="flex items-center justify-between px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-3 border-b border-app-line shrink-0">
+        <button onClick={onClose} className="p-1"><X size={20} /></button>
+        <h2 className="text-base font-bold">{d.getMonth() + 1}月{d.getDate()}日・{wd}曜日</h2>
+        <button
+          onClick={() => setMode((m) => (m === "list" ? "grid" : "list"))}
+          className="p-1"
+          aria-label={mode === "list" ? "時間グリッドに切替" : "リストに切替"}
+        >
+          {mode === "list" ? <Grid3x3 size={20} /> : <List size={20} />}
+        </button>
+      </div>
+
+      {mode === "list" ? (
+        <DayList date={date} items={items} />
+      ) : (
+        <DayGrid items={items} onEditItem={setEditingGridItem} />
+      )}
+
+      {mode === "grid" && editingGridItem && (
+        <div className="fixed inset-0 z-[60] bg-black/40 flex items-end" onClick={() => setEditingGridItem(null)}>
+          <div className="w-full bg-app-bg rounded-t-2xl p-4 pb-8" onClick={(e) => e.stopPropagation()}>
+            <ItemEditForm
+              item={editingGridItem}
+              onCancel={() => setEditingGridItem(null)}
+              onSave={(v) => saveGridItem(editingGridItem, v)}
+              onDelete={() => {
+                if (editingGridItem.kind === "task") deleteTask(editingGridItem.id);
+                else deleteEvent(editingGridItem.id);
+                setEditingGridItem(null);
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

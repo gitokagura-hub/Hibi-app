@@ -190,29 +190,34 @@ export function DataProvider({ children }) {
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [data]);
 
-  function addTask(date, title, reminderTime) {
-    const task = { id: uid(), date, title, completed: false, reminderTime: reminderTime || '', createdAt: Date.now() };
+  // endTime は縦列カレンダー(時間グリッド)用の終了時刻。10分単位を想定。
+  // 未指定(空文字)のタスクは、グリッド上では既定の短いブロックとして表示する。
+  function addTask(date, title, reminderTime, endTime) {
+    const task = { id: uid(), date, title, completed: false, reminderTime: reminderTime || '', endTime: endTime || '', createdAt: Date.now() };
     setData(prev => ({ ...prev, tasks: [...prev.tasks, task] }));
     return task;
   }
   function toggleTask(id) {
     setData(prev => ({ ...prev, tasks: prev.tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t) }));
   }
-  function updateTask(id, title, reminderTime) {
-    setData(prev => ({ ...prev, tasks: prev.tasks.map(t => t.id === id ? { ...t, title, reminderTime: reminderTime !== undefined ? reminderTime : t.reminderTime } : t) }));
+  function updateTask(id, title, reminderTime, endTime) {
+    setData(prev => ({ ...prev, tasks: prev.tasks.map(t => t.id === id ? { ...t, title, reminderTime: reminderTime !== undefined ? reminderTime : t.reminderTime, endTime: endTime !== undefined ? endTime : t.endTime } : t) }));
   }
   function deleteTask(id) {
     setData(prev => ({ ...prev, tasks: prev.tasks.filter(t => t.id !== id) }));
   }
-  function addEvent(date, time, title) {
-    const event = { id: uid(), date, time, title, createdAt: Date.now() };
+  // endTime は予定の終了時刻。「8:00〜11:20の会議」のように範囲を持たせたい時に使う。
+  // 未指定なら、これまで通り開始時刻だけの予定として扱う。
+  function addEvent(date, time, title, endTime) {
+    const event = { id: uid(), date, time, title, endTime: endTime || '', createdAt: Date.now() };
     setData(prev => ({ ...prev, events: [...prev.events, event] }));
+    return event;
   }
   function deleteEvent(id) {
     setData(prev => ({ ...prev, events: prev.events.filter(e => e.id !== id) }));
   }
-  function updateEvent(id, time, title) {
-    setData(prev => ({ ...prev, events: prev.events.map(e => e.id === id ? { ...e, time, title } : e) }));
+  function updateEvent(id, time, title, endTime) {
+    setData(prev => ({ ...prev, events: prev.events.map(e => e.id === id ? { ...e, time, title, endTime: endTime !== undefined ? endTime : e.endTime } : e) }));
   }
   function getMemo(date) {
     return data.memos[date] || { text: '', images: [], files: [] };
