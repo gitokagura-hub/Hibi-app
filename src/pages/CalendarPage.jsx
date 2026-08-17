@@ -95,70 +95,17 @@ export default function CalendarPage({ setTab }) {
     .filter((e) => e.date === selectedDate)
     .sort((a, b) => (a.time || "").localeCompare(b.time || ""));
   const dayTasks = (isTeam ? teamData.tasks : data.tasks).filter((t) => t.date === selectedDate);
-
-  // ===== Agendaリスト用のデータ =====
-  // 選択日の前後1ヶ月ぶんについて、予定・タスク・メモを日付ごとにまとめる。
-  // 項目が1つもない日は含めない(iPhoneのカレンダーと同じで、空の日は飛ばす)。
-  const agendaDays = useMemo(() => {
-    const events = isTeam ? teamData.events : data.events;
-    const tasks = isTeam ? teamData.tasks : data.tasks;
-    const memos = data.memos || {};
-
-    // 前後1ヶ月の範囲を求める
-    const base = new Date(selectedDate + "T00:00:00");
-    const from = new Date(base); from.setMonth(from.getMonth() - 1);
-    const to = new Date(base); to.setMonth(to.getMonth() + 1);
-    const inRange = (ds) => {
-      const d = new Date(ds + "T00:00:00");
-      return d >= from && d <= to;
-    };
-
-    // 日付をキーにして項目を集める
-    const byDate = {};
-    const push = (date, item) => {
-      if (!date || !inRange(date)) return;
-      (byDate[date] = byDate[date] || []).push(item);
-    };
-
-    events.forEach((e) =>
-      push(e.date, { kind: "event", id: e.id, time: e.time || "", title: e.title, raw: e })
-    );
-    tasks.forEach((t) =>
-      push(t.date, {
-        kind: "task",
-        id: t.id,
-        time: t.reminderTime || "",
-        title: t.title,
-        completed: t.completed,
-        raw: t,
-      })
-    );
-    Object.entries(memos).forEach(([date, m]) => {
-      const hasContent =
-        (m.text || "").trim() || (m.images || []).length > 0 || (m.files || []).length > 0;
-      if (hasContent) {
-        push(date, { kind: "memo", id: `memo-${date}`, time: "", title: (m.text || "").trim(), raw: m });
-      }
-    });
-
-    // 1日の中は時刻順。時刻を持たないものは末尾にまわす。
-    return Object.keys(byDate)
-      .sort()
-      .map((date) => ({
-        date,
-        items: byDate[date].sort((a, b) => {
-          if (!a.time && !b.time) return 0;
-          if (!a.time) return 1;
-          if (!b.time) return -1;
-          return a.time.localeCompare(b.time);
-        }),
-      }));
-  }, [selectedDate, isTeam, data.events, data.tasks, data.memos, teamData.events, teamData.tasks]);
   const memo = isTeam ? getTeamMemo(selectedDate) : getMemo(selectedDate);
   const [teamMemoDraft, setTeamMemoDraft] = useState(null); // local text while editing, to avoid a Sheets write per keystroke
   const memoText = isTeam && teamMemoDraft !== null ? teamMemoDraft : memo.text;
 
   function selectDate(ds) {
+    // 1回目のタップはその日を選ぶだけ(下のB欄で新規入力するため)。
+    // すでに選ばれている日をもう一度タップすると、その日専用の画面(C)を開く。
+    if (ds === selectedDate) {
+      setDayDetailDate(ds);
+      return;
+    }
     setSelectedDate(ds);
     setTeamMemoDraft(null);
   }
@@ -385,79 +332,6 @@ export default function CalendarPage({ setTab }) {
               );
             })}
           </div>
-        </section>
-
-        {/* ========= Agenda（日付ごとの一覧） ========= */}
-        {/* 選択日の前後1ヶ月ぶんを、日付を見出しにして縦に並べる。
-            項目のない日は出さない。月カレンダーの下にそのまま続く形。
-            タスクはその場で完了を切り替え、予定・メモはタップするとその日を選択して
-            下の編集エリアへスクロールする(既存の編集画面をそのまま使う)。 */}
-        <section className="px-5 pb-4">
-          {agendaDays.length === 0 ? (
-            <p className="text-sm text-ink-sub py-4">この期間に予定はありません</p>
-          ) : (
-            agendaDays.map((day) => {
-              const d = new Date(day.date + "T00:00:00");
-              const wd = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
-              const isToday = day.date === todayStr();
-              return (
-                <div key={day.date} className="mb-6">
-                  <button
-                    onClick={() => setDayDetailDate(day.date)}
-                    className={`text-lg font-bold mb-2 text-left ${isToday ? "text-red-500" : "text-ink"}`}
-                  >
-                    {d.getMonth() + 1}月{d.getDate()}日・{wd}曜日
-                  </button>
-                  <div className="border-t border-app-line">
-                    {day.items.map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          // タスクはその場で完了を切り替える。
-                          if (item.kind === "task") {
-                            if (isTeam) return;
-                            toggleTask(item.id);
-                            return;
-                          }
-                          // 予定とメモは、その日を選択したうえで下の編集エリアへ移動する。
-                          setSelectedDate(day.date);
-                          if (item.kind === "event") setEditingEventId(item.id);
-                          requestAnimationFrame(() => {
-                            document
-                              .getElementById("calendar-day-detail")
-                              ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                          });
-                        }}
-                        className="w-full flex items-center gap-3 py-3 border-b border-app-line text-left"
-                      >
-                        <span
-                          className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                            item.kind === "event"
-                              ? "bg-blue-500"
-                              : item.kind === "task"
-                              ? "bg-green-500"
-                              : "bg-gray-400"
-                          }`}
-                        />
-                        <span
-                          className={`flex-1 text-[15px] truncate ${
-                            item.kind === "task" && item.completed
-                              ? "line-through text-ink-sub"
-                              : "text-ink"
-                          }`}
-                        >
-                          {item.title || "（無題）"}
-                        </span>
-                        <span className="text-sm text-ink-sub shrink-0">
-                          {item.time || "終日"}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })
-          )}
         </section>
 
         {/* ========= PAGE 2 ========= */}
