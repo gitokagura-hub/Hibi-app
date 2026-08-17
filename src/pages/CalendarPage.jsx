@@ -38,7 +38,7 @@ function eventColorFor(title) {
 export default function CalendarPage({ setTab }) {
   const {
     data, addTask, toggleTask, deleteTask, updateTask, addEvent, deleteEvent, updateEvent,
-    getMemo, setMemo, addMemoImages, removeMemoImage, addMemoFiles, removeMemoFile, addNote,
+    getMemo, setMemo, clearMemo, addMemoImages, removeMemoImage, addMemoFiles, removeMemoFile, addNote,
     space, teamData, teamLoading, teamError,
     addTeamTaskAction, toggleTeamTaskAction, updateTeamTaskAction, deleteTeamTaskAction,
     addTeamEventAction, deleteTeamEventAction, updateTeamEventAction,
@@ -244,6 +244,8 @@ export default function CalendarPage({ setTab }) {
     } else {
       addNote(memoText.trim(), "text", memo.images, memo.files);
     }
+    // 送信は「移動」の意味なので、送ったメモは日付側から消す。
+    clearMemo(selectedDate);
     setMemoSent(true);
     setTimeout(() => setMemoSent(false), 2000);
   }

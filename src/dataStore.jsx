@@ -220,6 +220,14 @@ export function DataProvider({ children }) {
   function setMemo(date, text) {
     setData(prev => ({ ...prev, memos: { ...prev.memos, [date]: { ...(prev.memos[date] || { images: [], files: [] }), text } } }));
   }
+  // メモをノートへ移動したときに使う。テキスト・写真・ファイルをまとめて空にする。
+  // 日付のキー自体は残す(memos[date] を参照する箇所が undefined にならないように)。
+  function clearMemo(date) {
+    setData(prev => ({
+      ...prev,
+      memos: { ...prev.memos, [date]: { text: '', images: [], files: [] } },
+    }));
+  }
   function addMemoImages(date, dataUrls) {
     setData(prev => {
       const existing = prev.memos[date] || { text: '', images: [], files: [] };
@@ -687,7 +695,7 @@ export function DataProvider({ children }) {
     runLibraryRecovery,
     addTask, toggleTask, deleteTask, updateTask,
     addEvent, deleteEvent, updateEvent,
-    getMemo, setMemo, addMemoImages, removeMemoImage, updateMemoImageCategories, addMemoFiles, removeMemoFile,
+    getMemo, setMemo, clearMemo, addMemoImages, removeMemoImage, updateMemoImageCategories, addMemoFiles, removeMemoFile,
     addNote, deleteNote, updateNote,
     addLibraryPhotos, deleteLibraryPhoto, deletePhotosBySrc,
     addLibraryFiles, deleteLibraryFile, renameLibraryFile, addLibraryFolder, deleteLibraryFolder, renameLibraryFolder,
