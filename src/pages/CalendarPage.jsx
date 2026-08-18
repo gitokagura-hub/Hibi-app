@@ -103,12 +103,15 @@ export default function CalendarPage({ setTab }) {
   const [teamMemoDraft, setTeamMemoDraft] = useState(null); // local text while editing, to avoid a Sheets write per keystroke
   const memoText = isTeam && teamMemoDraft !== null ? teamMemoDraft : memo.text;
 
+  // 1回タップはその日を選ぶだけ(下のB欄で新規入力するため)。
+  // 同じ日をもう一度タップ(ダブルタップ)すると C(その日のリスト)を開く。
   function selectDate(ds) {
-    // A(月表示)の日付タップ → C(その日のリスト)を開く。
-    // 下のB欄が対象にする日も合わせて切り替える。
+    if (ds === selectedDate) {
+      setDayDetailDate(ds);
+      return;
+    }
     setSelectedDate(ds);
     setTeamMemoDraft(null);
-    setDayDetailDate(ds);
   }
 
   function commitTaskDraft(draftId) {
@@ -309,12 +312,17 @@ export default function CalendarPage({ setTab }) {
               const isWeekend = dow === 0 || dow === 6;
               const items = (cellPreview[ds] || []).slice(0, 3);
               const overflowCount = (cellPreview[ds] || []).length - items.length;
+              // touchAction は以前 "pan-y" だったが、これだと日付のマスの上で
+              // ピンチ操作がブラウザに渡らず、カレンダーを拡大できなかった。
+              // "manipulation" はピンチズームと縦スクロールを許可しつつ、
+              // ダブルタップによるブラウザ拡大だけを無効にする(日付のダブルタップは
+              // C画面を開く操作に使うため、この方が都合がよい)。
               return (
                 <button
                   key={index}
                   onClick={() => selectDate(ds)}
                   className={`${rowLine} flex flex-col items-center justify-start pt-1.5 px-[3px] text-left bg-app-bg`}
-                  style={{ touchAction: "pan-y" }}
+                  style={{ touchAction: "manipulation" }}
                 >
                   <span className={`inline-flex items-center justify-center w-[30px] h-[30px] rounded-full text-[17px] font-semibold leading-none mb-1 ${
                     isToday ? "bg-accent-red text-white" : isSelected ? "bg-app-raised text-ink" : isWeekend ? "text-ink-sub" : "text-ink"
