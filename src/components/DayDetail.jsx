@@ -41,31 +41,38 @@ export function getDayItems(data, teamData, isTeam, date) {
   return { items, memoText: memo?.text || "", hasMemo };
 }
 
-// "HH:MM" の10分刻み選択肢。5:00始まりで24時間分(翌4:50まで)を、グリッドの並びと揃えて生成する。
-function buildTimeOptions() {
-  const opts = [];
-  for (let i = 0; i < 24 * 6; i++) {
-    const totalMin = (5 * 60 + i * 10) % (24 * 60);
-    const h = String(Math.floor(totalMin / 60)).padStart(2, "0");
-    const m = String(totalMin % 60).padStart(2, "0");
-    opts.push(`${h}:${m}`);
-  }
-  return opts;
-}
-const TIME_OPTIONS = buildTimeOptions();
+// 時と分を別々に選ぶ。1つの長いプルダウンだと144項目から探すことになり、
+// スマホでは目当ての時刻に辿り着きにくいため分けている。分は10分刻み。
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+const MINUTE_OPTIONS = Array.from({ length: 6 }, (_, i) => String(i * 10).padStart(2, "0"));
 
-function TimeSelect({ value, onChange, placeholder }) {
+function TimeSelect({ value, onChange, label }) {
+  const [h, m] = (value || "").split(":");
+  // 時だけ選んで分が未選択のときは 00分 とみなす(逆も同様)。
+  const setPart = (nextH, nextM) => {
+    if (!nextH && !nextM) return onChange("");
+    onChange(`${nextH || "00"}:${nextM || "00"}`);
+  };
   return (
-    <select
-      value={value || ""}
-      onChange={(e) => onChange(e.target.value)}
-      className="rounded-lg border border-app-line bg-app-surface px-2 py-1.5 text-sm"
-    >
-      <option value="">{placeholder || "--:--"}</option>
-      {TIME_OPTIONS.map((t) => (
-        <option key={t} value={t}>{t}</option>
-      ))}
-    </select>
+    <div className="flex items-center gap-1">
+      <select
+        value={h || ""}
+        onChange={(e) => setPart(e.target.value, m)}
+        className="rounded-lg border border-app-line bg-app-surface px-2 py-1.5 text-sm"
+      >
+        <option value="">{label}</option>
+        {HOUR_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+      <span className="text-ink-sub text-sm">:</span>
+      <select
+        value={m || ""}
+        onChange={(e) => setPart(h, e.target.value)}
+        className="rounded-lg border border-app-line bg-app-surface px-2 py-1.5 text-sm"
+      >
+        <option value="">--</option>
+        {MINUTE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
   );
 }
 
@@ -85,9 +92,9 @@ function ItemEditForm({ item, onSave, onDelete, onCancel }) {
         className="w-full rounded-lg border border-app-line px-3 py-2 text-sm bg-app-bg"
       />
       <div className="flex items-center gap-2">
-        <TimeSelect value={time} onChange={setTime} placeholder="開始" />
+        <TimeSelect value={time} onChange={setTime} label="開始" />
         <span className="text-ink-sub text-sm">〜</span>
-        <TimeSelect value={endTime} onChange={setEndTime} placeholder="終了(任意)" />
+        <TimeSelect value={endTime} onChange={setEndTime} label="終了" />
       </div>
       <div className="flex items-center justify-between pt-1">
         {onDelete ? (
