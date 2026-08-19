@@ -48,19 +48,33 @@ export function getDayItems(data, teamData, isTeam, date) {
 // 時刻の入力は input[type=time] を使う。iOSではこれが標準のホイール
 // (時と分が別々に回る)になり、B欄の新規入力と見た目・操作が揃う。
 // step=600 で10分刻みにしている。
+// Clear は <label> の外に置く。label の内側にボタンがあると、押した時に
+// 紐づく時刻入力にもフォーカスが渡ってピッカーが開き、現在時刻が表示されるため
+// 「クリアしても変わらない」ように見えてしまう。
+// また未設定のときは input が現在時刻を表示するので、薄くして区別がつくようにする。
 function TimeSelect({ value, onChange, label, min }) {
   return (
-    <label className="flex items-center gap-1.5">
-      <span className="text-xs text-ink-sub">{label}</span>
-      <input
-        type="time"
-        step="600"
-        min={min || undefined}
-        value={value || ""}
-        onChange={(e) => onChange(e.target.value)}
-        className="rounded-xl border border-app-line bg-app-surface p-2 text-sm w-28 flex-shrink-0"
-      />
-    </label>
+    <span className="flex items-center gap-1">
+      <label className="flex items-center gap-1.5">
+        <span className="text-xs text-ink-sub">{label}</span>
+        <input
+          type="time"
+          step="600"
+          min={min || undefined}
+          value={value || ""}
+          onChange={(e) => onChange(e.target.value)}
+          className={`rounded-xl border border-app-line bg-app-surface p-2 text-sm w-28 flex-shrink-0 ${value ? "" : "opacity-40"}`}
+        />
+      </label>
+      {value && (
+        <button
+          onClick={() => onChange("")}
+          className="text-[11px] text-ink-sub px-2 py-2 -my-1 rounded-lg shrink-0"
+        >
+          Clear
+        </button>
+      )}
+    </span>
   );
 }
 

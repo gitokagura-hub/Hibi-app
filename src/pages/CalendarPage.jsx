@@ -519,18 +519,29 @@ export default function CalendarPage({ setTab }) {
                 className="w-full h-24 rounded-xl border p-3 mb-2"
               />
               {!isTeam && (
-                <label className="flex items-center gap-2 text-sm text-ink-sub">
-                  Reminder
-                  <input
-                    type="time"
-                    value={draft.reminderTime}
-                    onChange={(e) => updateTaskDraft(draft.id, { reminderTime: e.target.value })}
-                    className="rounded-xl border p-2 text-sm"
-                  />
+                // Clearボタンは <label> の外に置く。中に入れているとボタンを押した時に
+                // ラベルが紐づく時刻入力にもフォーカスを渡してしまい、ピッカーが開いて
+                // 現在時刻が表示されるため「クリアしても変わらない」ように見えていた。
+                <div className="flex items-center gap-2 text-sm text-ink-sub">
+                  <label className="flex items-center gap-2">
+                    Reminder
+                    <input
+                      type="time"
+                      value={draft.reminderTime}
+                      onChange={(e) => updateTaskDraft(draft.id, { reminderTime: e.target.value })}
+                      className={`rounded-xl border p-2 text-sm ${draft.reminderTime ? "" : "opacity-40"}`}
+                    />
+                  </label>
+                  {!draft.reminderTime && <span className="text-xs text-ink-sub/70">Not set</span>}
                   {draft.reminderTime && (
-                    <button onClick={() => updateTaskDraft(draft.id, { reminderTime: "" })} className="text-xs text-ink-sub">クリア</button>
+                    <button
+                      onClick={() => updateTaskDraft(draft.id, { reminderTime: "" })}
+                      className="text-xs text-ink-sub px-3 py-2 -my-1 rounded-lg"
+                    >
+                      Clear
+                    </button>
                   )}
-                </label>
+                </div>
               )}
             </div>
           ))}
