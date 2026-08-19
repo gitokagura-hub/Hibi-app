@@ -68,8 +68,11 @@ function TimeSelect({ value, onChange, label, min }) {
 // 表示文言はすべて英語。
 function ItemEditForm({ item, onSave, onDelete, onCancel, defaultTime }) {
   const [title, setTitle] = useState(item?.title || "");
-  const [time, setTime] = useState(item?.time || defaultTime || "");
-  const [endTime, setEndTime] = useState(item?.endTime || "");
+  const initialStart = item?.time || defaultTime || "";
+  const [time, setTime] = useState(initialStart);
+  // 終了の初期値は開始と同じにしておく。空のままだとiOSのホイールが現在時刻を
+  // 表示してしまい、開始と無関係な時刻(例: 16:49)が入ったように見えるため。
+  const [endTime, setEndTime] = useState(item?.endTime || initialStart);
 
   // 開始を選んだとき、終了が未設定または開始より前なら、開始と同じ時刻に合わせる。
   // 終了を選び直すとき、ゼロから探さずに開始付近から選べるようにするため。
@@ -191,10 +194,10 @@ function DayList({ date, items }) {
                 {/* このスケジュールにタスクを足す */}
                 <button
                   onClick={() => setAdding({ kind: "task", eventId: ev.id })}
-                  className="p-1 text-ink-sub shrink-0"
+                  className="w-7 h-7 rounded-full bg-app-raised border border-app-line text-ink-sub shrink-0 flex items-center justify-center"
                   aria-label="Add task"
                 >
-                  <Plus size={16} />
+                  <Plus size={15} />
                 </button>
               </div>
             )}
