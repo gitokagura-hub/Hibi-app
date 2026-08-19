@@ -192,8 +192,11 @@ export function DataProvider({ children }) {
 
   // endTime は縦列カレンダー(時間グリッド)用の終了時刻。10分単位を想定。
   // 未指定(空文字)のタスクは、グリッド上では既定の短いブロックとして表示する。
-  function addTask(date, title, reminderTime, endTime) {
-    const task = { id: uid(), date, title, completed: false, reminderTime: reminderTime || '', endTime: endTime || '', createdAt: Date.now() };
+  // eventId は所属するスケジュール(予定)のID。C画面ではタスクを予定の下に
+  // ぶら下げて表示する。未指定のタスク(B欄で作ったものなど)は、どの予定にも
+  // 属さない扱いで一覧の末尾にまとめて表示される。
+  function addTask(date, title, reminderTime, endTime, eventId) {
+    const task = { id: uid(), date, title, completed: false, reminderTime: reminderTime || '', endTime: endTime || '', eventId: eventId || null, createdAt: Date.now() };
     setData(prev => ({ ...prev, tasks: [...prev.tasks, task] }));
     return task;
   }

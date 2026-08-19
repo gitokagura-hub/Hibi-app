@@ -1,4 +1,8 @@
 import { useMemo, useState } from "react";
+
+// 画面内の文言は英語で統一する。
+const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 import { X, Plus, Trash2 } from "lucide-react";
 import { useData } from "../dataStore";
 
@@ -44,13 +48,14 @@ export function getDayItems(data, teamData, isTeam, date) {
 // 時刻の入力は input[type=time] を使う。iOSではこれが標準のホイール
 // (時と分が別々に回る)になり、B欄の新規入力と見た目・操作が揃う。
 // step=600 で10分刻みにしている。
-function TimeSelect({ value, onChange, label }) {
+function TimeSelect({ value, onChange, label, min }) {
   return (
     <label className="flex items-center gap-1.5">
       <span className="text-xs text-ink-sub">{label}</span>
       <input
         type="time"
         step="600"
+        min={min || undefined}
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
         className="rounded-xl border border-app-line bg-app-surface p-2 text-sm w-28 flex-shrink-0"
@@ -59,11 +64,19 @@ function TimeSelect({ value, onChange, label }) {
   );
 }
 
-// 予定・タスク1件ぶんの編集フォーム。C(リスト)・D(グリッド)の両方から使う。
-function ItemEditForm({ item, onSave, onDelete, onCancel }) {
+// 予定・タスク1件ぶんの編集フォーム。C(リスト)・E(グリッド)の両方から使う。
+// 表示文言はすべて英語。
+function ItemEditForm({ item, onSave, onDelete, onCancel, defaultTime }) {
   const [title, setTitle] = useState(item?.title || "");
-  const [time, setTime] = useState(item?.time || "");
+  const [time, setTime] = useState(item?.time || defaultTime || "");
   const [endTime, setEndTime] = useState(item?.endTime || "");
+
+  // 開始を選んだとき、終了が未設定または開始より前なら、開始と同じ時刻に合わせる。
+  // 終了を選び直すとき、ゼロから探さずに開始付近から選べるようにするため。
+  function handleStart(v) {
+    setTime(v);
+    if (v && (!endTime || endTime < v)) setEndTime(v);
+  }
 
   return (
     <div className="rounded-xl border border-app-line bg-app-surface p-3 space-y-2">
@@ -71,27 +84,27 @@ function ItemEditForm({ item, onSave, onDelete, onCancel }) {
         autoFocus
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder={item?.kind === "task" ? "タスク名" : "予定名"}
+        placeholder={item?.kind === "task" ? "Task" : "Title"}
         className="w-full rounded-lg border border-app-line px-3 py-2 text-sm bg-app-bg"
       />
-      <div className="flex items-center gap-2">
-        <TimeSelect value={time} onChange={setTime} label="開始" />
-        <span className="text-ink-sub text-sm">〜</span>
-        <TimeSelect value={endTime} onChange={setEndTime} label="終了" />
+      <div className="flex items-center gap-2 flex-wrap">
+        <TimeSelect value={time} onChange={handleStart} label="Start" />
+        <span className="text-ink-sub text-sm">–</span>
+        <TimeSelect value={endTime} onChange={setEndTime} label="End" min={time} />
       </div>
       <div className="flex items-center justify-between pt-1">
         {onDelete ? (
           <button onClick={onDelete} className="text-red-500 text-sm flex items-center gap-1">
-            <Trash2 size={14} /> 削除
+            <Trash2 size={14} /> Delete
           </button>
         ) : <span />}
         <div className="flex gap-2">
-          <button onClick={onCancel} className="text-sm text-ink-sub px-3 py-1.5">キャンセル</button>
+          <button onClick={onCancel} className="text-sm text-ink-sub px-3 py-1.5">Cancel</button>
           <button
             onClick={() => title.trim() && onSave({ title: title.trim(), time, endTime })}
             className="text-sm font-semibold bg-ink text-app-bg rounded-lg px-3 py-1.5"
           >
-            保存
+            Save
           </button>
         </div>
       </div>
@@ -100,89 +113,133 @@ function ItemEditForm({ item, onSave, onDelete, onCancel }) {
 }
 
 // ===== C: 日専用リスト =====
+// スケジュール(予定)を親、タスクをその下にぶら下げて表示する。
+// どの予定にも属さないタスクは末尾にまとめる(B欄で作った既存のタスクなど)。
+// 画面内の文言はすべて英語で統一する。
 function DayList({ date, items }) {
   const { addTask, updateTask, deleteTask, toggleTask, addEvent, updateEvent, deleteEvent, space } = useData();
   const isTeam = space === "team";
   const [editingId, setEditingId] = useState(null);
-  const [adding, setAdding] = useState(null); // "event" | "task" | null
+  const [adding, setAdding] = useState(null); // null | {kind:"event"} | {kind:"task", eventId}
+
+  const events = items.filter((i) => i.kind === "event");
+  const tasks = items.filter((i) => i.kind === "task");
+  const orphanTasks = tasks.filter((t) => !t.raw?.eventId);
 
   function save(item, values) {
     if (item.kind === "task") updateTask(item.id, values.title, values.time, values.endTime);
     else updateEvent(item.id, values.time, values.title, values.endTime);
     setEditingId(null);
   }
-  function addNew(kind, values) {
-    if (kind === "task") addTask(date, values.title, values.time, values.endTime);
-    else addEvent(date, values.time, values.title, values.endTime);
-    setAdding(null);
+
+  function TaskRow({ t }) {
+    if (editingId === t.id) {
+      return (
+        <ItemEditForm
+          item={t}
+          onCancel={() => setEditingId(null)}
+          onSave={(v) => save(t, v)}
+          onDelete={() => { deleteTask(t.id); setEditingId(null); }}
+        />
+      );
+    }
+    return (
+      <button
+        onClick={() => setEditingId(t.id)}
+        className="w-full flex items-center gap-2.5 py-2 text-left"
+      >
+        <span
+          onClick={(e) => { e.stopPropagation(); if (!isTeam) toggleTask(t.id); }}
+          className={`w-4 h-4 rounded-full border-2 shrink-0 ${t.completed ? "bg-green-500 border-green-500" : "border-app-line"}`}
+        />
+        <span className={`flex-1 text-sm truncate ${t.completed ? "line-through text-ink-sub" : "text-ink"}`}>
+          {t.title || "Untitled"}
+        </span>
+        <span className="text-xs text-ink-sub shrink-0">
+          {t.time ? (t.endTime ? `${t.time}–${t.endTime}` : t.time) : ""}
+        </span>
+      </button>
+    );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
       {items.length === 0 && !adding && (
-        <p className="text-sm text-ink-sub py-6 text-center">この日にはまだ何もありません</p>
-      )}
-      {items.map((item) =>
-        editingId === item.id ? (
-          <ItemEditForm
-            key={item.id}
-            item={item}
-            onCancel={() => setEditingId(null)}
-            onSave={(v) => save(item, v)}
-            onDelete={() => {
-              if (item.kind === "task") deleteTask(item.id); else deleteEvent(item.id);
-              setEditingId(null);
-            }}
-          />
-        ) : (
-          <button
-            key={item.id}
-            onClick={() => setEditingId(item.id)}
-            className="w-full flex items-center gap-3 py-2.5 border-b border-app-line text-left"
-          >
-            <span
-              className={`w-2.5 h-2.5 rounded-full shrink-0 ${item.kind === "event" ? "bg-blue-500" : "bg-green-500"}`}
-              onClick={(e) => {
-                if (item.kind === "task") {
-                  e.stopPropagation();
-                  if (isTeam) return;
-                  toggleTask(item.id);
-                }
-              }}
-            />
-            <span className={`flex-1 text-[15px] truncate ${item.kind === "task" && item.completed ? "line-through text-ink-sub" : "text-ink"}`}>
-              {item.title || "（無題）"}
-            </span>
-            <span className="text-sm text-ink-sub shrink-0">
-              {item.time ? (item.endTime ? `${item.time}〜${item.endTime}` : item.time) : "終日"}
-            </span>
-          </button>
-        )
+        <p className="text-sm text-ink-sub py-6 text-center">Nothing scheduled</p>
       )}
 
-      {adding && (
+      {events.map((ev) => {
+        const children = tasks.filter((t) => t.raw?.eventId === ev.id);
+        return (
+          <div key={ev.id} className="border-b border-app-line pb-2">
+            {editingId === ev.id ? (
+              <ItemEditForm
+                item={ev}
+                onCancel={() => setEditingId(null)}
+                onSave={(v) => save(ev, v)}
+                onDelete={() => { deleteEvent(ev.id); setEditingId(null); }}
+              />
+            ) : (
+              <div className="flex items-center gap-3">
+                <button onClick={() => setEditingId(ev.id)} className="flex-1 flex items-center gap-3 py-2.5 text-left min-w-0">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0 bg-blue-500" />
+                  <span className="flex-1 text-[15px] truncate text-ink">{ev.title || "Untitled"}</span>
+                  <span className="text-sm text-ink-sub shrink-0">
+                    {ev.time ? (ev.endTime ? `${ev.time}–${ev.endTime}` : ev.time) : "All day"}
+                  </span>
+                </button>
+                {/* このスケジュールにタスクを足す */}
+                <button
+                  onClick={() => setAdding({ kind: "task", eventId: ev.id })}
+                  className="p-1 text-ink-sub shrink-0"
+                  aria-label="Add task"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+            )}
+
+            {(children.length > 0 || (adding?.kind === "task" && adding.eventId === ev.id)) && (
+              <div className="pl-5 space-y-1">
+                {children.map((t) => <TaskRow key={t.id} t={t} />)}
+                {adding?.kind === "task" && adding.eventId === ev.id && (
+                  <ItemEditForm
+                    item={{ kind: "task" }}
+                    defaultTime={ev.time}
+                    onCancel={() => setAdding(null)}
+                    onSave={(v) => { addTask(date, v.title, v.time, v.endTime, ev.id); setAdding(null); }}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {orphanTasks.length > 0 && (
+        <div className="pt-1">
+          <p className="text-[11px] font-semibold text-ink-sub uppercase tracking-wide mb-1">Tasks</p>
+          <div className="space-y-1">
+            {orphanTasks.map((t) => <TaskRow key={t.id} t={t} />)}
+          </div>
+        </div>
+      )}
+
+      {adding?.kind === "event" && (
         <ItemEditForm
-          item={{ kind: adding }}
+          item={{ kind: "event" }}
           onCancel={() => setAdding(null)}
-          onSave={(v) => addNew(adding, v)}
+          onSave={(v) => { addEvent(date, v.time, v.title, v.endTime); setAdding(null); }}
         />
       )}
 
       {!adding && (
-        <div className="flex gap-2 pt-2">
-          <button
-            onClick={() => setAdding("event")}
-            className="flex-1 rounded-xl border border-app-line py-2.5 text-sm font-semibold flex items-center justify-center gap-1"
-          >
-            <Plus size={14} /> 予定
-          </button>
-          <button
-            onClick={() => setAdding("task")}
-            className="flex-1 rounded-xl border border-app-line py-2.5 text-sm font-semibold flex items-center justify-center gap-1"
-          >
-            <Plus size={14} /> タスク
-          </button>
-        </div>
+        <button
+          onClick={() => setAdding({ kind: "event" })}
+          className="w-full rounded-xl border border-app-line py-2.5 text-sm font-semibold flex items-center justify-center gap-1"
+        >
+          <Plus size={14} /> Add Schedule
+        </button>
       )}
     </div>
   );
@@ -274,7 +331,7 @@ function DayGrid({ items, onEditItem, className = "flex-1 overflow-y-auto" }) {
               width: `calc(${100 / it._cols}% - 3rem - 4px)`,
             }}
           >
-            {it.title || "（無題）"}
+            {it.title || "Untitled"}
           </button>
         ))}
       </div>
@@ -289,13 +346,13 @@ export default function DayDetailScreen({ date, onClose }) {
 
   const { items } = useMemo(() => getDayItems(data, teamData, isTeam, date), [data, teamData, isTeam, date]);
   const d = new Date(date + "T00:00:00");
-  const wd = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+  const wd = WD[d.getDay()];
 
   return (
     <div className="fixed inset-0 z-50 bg-app-bg flex flex-col">
       <div className="flex items-center justify-between px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-3 border-b border-app-line shrink-0">
         <button onClick={onClose} className="p-1"><X size={20} /></button>
-        <h2 className="text-base font-bold">{d.getMonth() + 1}月{d.getDate()}日・{wd}曜日</h2>
+        <h2 className="text-base font-bold">{MONTHS[d.getMonth()]} {d.getDate()}, {wd}</h2>
         <span className="w-7" />
       </div>
 
@@ -330,8 +387,8 @@ export function DateListView({ month, onOpenDate }) {
   return (
     <div>
       {days.map((d) => {
-        const wd = ["日", "月", "火", "水", "木", "金", "土"][new Date(d.date + "T00:00:00").getDay()];
-        const isWeekend = wd === "日" || wd === "土";
+        const wd = WD[new Date(d.date + "T00:00:00").getDay()];
+        const isWeekend = wd === "Sun" || wd === "Sat";
         return (
           <button
             key={d.date}
@@ -349,13 +406,13 @@ export function DateListView({ month, onOpenDate }) {
                 d.items.slice(0, 3).map((it) => (
                   <span key={it.id} className="flex items-center gap-1.5 text-sm">
                     <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${it.kind === "event" ? "bg-blue-500" : "bg-green-500"}`} />
-                    <span className="truncate flex-1">{it.title || "（無題）"}</span>
+                    <span className="truncate flex-1">{it.title || "Untitled"}</span>
                     <span className="text-xs text-ink-sub shrink-0">{it.time || ""}</span>
                   </span>
                 ))
               )}
               {d.items.length > 3 && (
-                <span className="block text-xs text-ink-sub">ほか{d.items.length - 3}件</span>
+                <span className="block text-xs text-ink-sub">+{d.items.length - 3} more</span>
               )}
             </span>
           </button>
@@ -374,13 +431,13 @@ export function TimeGridScreen({ date, onClose }) {
   const { items } = useMemo(() => getDayItems(data, teamData, isTeam, date), [data, teamData, isTeam, date]);
 
   const d = new Date(date + "T00:00:00");
-  const wd = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+  const wd = WD[d.getDay()];
 
   return (
     <div className="fixed inset-0 z-50 bg-app-bg flex flex-col">
       <div className="flex items-center justify-between px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-3 border-b border-app-line shrink-0">
         <button onClick={onClose} className="p-1"><X size={20} /></button>
-        <h2 className="text-base font-bold">{d.getMonth() + 1}月{d.getDate()}日・{wd}曜日</h2>
+        <h2 className="text-base font-bold">{MONTHS[d.getMonth()]} {d.getDate()}, {wd}</h2>
         <span className="w-7" />
       </div>
 
