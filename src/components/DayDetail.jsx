@@ -52,26 +52,28 @@ export function getDayItems(data, teamData, isTeam, date) {
 // 紐づく時刻入力にもフォーカスが渡ってピッカーが開き、現在時刻が表示されるため
 // 「クリアしても変わらない」ように見えてしまう。
 // また未設定のときは input が現在時刻を表示するので、薄くして区別がつくようにする。
-function TimeSelect({ value, onChange, label, min }) {
+function TimeSelect({ value, onChange, label, min, onFocusEmpty }) {
   return (
-    <span className="flex items-center gap-1">
-      <label className="flex items-center gap-1.5">
-        <span className="text-xs text-ink-sub">{label}</span>
+    <span className="flex items-center gap-1 min-w-0">
+      <label className="flex items-center gap-1 min-w-0">
+        <span className="text-[11px] text-ink-sub shrink-0">{label}</span>
         <input
           type="time"
           step="600"
           min={min || undefined}
           value={value || ""}
           onChange={(e) => onChange(e.target.value)}
-          className={`rounded-xl border border-app-line bg-app-surface p-2 text-sm w-28 flex-shrink-0 ${value ? "" : "opacity-40"}`}
+          onFocus={() => { if (!value && onFocusEmpty) onFocusEmpty(); }}
+          className={`rounded-lg border border-app-line bg-app-surface px-1.5 py-1.5 text-sm w-[76px] shrink-0 ${value ? "" : "opacity-40"}`}
         />
       </label>
       {value && (
         <button
           onClick={() => onChange("")}
-          className="text-[11px] text-ink-sub px-2 py-2 -my-1 rounded-lg shrink-0"
+          className="text-[15px] leading-none text-ink-sub w-6 h-6 shrink-0 flex items-center justify-center"
+          aria-label="Clear"
         >
-          Clear
+          ×
         </button>
       )}
     </span>
@@ -90,9 +92,12 @@ function ItemEditForm({ item, onSave, onDelete, onCancel, defaultTime }) {
 
   // 開始を選んだとき、終了が未設定または開始より前なら、開始と同じ時刻に合わせる。
   // 終了を選び直すとき、ゼロから探さずに開始付近から選べるようにするため。
+  // 開始を選んだら終了も同じ時刻に合わせる。終了が空のままだとiOSのホイールが
+  // 現在時刻を表示してしまい、開始と無関係な時刻に見えるため、必ず値を入れる。
   function handleStart(v) {
     setTime(v);
     if (v && (!endTime || endTime < v)) setEndTime(v);
+    if (!v) setEndTime("");
   }
 
   return (
@@ -104,10 +109,18 @@ function ItemEditForm({ item, onSave, onDelete, onCancel, defaultTime }) {
         placeholder={item?.kind === "task" ? "Task" : "Title"}
         className="w-full rounded-lg border border-app-line px-3 py-2 text-sm bg-app-bg"
       />
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-1.5">
         <TimeSelect value={time} onChange={handleStart} label="Start" />
         <span className="text-ink-sub text-sm">–</span>
-        <TimeSelect value={endTime} onChange={setEndTime} label="End" min={time} />
+        {/* End が空のときも、開こうとした時点で開始時刻を入れておく。
+            空のまま開くとiOSのホイールが現在時刻を表示してしまうため。 */}
+        <TimeSelect
+          value={endTime}
+          onChange={setEndTime}
+          onFocusEmpty={() => time && setEndTime(time)}
+          label="End"
+          min={time}
+        />
       </div>
       <div className="flex items-center justify-between pt-1">
         {onDelete ? (
