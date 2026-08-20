@@ -369,7 +369,7 @@ export default function CalendarPage({ setTab }) {
             日付にも月にも紐づかない、貼り付けメモのようなタスク。
             カレンダーの下に常に表示され、月を移動しても内容は変わらない。
             完了チェックは持たず、終わったら削除する運用。 */}
-        <section className="px-5 pt-3 pb-2">
+        <section className="px-5 pt-1 pb-1">
           <div className="space-y-1">
             {(data.pinnedTasks || []).map((t) => (
               <div key={t.id} className="flex items-center gap-2 group">
@@ -415,7 +415,7 @@ export default function CalendarPage({ setTab }) {
         </section>
 
         {/* ========= PAGE 2 ========= */}
-        <section id="calendar-day-detail" className="px-5 py-8" style={{ paddingBottom: "calc(8rem + env(safe-area-inset-bottom))" }}>
+        <section id="calendar-day-detail" className="px-5 pt-4 pb-8" style={{ paddingBottom: "calc(8rem + env(safe-area-inset-bottom))" }}>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-semibold">
               {Number(calMonth.m) + 1}/{Number(selectedDate.split("-")[2])}
