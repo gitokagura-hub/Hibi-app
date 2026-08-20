@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 /**
  * 自前のホイール式 時刻選択。
@@ -22,12 +22,17 @@ const PAD = ((VISIBLE - 1) / 2) * ITEM_H;
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 const MINUTES = Array.from({ length: 6 }, (_, i) => String(i * 10).padStart(2, "0"));
 
-function Column({ options, value, onChange, align = "center" }) {
-  const ref = useRef(null);
+function Column({ options, value, onChange, align = "center", innerRef }) {
+  const ref = innerRef;
   const timer = useRef(null);
+  // ユーザーが実際に触るまでは値を確定しない。
+  // 開いた直後はまだ高さが確定しておらず scrollTop が 0 のままになることがあり、
+  // それを「先頭の項目が選ばれた」と誤って読み取って値を00に書き換えてしまうため。
+  const touched = useRef(false);
 
-  // 外から値が変わったら、その位置までスクロールを合わせる
-  useEffect(() => {
+  // 外から値が変わったら、その位置までスクロールを合わせる。
+  // useLayoutEffect で描画直後に実行し、高さが確定してから位置を入れる。
+  useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     const idx = Math.max(0, options.indexOf(value));
@@ -35,6 +40,7 @@ function Column({ options, value, onChange, align = "center" }) {
   }, [value, options]);
 
   function handleScroll() {
+    if (!touched.current) return;
     clearTimeout(timer.current);
     // スクロールが止まってから値を確定する(途中の値を拾わないように)
     timer.current = setTimeout(() => {
@@ -43,13 +49,15 @@ function Column({ options, value, onChange, align = "center" }) {
       const idx = Math.round(el.scrollTop / ITEM_H);
       const next = options[Math.min(options.length - 1, Math.max(0, idx))];
       if (next !== value) onChange(next);
-    }, 120);
+    }, 140);
   }
 
   return (
     <div
       ref={ref}
       onScroll={handleScroll}
+      onTouchStart={() => { touched.current = true; }}
+      onMouseDown={() => { touched.current = true; }}
       className="tw-col relative flex-1 overflow-y-auto no-scrollbar snap-y snap-mandatory"
       // overscrollBehavior: "contain" で、端まで来てもスクロールが背後の画面に
       // 伝わらないようにする(ホイールを回すと後ろのページまで動いてしまうため)。
@@ -87,6 +95,21 @@ export default function TimeWheel({ value, onChange, onClose, min }) {
   // ネイティブのイベントを非パッシブで登録して確実に止める。
   // ホイールの列(.tw-col)の中で起きたものだけ通し、それ以外は全部止める。
   const rootRef = useRef(null);
+  const hRef = useRef(null);
+  const mRef = useRef(null);
+
+  // Doneを押した時点のスクロール位置から直接読み取る。
+  // 指を離した直後は状態への反映が間に合っていないことがあるため、
+  // 見えている位置をそのまま採用する。
+  function readNow() {
+    const pick = (ref, options, fallback) => {
+      const el = ref.current;
+      if (!el) return fallback;
+      const idx = Math.round(el.scrollTop / ITEM_H);
+      return options[Math.min(options.length - 1, Math.max(0, idx))] || fallback;
+    };
+    return `${pick(hRef, HOURS, h)}:${pick(mRef, MINUTES, m)}`;
+  }
   useEffect(() => {
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -130,9 +153,9 @@ export default function TimeWheel({ value, onChange, onClose, min }) {
             className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 rounded-xl bg-app-raised pointer-events-none"
             style={{ height: ITEM_H, width: 152 }}
           />
-          <Column options={HOURS} value={h} onChange={setH} align="end" />
+          <Column options={HOURS} value={h} onChange={setH} align="end" innerRef={hRef} />
           <span className="relative flex items-center text-[19px] text-ink-sub w-4 justify-center">:</span>
-          <Column options={MINUTES} value={m} onChange={setM} align="start" />
+          <Column options={MINUTES} value={m} onChange={setM} align="start" innerRef={mRef} />
         </div>
 
         <div className="flex items-center justify-between px-5 pt-3">
@@ -145,7 +168,7 @@ export default function TimeWheel({ value, onChange, onClose, min }) {
           <button
             onClick={() => {
               // min(開始時刻)より前は選べない。前を選んだ場合はminに丸める。
-              const picked = `${h}:${m}`;
+              const picked = readNow();
               onChange(min && picked < min ? min : picked);
               onClose();
             }}
