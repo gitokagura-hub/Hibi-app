@@ -22,7 +22,7 @@ const PAD = ((VISIBLE - 1) / 2) * ITEM_H;
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 const MINUTES = Array.from({ length: 6 }, (_, i) => String(i * 10).padStart(2, "0"));
 
-function Column({ options, value, onChange }) {
+function Column({ options, value, onChange, align = "center" }) {
   const ref = useRef(null);
   const timer = useRef(null);
 
@@ -59,9 +59,9 @@ function Column({ options, value, onChange }) {
       {options.map((o) => (
         <div
           key={o}
-          className={`snap-center flex items-center justify-center text-[19px] tabular-nums ${
-            o === value ? "text-ink font-semibold" : "text-ink-sub/60"
-          }`}
+          className={`snap-center flex items-center text-[19px] tabular-nums ${
+            align === "end" ? "justify-end pr-3" : align === "start" ? "justify-start pl-3" : "justify-center"
+          } ${o === value ? "text-ink font-semibold" : "text-ink-sub/60"}`}
           style={{ height: ITEM_H }}
         >
           {o}
@@ -120,15 +120,19 @@ export default function TimeWheel({ value, onChange, onClose, min }) {
         {/* 白い枠の中を左半分=時、右半分=分にきっちり分ける。
             列の幅が狭いと、その外側を触ったスクロールが背後の画面に届いてしまうため、
             枠内は隙間なく2つの列で埋める。 */}
-        <div className="relative flex items-stretch px-4" style={{ touchAction: "pan-y" }}>
+        {/* 数字は中央に寄せて詰まって見えるようにする。
+            ただしスクロールを受け止める列(.tw-col)自体は左右いっぱいに広げたまま。
+            狭めると列の外側を触ったスクロールが背後の画面に届いてしまうため、
+            「見た目だけ中央、当たり判定は全幅」という作りにしている。 */}
+        <div className="relative flex items-stretch">
           {/* 中央の選択行を示す帯 */}
           <div
-            className="absolute left-4 right-4 top-1/2 -translate-y-1/2 rounded-xl bg-app-raised pointer-events-none"
-            style={{ height: ITEM_H }}
+            className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 rounded-xl bg-app-raised pointer-events-none"
+            style={{ height: ITEM_H, width: 152 }}
           />
-          <Column options={HOURS} value={h} onChange={setH} />
-          <span className="relative flex items-center text-[19px] text-ink-sub px-1">:</span>
-          <Column options={MINUTES} value={m} onChange={setM} />
+          <Column options={HOURS} value={h} onChange={setH} align="end" />
+          <span className="relative flex items-center text-[19px] text-ink-sub w-4 justify-center">:</span>
+          <Column options={MINUTES} value={m} onChange={setM} align="start" />
         </div>
 
         <div className="flex items-center justify-between px-5 pt-3">
