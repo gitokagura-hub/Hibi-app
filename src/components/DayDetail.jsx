@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import TimeWheel from "./TimeWheel";
+import { useResetZoomOnOpen } from "../useResetZoom";
 
 // 画面内の文言は英語で統一する。
 const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -369,6 +370,7 @@ function DayGrid({ items, onEditItem, className = "flex-1 overflow-y-auto" }) {
 
 // ===== 全体: 日専用画面(モーダル) =====
 export default function DayDetailScreen({ date, onClose }) {
+  useResetZoomOnOpen();
   const { data, teamData, space, addTask, updateTask, deleteTask, addEvent, updateEvent, deleteEvent } = useData();
   const isTeam = space === "team";
 
@@ -453,6 +455,7 @@ export function DateListView({ month, onOpenDate }) {
 // ===== E: その日の時間軸表示(全画面) =====
 // D の日付をタップすると開く。5:00始まりの24時間グリッド。
 export function TimeGridScreen({ date, onClose }) {
+  useResetZoomOnOpen();
   const { data, teamData, space, updateTask, deleteTask, updateEvent, deleteEvent } = useData();
   const isTeam = space === "team";
   const [editing, setEditing] = useState(null);

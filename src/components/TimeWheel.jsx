@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useResetZoomOnOpen } from "../useResetZoom";
 
 /**
  * 自前のホイール式 時刻選択。
@@ -58,7 +59,7 @@ function Column({ options, value, onChange, align = "center", innerRef }) {
       onScroll={handleScroll}
       onTouchStart={() => { touched.current = true; }}
       onMouseDown={() => { touched.current = true; }}
-      className="tw-col relative flex-1 overflow-y-auto no-scrollbar snap-y snap-mandatory"
+      className="tw-col relative flex-1 min-w-0 overflow-y-auto no-scrollbar snap-y snap-mandatory"
       // overscrollBehavior: "contain" で、端まで来てもスクロールが背後の画面に
       // 伝わらないようにする(ホイールを回すと後ろのページまで動いてしまうため)。
       style={{ height: "100%", scrollbarWidth: "none", overscrollBehavior: "contain" }}
@@ -94,6 +95,9 @@ export default function TimeWheel({ value, onChange, onClose, min }) {
   // Reactの onTouchMove はパッシブ扱いで preventDefault が効かないことがあるので、
   // ネイティブのイベントを非パッシブで登録して確実に止める。
   // ホイールの列(.tw-col)の中で起きたものだけ通し、それ以外は全部止める。
+  // 拡大したままシートを開くとレイアウトが崩れるため、開いた時点で等倍に戻す。
+  useResetZoomOnOpen();
+
   const rootRef = useRef(null);
   const hRef = useRef(null);
   const mRef = useRef(null);
@@ -139,7 +143,7 @@ export default function TimeWheel({ value, onChange, onClose, min }) {
     // 幅・余白・高さを明示して組む。
     <div ref={rootRef} className="fixed inset-0 z-[70] bg-black/40 flex flex-col justify-end" onClick={onClose}>
       <div
-        className="w-full bg-app-bg rounded-t-2xl shadow-xl"
+        className="w-full max-w-full overflow-x-hidden bg-app-bg rounded-t-2xl shadow-xl"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -167,7 +171,7 @@ export default function TimeWheel({ value, onChange, onClose, min }) {
         {/* ホイール本体。5行ぶんの高さを確保して、中央行が選択値。
             数字は中央に寄せる一方、スクロールを受け止める列(.tw-col)は
             左右いっぱいに広げる(狭いと外側を触ったスクロールが背後に届くため)。 */}
-        <div className="relative flex items-stretch" style={{ height: VISIBLE * ITEM_H }}>
+        <div className="relative flex items-stretch w-full overflow-hidden" style={{ height: VISIBLE * ITEM_H }}>
           <div
             className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 rounded-xl bg-app-raised pointer-events-none"
             style={{ height: ITEM_H, width: 160 }}

@@ -4,6 +4,7 @@ import { useData, fileToCompressedDataUrl } from "../dataStore";
 import { useSwipeBack } from "../useSwipeBack";
 import { handleEnterToConfirm } from "../useEnterConfirm";
 import MediaImg from "../components/MediaImg";
+import { resetZoom } from "../useResetZoom";
 
 // Library-only tagging: kept entirely separate from Notes/Calendar/Projects
 // data so tagging can never affect those screens. Keyed by the image's src
@@ -164,24 +165,8 @@ export default function LibraryPage({ onHome }) {
     }
   }
 
-  // タグ付けシートを開く前に、写真をピンチズームで拡大表示していた
-  // 場合でも等倍に戻す。iOS Safariはこのような「一瞬viewportの
-  // 拡大許可を切ってから戻す」操作で、現在のズーム状態を強制的に
-  // リセットできる。
-  //
-  // 以前は「現在のcontentを読んで、それに maximum-scale=1.0 を足し、
-  // 後で読んだ値に戻す」実装だった。しかし短時間に2回呼ばれると、
-  // 2回目が読む「元の値」に既に maximum-scale=1.0 が含まれており、
-  // それを復元してしまうためズーム禁止が焼き付き、アプリ全体で
-  // ピンチズームができなくなっていた。
-  // 固定の文字列を出し入れする形にして、焼き付きを起こさないようにする。
-  const BASE_VIEWPORT = "width=device-width, initial-scale=1.0, viewport-fit=cover";
-  function resetViewportZoom() {
-    const meta = document.querySelector('meta[name="viewport"]');
-    if (!meta) return;
-    meta.setAttribute("content", `${BASE_VIEWPORT}, maximum-scale=1.0`);
-    setTimeout(() => meta.setAttribute("content", BASE_VIEWPORT), 50);
-  }
+  // 共通のズームリセットを使う(useResetZoom.js)。
+  const resetViewportZoom = resetZoom;
 
   function addCategory(name) {
     if (!categories.includes(name)) setLibraryCategories([...categories, name]);
