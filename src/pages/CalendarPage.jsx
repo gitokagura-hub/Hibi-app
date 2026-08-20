@@ -381,10 +381,10 @@ export default function CalendarPage({ setTab }) {
                 />
                 <button
                   onClick={() => deletePinnedTask(t.id)}
-                  className="w-7 h-7 shrink-0 flex items-center justify-center text-ink-sub"
+                  className="w-9 h-9 mr-2 shrink-0 flex items-center justify-center text-ink-sub"
                   aria-label="Delete"
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={15} />
                 </button>
               </div>
             ))}
@@ -405,10 +405,10 @@ export default function CalendarPage({ setTab }) {
               />
               <button
                 onClick={() => { addPinnedTask(pinnedDraft); setPinnedDraft(""); }}
-                className="w-7 h-7 shrink-0 flex items-center justify-center text-ink-sub"
+                className="w-9 h-9 mr-2 shrink-0 flex items-center justify-center text-ink-sub"
                 aria-label="Add"
               >
-                <Plus size={16} />
+                <Plus size={17} />
               </button>
             </div>
           </div>
