@@ -11,6 +11,8 @@ import SukimaDetailPage from "./pages/SukimaDetailPage";
 import { SukimaProvider } from "./sukimaStore";
 import TimelessListPage from "./pages/TimelessListPage";
 import TimelessEditorPage from "./pages/TimelessEditorPage";
+import MasterPandoPage from "./pages/MasterPandoPage";
+import ByMaeNikkoPage from "./pages/ByMaeNikkoPage";
 import { TimelessProvider } from "./timelessStore";
 import CalendarPage from "./pages/CalendarPage";
 import NotesPage from "./pages/NotesPage";
@@ -73,15 +75,26 @@ function SukimaApp({ onHome }) {
   );
 }
 
-// Timeless Analogue（下書きワークスペース）。一覧⇔エディタの内部遷移を持つので専用ルーター。
+// Timeless Analogue。日本側の大元にあたり、その下に事業・プログラムを並べる。
+//   Workspace    … 構想・下書き（従来からある部分。一覧⇔エディタの内部遷移を持つ）
+//   Master Pando … 講座プログラム（今後シリーズ化する前提の枠）
+//   ByMaeNikko   … 酒類事業（ロンドンでは ByMaeNikko Ltd. として法人化予定）
 function TimelessApp({ onHome }) {
   const [openId, setOpenId] = useState(null);
+  const [tab, setTab] = useState("workspace");
+
   return (
     <TimelessProvider>
-      {openId ? (
-        <TimelessEditorPage articleId={openId} onBack={() => setOpenId(null)} />
+      {tab === "workspace" ? (
+        openId ? (
+          <TimelessEditorPage articleId={openId} onBack={() => setOpenId(null)} />
+        ) : (
+          <TimelessListPage onHome={onHome} onOpenArticle={setOpenId} tab={tab} setTab={setTab} />
+        )
+      ) : tab === "pando" ? (
+        <MasterPandoPage onHome={onHome} tab={tab} setTab={setTab} />
       ) : (
-        <TimelessListPage onHome={onHome} onOpenArticle={setOpenId} />
+        <ByMaeNikkoPage onHome={onHome} tab={tab} setTab={setTab} />
       )}
     </TimelessProvider>
   );

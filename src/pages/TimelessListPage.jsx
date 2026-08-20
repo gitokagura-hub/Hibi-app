@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import TimelessBottomNav from "../components/TimelessBottomNav";
 import { ChevronLeft, Plus, X } from "lucide-react";
 import { useTimeless, CATEGORIES, STATUS } from "../timelessStore";
 import { useSwipeBack } from "../useSwipeBack";
@@ -90,7 +91,7 @@ function AddSheet({ onClose, onCreate }) {
   );
 }
 
-export default function TimelessListPage({ onHome, onOpenArticle }) {
+export default function TimelessListPage({ onHome, onOpenArticle, tab, setTab }) {
   useSwipeBack(onHome);
   const { articles, addArticle } = useTimeless();
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -114,10 +115,10 @@ export default function TimelessListPage({ onHome, onOpenArticle }) {
   }
 
   return (
-    <div className="min-h-screen bg-app-bg relative">
+    <div className="min-h-screen bg-app-bg relative pb-28">
       <button
         onClick={onHome}
-        className="fixed bottom-6 right-5 z-30 w-11 h-11 rounded-full bg-sky-100/90 backdrop-blur border border-sky-200 flex items-center justify-center shadow-sm"
+        className="fixed bottom-24 right-5 z-30 w-11 h-11 rounded-full bg-sky-100/90 backdrop-blur border border-sky-200 flex items-center justify-center shadow-sm"
         aria-label="Homeへ戻る"
       >
         <ChevronLeft size={18} className="text-sky-700" />
@@ -210,6 +211,7 @@ export default function TimelessListPage({ onHome, onOpenArticle }) {
       </button>
 
       {showAdd && <AddSheet onClose={() => setShowAdd(false)} onCreate={handleCreate} />}
+      <TimelessBottomNav current={tab} setTab={setTab} />
     </div>
   );
 }
