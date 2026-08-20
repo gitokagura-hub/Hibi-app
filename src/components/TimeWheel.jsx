@@ -51,7 +51,9 @@ function Column({ options, value, onChange }) {
       ref={ref}
       onScroll={handleScroll}
       className="relative overflow-y-auto no-scrollbar snap-y snap-mandatory"
-      style={{ height: VISIBLE * ITEM_H, width: 64, scrollbarWidth: "none" }}
+      // overscrollBehavior: "contain" で、端まで来てもスクロールが背後の画面に
+      // 伝わらないようにする(ホイールを回すと後ろのページまで動いてしまうため)。
+      style={{ height: VISIBLE * ITEM_H, width: 64, scrollbarWidth: "none", overscrollBehavior: "contain" }}
     >
       <div style={{ height: PAD }} />
       {options.map((o) => (
@@ -78,6 +80,14 @@ export default function TimeWheel({ value, onChange, onClose, min }) {
   const [h, setH] = useState(() => (value ? value.split(":")[0] : "00"));
   const [m, setM] = useState(() => (value ? value.split(":")[1] : "00"));
 
+  // シートを開いている間は背後のページのスクロールを止める。
+  // iOSでは body が動いてしまい、ホイールを回すと後ろまで一緒に動くため。
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
   // 分が10分刻みに乗っていない既存データ(例 09:05)は、近い方に丸めて表示する
   useEffect(() => {
     if (!MINUTES.includes(m)) {
@@ -87,8 +97,18 @@ export default function TimeWheel({ value, onChange, onClose, min }) {
   }, [m]);
 
   return (
-    <div className="fixed inset-0 z-[70] bg-black/40 flex items-end" onClick={onClose}>
-      <div className="w-full bg-app-bg rounded-t-2xl pt-3 pb-8" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-[70] bg-black/40 flex items-end"
+      onClick={onClose}
+      onTouchMove={(e) => e.preventDefault()}
+      style={{ touchAction: "none" }}
+    >
+      <div
+        className="w-full bg-app-bg rounded-t-2xl pt-3 pb-8"
+        onClick={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+        style={{ touchAction: "auto" }}
+      >
         <div className="relative flex items-center justify-center gap-2">
           {/* 中央の選択行を示す帯 */}
           <div
