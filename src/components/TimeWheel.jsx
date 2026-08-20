@@ -139,26 +139,15 @@ export default function TimeWheel({ value, onChange, onClose, min }) {
       className="fixed inset-0 z-[70] bg-black/40 flex items-end"
       onClick={onClose}
     >
-      <div className="w-full bg-app-bg rounded-t-2xl pt-3 pb-8" onClick={(e) => e.stopPropagation()}>
-        {/* 白い枠の中を左半分=時、右半分=分にきっちり分ける。
-            列の幅が狭いと、その外側を触ったスクロールが背後の画面に届いてしまうため、
-            枠内は隙間なく2つの列で埋める。 */}
-        {/* 数字は中央に寄せて詰まって見えるようにする。
-            ただしスクロールを受け止める列(.tw-col)自体は左右いっぱいに広げたまま。
-            狭めると列の外側を触ったスクロールが背後の画面に届いてしまうため、
-            「見た目だけ中央、当たり判定は全幅」という作りにしている。 */}
-        <div className="relative flex items-stretch">
-          {/* 中央の選択行を示す帯 */}
-          <div
-            className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 rounded-xl bg-app-raised pointer-events-none"
-            style={{ height: ITEM_H, width: 152 }}
-          />
-          <Column options={HOURS} value={h} onChange={setH} align="end" innerRef={hRef} />
-          <span className="relative flex items-center text-[19px] text-ink-sub w-4 justify-center">:</span>
-          <Column options={MINUTES} value={m} onChange={setM} align="start" innerRef={mRef} />
-        </div>
-
-        <div className="flex items-center justify-between px-5 pt-3">
+      {/* Clear/Done はホイールより上に置く。下に置くと、ホイールの高さぶん
+          押し下げられて画面外にはみ出し、押せなくなっていた。
+          safe-area も見込んで、シート全体が画面内に収まるようにする。 */}
+      <div
+        className="w-full bg-app-bg rounded-t-2xl pt-2 max-h-[85vh] overflow-hidden"
+        style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 pb-1">
           <button
             onClick={() => { onChange(""); onClose(); }}
             className="text-sm text-ink-sub px-3 py-2"
@@ -177,6 +166,24 @@ export default function TimeWheel({ value, onChange, onClose, min }) {
             Done
           </button>
         </div>
+        {/* 白い枠の中を左半分=時、右半分=分にきっちり分ける。
+            列の幅が狭いと、その外側を触ったスクロールが背後の画面に届いてしまうため、
+            枠内は隙間なく2つの列で埋める。 */}
+        {/* 数字は中央に寄せて詰まって見えるようにする。
+            ただしスクロールを受け止める列(.tw-col)自体は左右いっぱいに広げたまま。
+            狭めると列の外側を触ったスクロールが背後の画面に届いてしまうため、
+            「見た目だけ中央、当たり判定は全幅」という作りにしている。 */}
+        <div className="relative flex items-stretch">
+          {/* 中央の選択行を示す帯 */}
+          <div
+            className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 rounded-xl bg-app-raised pointer-events-none"
+            style={{ height: ITEM_H, width: 152 }}
+          />
+          <Column options={HOURS} value={h} onChange={setH} align="end" innerRef={hRef} />
+          <span className="relative flex items-center text-[19px] text-ink-sub w-4 justify-center">:</span>
+          <Column options={MINUTES} value={m} onChange={setM} align="start" innerRef={mRef} />
+        </div>
+
       </div>
     </div>
   );
