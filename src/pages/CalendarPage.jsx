@@ -278,7 +278,7 @@ export default function CalendarPage({ setTab }) {
         </header>
         <SpaceSwitcher />
         {/* ========= PAGE 1 ========= */}
-        <section className="flex flex-col" style={{ paddingBottom: "calc(5rem + env(safe-area-inset-bottom))" }}>
+        <section className="flex flex-col">
           {/* Month — iOS標準カレンダー風: 左寄せの大きな月表示 */}
           <div className="px-5 pt-2 pb-1 flex items-end justify-between">
             <div className="flex items-baseline gap-2">
@@ -369,7 +369,7 @@ export default function CalendarPage({ setTab }) {
             日付にも月にも紐づかない、貼り付けメモのようなタスク。
             カレンダーの下に常に表示され、月を移動しても内容は変わらない。
             完了チェックは持たず、終わったら削除する運用。 */}
-        <section className="px-5 py-0">
+        <section className="px-5 pt-2 pb-5">
           <div className="space-y-1">
             {(data.pinnedTasks || []).map((t) => (
               <div key={t.id} className="flex items-center gap-2 group">
@@ -415,7 +415,7 @@ export default function CalendarPage({ setTab }) {
         </section>
 
         {/* ========= PAGE 2 ========= */}
-        <section id="calendar-day-detail" className="px-5 pt-2 pb-8" style={{ paddingBottom: "calc(8rem + env(safe-area-inset-bottom))" }}>
+        <section id="calendar-day-detail" className="px-5 pt-0 pb-8" style={{ paddingBottom: "calc(8rem + env(safe-area-inset-bottom))" }}>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-semibold">
               {Number(calMonth.m) + 1}/{Number(selectedDate.split("-")[2])}
