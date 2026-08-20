@@ -50,10 +50,10 @@ function Column({ options, value, onChange }) {
     <div
       ref={ref}
       onScroll={handleScroll}
-      className="relative overflow-y-auto no-scrollbar snap-y snap-mandatory"
+      className="tw-col relative flex-1 overflow-y-auto no-scrollbar snap-y snap-mandatory"
       // overscrollBehavior: "contain" で、端まで来てもスクロールが背後の画面に
       // 伝わらないようにする(ホイールを回すと後ろのページまで動いてしまうため)。
-      style={{ height: VISIBLE * ITEM_H, width: 64, scrollbarWidth: "none", overscrollBehavior: "contain" }}
+      style={{ height: VISIBLE * ITEM_H, scrollbarWidth: "none", overscrollBehavior: "contain" }}
     >
       <div style={{ height: PAD }} />
       {options.map((o) => (
@@ -82,10 +82,24 @@ export default function TimeWheel({ value, onChange, onClose, min }) {
 
   // シートを開いている間は背後のページのスクロールを止める。
   // iOSでは body が動いてしまい、ホイールを回すと後ろまで一緒に動くため。
+  //
+  // Reactの onTouchMove はパッシブ扱いで preventDefault が効かないことがあるので、
+  // ネイティブのイベントを非パッシブで登録して確実に止める。
+  // ホイールの列(.tw-col)の中で起きたものだけ通し、それ以外は全部止める。
+  const rootRef = useRef(null);
   useEffect(() => {
-    const prev = document.body.style.overflow;
+    const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+
+    function onTouchMove(e) {
+      if (!e.target.closest || !e.target.closest(".tw-col")) e.preventDefault();
+    }
+    const el = rootRef.current;
+    el?.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      el?.removeEventListener("touchmove", onTouchMove);
+    };
   }, []);
 
   // 分が10分刻みに乗っていない既存データ(例 09:05)は、近い方に丸めて表示する
@@ -98,25 +112,22 @@ export default function TimeWheel({ value, onChange, onClose, min }) {
 
   return (
     <div
+      ref={rootRef}
       className="fixed inset-0 z-[70] bg-black/40 flex items-end"
       onClick={onClose}
-      onTouchMove={(e) => e.preventDefault()}
-      style={{ touchAction: "none" }}
     >
-      <div
-        className="w-full bg-app-bg rounded-t-2xl pt-3 pb-8"
-        onClick={(e) => e.stopPropagation()}
-        onTouchMove={(e) => e.stopPropagation()}
-        style={{ touchAction: "auto" }}
-      >
-        <div className="relative flex items-center justify-center gap-2">
+      <div className="w-full bg-app-bg rounded-t-2xl pt-3 pb-8" onClick={(e) => e.stopPropagation()}>
+        {/* 白い枠の中を左半分=時、右半分=分にきっちり分ける。
+            列の幅が狭いと、その外側を触ったスクロールが背後の画面に届いてしまうため、
+            枠内は隙間なく2つの列で埋める。 */}
+        <div className="relative flex items-stretch px-4" style={{ touchAction: "pan-y" }}>
           {/* 中央の選択行を示す帯 */}
           <div
-            className="absolute left-6 right-6 rounded-xl bg-app-raised pointer-events-none"
+            className="absolute left-4 right-4 top-1/2 -translate-y-1/2 rounded-xl bg-app-raised pointer-events-none"
             style={{ height: ITEM_H }}
           />
           <Column options={HOURS} value={h} onChange={setH} />
-          <span className="text-[19px] text-ink-sub relative">:</span>
+          <span className="relative flex items-center text-[19px] text-ink-sub px-1">:</span>
           <Column options={MINUTES} value={m} onChange={setM} />
         </div>
 
