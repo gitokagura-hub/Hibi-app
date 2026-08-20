@@ -17,7 +17,9 @@ export default function BottomNavigation({ current, setTab }) {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 bg-app-bg/90 backdrop-blur-xl border-t border-app-line h-20 flex items-center justify-around"
+      // z-40: シートやモーダル(z-50以上)より下に来るように明示する。
+      // 指定がないと後から描画された分だけ手前に来て、シートを覆ってしまう。
+      className="fixed bottom-0 left-0 right-0 z-40 bg-app-bg/90 backdrop-blur-xl border-t border-app-line h-20 flex items-center justify-around"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       {items.map((item) => {

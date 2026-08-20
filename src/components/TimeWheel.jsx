@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useResetZoomOnOpen } from "../useResetZoom";
 
 /**
@@ -137,11 +138,13 @@ export default function TimeWheel({ value, onChange, onClose, min }) {
     }
   }, [m]);
 
-  return (
+  // body直下に描画する。カレンダー画面では下部ナビゲーションバーが後から
+  // 描画される関係でシートの上に重なり、ホイールが隠れてしまうため。
+  return createPortal(
     // 画面全体を覆い、シートを下端にぴったり貼り付ける。
     // items-end だけだと中身の高さ次第で浮いて見えるため、シート側で
     // 幅・余白・高さを明示して組む。
-    <div ref={rootRef} className="fixed inset-0 z-[70] bg-black/40 flex flex-col justify-end" onClick={onClose}>
+    <div ref={rootRef} className="fixed inset-0 z-[9999] bg-black/40 flex flex-col justify-end" onClick={onClose}>
       <div
         className="w-full max-w-full overflow-x-hidden bg-app-bg rounded-t-2xl shadow-xl"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
@@ -181,6 +184,7 @@ export default function TimeWheel({ value, onChange, onClose, min }) {
           <Column options={MINUTES} value={m} onChange={setM} align="start" innerRef={mRef} />
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
