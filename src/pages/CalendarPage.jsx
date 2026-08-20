@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Plus, Paperclip, Camera, PencilLine, FileText, Rows3, CalendarDays } from "lucide-react";
+import { Plus, Paperclip, Camera, PencilLine, FileText, Rows3, CalendarDays, Trash2 } from "lucide-react";
 import { useData, todayStr, fileToCompressedDataUrl, fileToDataUrl } from "../dataStore";
 import { handleEnterToConfirm } from "../useEnterConfirm";
 import BottomNavigation from "../components/BottomNavigation";
@@ -40,6 +40,7 @@ function eventColorFor(title) {
 export default function CalendarPage({ setTab }) {
   const {
     data, addTask, toggleTask, deleteTask, updateTask, addEvent, deleteEvent, updateEvent,
+    addPinnedTask, updatePinnedTask, deletePinnedTask,
     getMemo, setMemo, clearMemo, addMemoImages, removeMemoImage, addMemoFiles, removeMemoFile, addNote,
     space, teamData, teamLoading, teamError,
     addTeamTaskAction, toggleTeamTaskAction, updateTeamTaskAction, deleteTeamTaskAction,
@@ -68,6 +69,8 @@ export default function CalendarPage({ setTab }) {
   const [timeGridDate, setTimeGridDate] = useState(null);
   // Reminderのホイールを開いている下書きのID
   const [reminderWheelFor, setReminderWheelFor] = useState(null);
+  // 日付に紐づかない常設タスクの入力欄
+  const [pinnedDraft, setPinnedDraft] = useState("");
   const [editingEventText, setEditingEventText] = useState("");
   const [editingEventTime, setEditingEventTime] = useState("");
   const [editingEventIsAllDay, setEditingEventIsAllDay] = useState(false);
@@ -360,6 +363,55 @@ export default function CalendarPage({ setTab }) {
                日付をタップすると E(その日の時間軸表示)を開く。 */
             <DateListView month={calMonth} onOpenDate={setTimeGridDate} />
           )}
+        </section>
+
+        {/* ========= 常設タスク =========
+            日付にも月にも紐づかない、貼り付けメモのようなタスク。
+            カレンダーの下に常に表示され、月を移動しても内容は変わらない。
+            完了チェックは持たず、終わったら削除する運用。 */}
+        <section className="px-5 pt-3 pb-2">
+          <div className="space-y-1">
+            {(data.pinnedTasks || []).map((t) => (
+              <div key={t.id} className="flex items-center gap-2 group">
+                <span className="w-1.5 h-1.5 rounded-full bg-ink-sub shrink-0" />
+                <input
+                  value={t.title}
+                  onChange={(e) => updatePinnedTask(t.id, e.target.value)}
+                  className="flex-1 min-w-0 bg-transparent text-[15px] py-1 outline-none"
+                />
+                <button
+                  onClick={() => deletePinnedTask(t.id)}
+                  className="w-7 h-7 shrink-0 flex items-center justify-center text-ink-sub"
+                  aria-label="Delete"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-ink-sub/30 shrink-0" />
+              <input
+                value={pinnedDraft}
+                onChange={(e) => setPinnedDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                    addPinnedTask(pinnedDraft);
+                    setPinnedDraft("");
+                  }
+                }}
+                placeholder="Add..."
+                className="flex-1 min-w-0 bg-transparent text-[15px] py-1 outline-none placeholder:text-ink-sub/40"
+              />
+              <button
+                onClick={() => { addPinnedTask(pinnedDraft); setPinnedDraft(""); }}
+                className="w-7 h-7 shrink-0 flex items-center justify-center text-ink-sub"
+                aria-label="Add"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+          </div>
         </section>
 
         {/* ========= PAGE 2 ========= */}

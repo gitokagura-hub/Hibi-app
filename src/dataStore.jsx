@@ -55,6 +55,9 @@ function emptyData() {
     tasks: [],     // { id, date, title, completed, createdAt }
     events: [],    // { id, date, time, title, createdAt }
     memos: {},     // { [date]: { text, images: [], files: [] } }
+    pinnedTasks: [], // { id, title, createdAt } — 日付に紐づかない常設のタスク。
+                     // カレンダーの下に常に表示され、月を移動しても変わらない。
+                     // 完了チェックは持たず、終わったら削除する運用。
     notes: [],     // { id, text, images: [], files: [], source: 'text'|'voice', createdAt }
     projects: [],  // { id, name, items: [{id, text, images, files, createdAt}], driveFolderId: '', driveFiles: [], createdAt }
     libraryPhotos: [], // { id, src, createdAt } — Photos画面から直接追加された写真(他の画面のメモ等には紐付かない)
@@ -285,6 +288,28 @@ export function DataProvider({ children }) {
     const photos = srcs.map(src => ({ id: uid(), src, createdAt: Date.now() }));
     setData(prev => ({ ...prev, libraryPhotos: [...(prev.libraryPhotos || []), ...photos] }));
   }
+  // ===== 日付に紐づかない常設タスク =====
+  function addPinnedTask(title) {
+    const t = title.trim();
+    if (!t) return;
+    setData(prev => ({
+      ...prev,
+      pinnedTasks: [...(prev.pinnedTasks || []), { id: uid(), title: t, createdAt: Date.now() }],
+    }));
+  }
+  function updatePinnedTask(id, title) {
+    setData(prev => ({
+      ...prev,
+      pinnedTasks: (prev.pinnedTasks || []).map(t => (t.id === id ? { ...t, title } : t)),
+    }));
+  }
+  function deletePinnedTask(id) {
+    setData(prev => ({
+      ...prev,
+      pinnedTasks: (prev.pinnedTasks || []).filter(t => t.id !== id),
+    }));
+  }
+
   function deleteLibraryPhoto(id) {
     setData(prev => ({ ...prev, libraryPhotos: (prev.libraryPhotos || []).filter(p => p.id !== id) }));
   }
@@ -705,6 +730,7 @@ export function DataProvider({ children }) {
     addEvent, deleteEvent, updateEvent,
     getMemo, setMemo, clearMemo, addMemoImages, removeMemoImage, updateMemoImageCategories, addMemoFiles, removeMemoFile,
     addNote, deleteNote, updateNote,
+    addPinnedTask, updatePinnedTask, deletePinnedTask,
     addLibraryPhotos, deleteLibraryPhoto, deletePhotosBySrc,
     addLibraryFiles, deleteLibraryFile, renameLibraryFile, addLibraryFolder, deleteLibraryFolder, renameLibraryFolder,
     setLibraryTags, setLibraryComments, setLibraryCategories,
