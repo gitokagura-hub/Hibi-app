@@ -57,3 +57,13 @@ input, textarea, button {
     10px 100%, 0 calc(100% - 10px), 0 10px
   );
 }
+
+/* ホイール式の時刻選択(TimeWheel)で、スクロールバーを隠すためのユーティリティ。
+   バーが見えるとホイールらしく見えないため。 */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

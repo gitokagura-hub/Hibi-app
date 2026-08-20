@@ -7,6 +7,7 @@ import SpaceSwitcher from "../components/SpaceSwitcher";
 import { useConfirm } from "../components/ConfirmModal";
 import MediaImg from "../components/MediaImg";
 import DayDetailScreen, { DateListView, TimeGridScreen } from "../components/DayDetail";
+import TimeWheel from "../components/TimeWheel";
 
 function pad(n) { return String(n).padStart(2, "0"); }
 function fmt(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
@@ -65,6 +66,8 @@ export default function CalendarPage({ setTab }) {
   const [calView, setCalView] = useState("month"); // "month"(A) | "list"(D)
   // D の日付タップで開く E(その日の時間軸表示)
   const [timeGridDate, setTimeGridDate] = useState(null);
+  // Reminderのホイールを開いている下書きのID
+  const [reminderWheelFor, setReminderWheelFor] = useState(null);
   const [editingEventText, setEditingEventText] = useState("");
   const [editingEventTime, setEditingEventTime] = useState("");
   const [editingEventIsAllDay, setEditingEventIsAllDay] = useState(false);
@@ -523,23 +526,32 @@ export default function CalendarPage({ setTab }) {
                 // ラベルが紐づく時刻入力にもフォーカスを渡してしまい、ピッカーが開いて
                 // 現在時刻が表示されるため「クリアしても変わらない」ように見えていた。
                 <div className="flex items-center gap-2 text-sm text-ink-sub">
-                  <label className="flex items-center gap-2">
-                    Reminder
-                    <input
-                      type="time"
-                      value={draft.reminderTime}
-                      onChange={(e) => updateTaskDraft(draft.id, { reminderTime: e.target.value })}
-                      className={`rounded-xl border p-2 text-sm ${draft.reminderTime ? "" : "opacity-40"}`}
-                    />
-                  </label>
-                  {!draft.reminderTime && <span className="text-xs text-ink-sub/70">Not set</span>}
+                  <span>Reminder</span>
+                  {/* 自前のホイールを使う。input[type=time] は未設定のとき
+                      現在時刻を表示してしまうため。 */}
+                  <button
+                    onClick={() => setReminderWheelFor(draft.id)}
+                    className={`rounded-xl border border-app-line px-3 py-2 text-sm tabular-nums ${
+                      draft.reminderTime ? "text-ink" : "text-ink-sub/50"
+                    }`}
+                  >
+                    {draft.reminderTime || "--:--"}
+                  </button>
                   {draft.reminderTime && (
                     <button
                       onClick={() => updateTaskDraft(draft.id, { reminderTime: "" })}
-                      className="text-xs text-ink-sub px-3 py-2 -my-1 rounded-lg"
+                      className="text-[15px] leading-none text-ink-sub w-7 h-7 flex items-center justify-center"
+                      aria-label="Clear"
                     >
-                      Clear
+                      ×
                     </button>
+                  )}
+                  {reminderWheelFor === draft.id && (
+                    <TimeWheel
+                      value={draft.reminderTime}
+                      onChange={(v) => updateTaskDraft(draft.id, { reminderTime: v })}
+                      onClose={() => setReminderWheelFor(null)}
+                    />
                   )}
                 </div>
               )}

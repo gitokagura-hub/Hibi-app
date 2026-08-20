@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import TimeWheel from "./TimeWheel";
 
 // 画面内の文言は英語で統一する。
 const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -48,25 +49,22 @@ export function getDayItems(data, teamData, isTeam, date) {
 // 時刻の入力は input[type=time] を使う。iOSではこれが標準のホイール
 // (時と分が別々に回る)になり、B欄の新規入力と見た目・操作が揃う。
 // step=600 で10分刻みにしている。
-// Clear は <label> の外に置く。label の内側にボタンがあると、押した時に
-// 紐づく時刻入力にもフォーカスが渡ってピッカーが開き、現在時刻が表示されるため
-// 「クリアしても変わらない」ように見えてしまう。
-// また未設定のときは input が現在時刻を表示するので、薄くして区別がつくようにする。
-function TimeSelect({ value, onChange, label, min, onFocusEmpty }) {
+// 時刻の表示ボタン。押すと自前のホイール(TimeWheel)を開く。
+// iOSの input[type=time] は値が空のとき現在時刻を表示してしまうため使わない。
+// 未設定のときは 0:00 起点で開く。
+function TimeSelect({ value, onChange, label, min }) {
+  const [open, setOpen] = useState(false);
   return (
     <span className="flex items-center gap-1 min-w-0">
-      <label className="flex items-center gap-1 min-w-0">
-        <span className="text-[11px] text-ink-sub shrink-0">{label}</span>
-        <input
-          type="time"
-          step="600"
-          min={min || undefined}
-          value={value || ""}
-          onChange={(e) => onChange(e.target.value)}
-          onFocus={() => { if (!value && onFocusEmpty) onFocusEmpty(); }}
-          className={`rounded-lg border border-app-line bg-app-surface px-1.5 py-1.5 text-sm w-[76px] shrink-0 ${value ? "" : "opacity-40"}`}
-        />
-      </label>
+      <span className="text-[11px] text-ink-sub shrink-0">{label}</span>
+      <button
+        onClick={() => setOpen(true)}
+        className={`rounded-lg border border-app-line bg-app-surface px-2 py-1.5 text-sm w-[68px] shrink-0 tabular-nums ${
+          value ? "text-ink" : "text-ink-sub/50"
+        }`}
+      >
+        {value || "--:--"}
+      </button>
       {value && (
         <button
           onClick={() => onChange("")}
@@ -75,6 +73,14 @@ function TimeSelect({ value, onChange, label, min, onFocusEmpty }) {
         >
           ×
         </button>
+      )}
+      {open && (
+        <TimeWheel
+          value={value}
+          min={min}
+          onChange={onChange}
+          onClose={() => setOpen(false)}
+        />
       )}
     </span>
   );
@@ -112,15 +118,7 @@ function ItemEditForm({ item, onSave, onDelete, onCancel, defaultTime }) {
       <div className="flex items-center gap-1.5">
         <TimeSelect value={time} onChange={handleStart} label="Start" />
         <span className="text-ink-sub text-sm">–</span>
-        {/* End が空のときも、開こうとした時点で開始時刻を入れておく。
-            空のまま開くとiOSのホイールが現在時刻を表示してしまうため。 */}
-        <TimeSelect
-          value={endTime}
-          onChange={setEndTime}
-          onFocusEmpty={() => time && setEndTime(time)}
-          label="End"
-          min={time}
-        />
+        <TimeSelect value={endTime} onChange={setEndTime} label="End" min={time} />
       </div>
       <div className="flex items-center justify-between pt-1">
         {onDelete ? (
