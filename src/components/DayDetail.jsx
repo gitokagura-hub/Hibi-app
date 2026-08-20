@@ -4,7 +4,7 @@ import TimeWheel from "./TimeWheel";
 // 画面内の文言は英語で統一する。
 const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-import { X, Plus, Trash2 } from "lucide-react";
+import { X, Plus, Trash2, Undo2 } from "lucide-react";
 import { useData } from "../dataStore";
 
 // ===== 共通: 指定した1日ぶんの予定・タスク・メモを組み立てる =====
@@ -68,10 +68,10 @@ function TimeSelect({ value, onChange, label, min }) {
       {value && (
         <button
           onClick={() => onChange("")}
-          className="text-[15px] leading-none text-ink-sub w-6 h-6 shrink-0 flex items-center justify-center"
+          className="text-ink-sub w-7 h-7 shrink-0 flex items-center justify-center"
           aria-label="Clear"
         >
-          ×
+          <Undo2 size={15} />
         </button>
       )}
       {open && (
