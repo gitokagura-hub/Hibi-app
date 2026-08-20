@@ -369,19 +369,19 @@ export default function CalendarPage({ setTab }) {
             日付にも月にも紐づかない、貼り付けメモのようなタスク。
             カレンダーの下に常に表示され、月を移動しても内容は変わらない。
             完了チェックは持たず、終わったら削除する運用。 */}
-        <section className="px-5 pt-1 pb-1">
-          <div className="space-y-1">
+        <section className="px-5 py-0">
+          <div>
             {(data.pinnedTasks || []).map((t) => (
               <div key={t.id} className="flex items-center gap-2 group">
                 <span className="w-1.5 h-1.5 rounded-full bg-ink-sub shrink-0" />
                 <input
                   value={t.title}
                   onChange={(e) => updatePinnedTask(t.id, e.target.value)}
-                  className="flex-1 min-w-0 bg-transparent text-[15px] py-1 outline-none"
+                  className="flex-1 min-w-0 bg-transparent text-[15px] py-0.5 outline-none"
                 />
                 <button
                   onClick={() => deletePinnedTask(t.id)}
-                  className="w-9 h-9 mr-2 shrink-0 flex items-center justify-center text-ink-sub"
+                  className="w-9 h-7 mr-2 shrink-0 flex items-center justify-center text-ink-sub"
                   aria-label="Delete"
                 >
                   <Trash2 size={15} />
@@ -401,11 +401,11 @@ export default function CalendarPage({ setTab }) {
                   }
                 }}
                 placeholder="Add..."
-                className="flex-1 min-w-0 bg-transparent text-[15px] py-1 outline-none placeholder:text-ink-sub/40"
+                className="flex-1 min-w-0 bg-transparent text-[15px] py-0.5 outline-none placeholder:text-ink-sub/40"
               />
               <button
                 onClick={() => { addPinnedTask(pinnedDraft); setPinnedDraft(""); }}
-                className="w-9 h-9 mr-2 shrink-0 flex items-center justify-center text-ink-sub"
+                className="w-9 h-7 mr-2 shrink-0 flex items-center justify-center text-ink-sub"
                 aria-label="Add"
               >
                 <Plus size={17} />
@@ -415,7 +415,7 @@ export default function CalendarPage({ setTab }) {
         </section>
 
         {/* ========= PAGE 2 ========= */}
-        <section id="calendar-day-detail" className="px-5 pt-4 pb-8" style={{ paddingBottom: "calc(8rem + env(safe-area-inset-bottom))" }}>
+        <section id="calendar-day-detail" className="px-5 pt-2 pb-8" style={{ paddingBottom: "calc(8rem + env(safe-area-inset-bottom))" }}>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-semibold">
               {Number(calMonth.m) + 1}/{Number(selectedDate.split("-")[2])}
