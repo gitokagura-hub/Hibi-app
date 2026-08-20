@@ -61,7 +61,7 @@ function Column({ options, value, onChange, align = "center", innerRef }) {
       className="tw-col relative flex-1 overflow-y-auto no-scrollbar snap-y snap-mandatory"
       // overscrollBehavior: "contain" で、端まで来てもスクロールが背後の画面に
       // 伝わらないようにする(ホイールを回すと後ろのページまで動いてしまうため)。
-      style={{ height: VISIBLE * ITEM_H, scrollbarWidth: "none", overscrollBehavior: "contain" }}
+      style={{ height: "100%", scrollbarWidth: "none", overscrollBehavior: "contain" }}
     >
       <div style={{ height: PAD }} />
       {options.map((o) => (
@@ -134,23 +134,20 @@ export default function TimeWheel({ value, onChange, onClose, min }) {
   }, [m]);
 
   return (
-    <div
-      ref={rootRef}
-      className="fixed inset-0 z-[70] bg-black/40 flex items-end"
-      onClick={onClose}
-    >
-      {/* Clear/Done はホイールより上に置く。下に置くと、ホイールの高さぶん
-          押し下げられて画面外にはみ出し、押せなくなっていた。
-          safe-area も見込んで、シート全体が画面内に収まるようにする。 */}
+    // 画面全体を覆い、シートを下端にぴったり貼り付ける。
+    // items-end だけだと中身の高さ次第で浮いて見えるため、シート側で
+    // 幅・余白・高さを明示して組む。
+    <div ref={rootRef} className="fixed inset-0 z-[70] bg-black/40 flex flex-col justify-end" onClick={onClose}>
       <div
-        className="w-full bg-app-bg rounded-t-2xl pt-2 max-h-[85vh] overflow-hidden"
-        style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+        className="w-full bg-app-bg rounded-t-2xl shadow-xl"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 pb-1">
+        {/* ヘッダー: Clear(左) / Done(右)。左右に余白を取り、端に張り付かないようにする */}
+        <div className="flex items-center justify-between px-5 py-3 border-b border-app-line">
           <button
             onClick={() => { onChange(""); onClose(); }}
-            className="text-sm text-ink-sub px-3 py-2"
+            className="text-sm text-ink-sub py-1.5"
           >
             Clear
           </button>
@@ -161,29 +158,24 @@ export default function TimeWheel({ value, onChange, onClose, min }) {
               onChange(min && picked < min ? min : picked);
               onClose();
             }}
-            className="text-sm font-semibold bg-ink text-app-bg rounded-xl px-5 py-2"
+            className="text-sm font-semibold bg-ink text-app-bg rounded-xl px-6 py-2"
           >
             Done
           </button>
         </div>
-        {/* 白い枠の中を左半分=時、右半分=分にきっちり分ける。
-            列の幅が狭いと、その外側を触ったスクロールが背後の画面に届いてしまうため、
-            枠内は隙間なく2つの列で埋める。 */}
-        {/* 数字は中央に寄せて詰まって見えるようにする。
-            ただしスクロールを受け止める列(.tw-col)自体は左右いっぱいに広げたまま。
-            狭めると列の外側を触ったスクロールが背後の画面に届いてしまうため、
-            「見た目だけ中央、当たり判定は全幅」という作りにしている。 */}
-        <div className="relative flex items-stretch">
-          {/* 中央の選択行を示す帯 */}
+
+        {/* ホイール本体。5行ぶんの高さを確保して、中央行が選択値。
+            数字は中央に寄せる一方、スクロールを受け止める列(.tw-col)は
+            左右いっぱいに広げる(狭いと外側を触ったスクロールが背後に届くため)。 */}
+        <div className="relative flex items-stretch" style={{ height: VISIBLE * ITEM_H }}>
           <div
             className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 rounded-xl bg-app-raised pointer-events-none"
-            style={{ height: ITEM_H, width: 152 }}
+            style={{ height: ITEM_H, width: 160 }}
           />
           <Column options={HOURS} value={h} onChange={setH} align="end" innerRef={hRef} />
-          <span className="relative flex items-center text-[19px] text-ink-sub w-4 justify-center">:</span>
+          <span className="relative flex items-center text-[19px] text-ink-sub w-5 justify-center">:</span>
           <Column options={MINUTES} value={m} onChange={setM} align="start" innerRef={mRef} />
         </div>
-
       </div>
     </div>
   );
