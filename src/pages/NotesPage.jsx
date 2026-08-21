@@ -528,11 +528,9 @@ function NoteCard({ n, isTeam, copiedNoteId, onOpen, onCopy, onPasteCalendar, on
   return (
     <div
       {...dragProps}
-      className={`rounded-2xl border p-4 transition-all ${
+      className={`rounded-2xl border p-4 ${
         isTeam ? "border-blue-100 bg-blue-50" : "border-app-line bg-app-surface"
-      } ${dragging ? "opacity-60 scale-[0.98] shadow-lg" : ""} ${
-        selected && !dragging ? "bg-app-raised" : ""
-      }`}
+      } ${selected && !dragging ? "bg-app-raised" : ""}`}
     >
       <button
         onClick={onTap}

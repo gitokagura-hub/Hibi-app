@@ -129,9 +129,9 @@ function ProjectItemCard({ item, projectId, isTeam, copiedItemId, onCopy, onEdit
   return (
     <div
       {...dragProps}
-      className={`relative rounded-xl border border-app-line bg-app-surface p-2.5 pr-9 pb-8 transition-all ${
-        dragging ? "opacity-60 scale-[0.98] shadow-lg" : ""
-      } ${selected && !dragging ? "bg-app-raised" : ""}`}
+      className={`relative rounded-xl border border-app-line bg-app-surface p-2.5 pr-9 pb-8 ${
+        selected && !dragging ? "bg-app-raised" : ""
+      }`}
     >
       <button onClick={() => onCopy(item)} className="absolute top-2 right-2 text-ink-sub p-1" aria-label="コピー">
         {copiedItemId === item.id ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
@@ -351,9 +351,7 @@ export default function ProjectsPage({ setTab }) {
                 key={p.id}
                 ref={(el) => (rowRefs.current[p.id] = el)}
                 {...(isTeam ? {} : projectDnd.itemProps(pIndex))}
-                className={`border-b border-app-line last:border-b-0 scroll-mt-2 transition-all ${
-                  !isTeam && projectDnd.isDragging(pIndex) ? "opacity-60 shadow-lg" : ""
-                }`}
+                className="border-b border-app-line last:border-b-0 scroll-mt-2 bg-app-bg"
               >
                 <button
                   onClick={() => {

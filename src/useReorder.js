@@ -1,23 +1,28 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * 長押しで掴んで並び替えるための仕組み。
+ * 長押しで掴んで、指に追従させながら並び替える。
  *
  * 優先度は色ではなく「並び順」で表す。上にあるものほど優先度が高い、という
- * 考え方なので、長押しで掴んで上下に動かせるようにする。
+ * 考え方なので、長押しで掴んで自由に上下へ動かせるようにする。
  *
  * 【操作】
  *   1タップ  … 選択（開かない。誤って開くのを防ぐため）
  *   2タップ  … 中身を開く
- *   長押し   … 掴んで並び替え
+ *   長押し   … 掴んで並び替え。掴んだカードは指に追従し、他のカードは避ける
+ *
+ * 【作り】
+ * 掴んだ時点で各行の高さと位置を実測しておき、指の移動量から「今どの位置に
+ * 入るか」を求める。掴んだカードは translateY で指に追従させ、間にある
+ * カードは1行ぶんずらして隙間を作る。指を離した時点の位置で確定する。
  */
-export function useReorder(count, onReorder, ms = 450) {
-  const [dragIndex, setDragIndex] = useState(null);
+export function useReorder(count, onReorder, ms = 400) {
+  const [drag, setDrag] = useState(null); // { index, dy, to }
   const timer = useRef(null);
   const startY = useRef(0);
   const fired = useRef(false);
-  const rowH = useRef(64); // 1行の高さ。掴んだ要素から実測して差し替える
-  const lastTo = useRef(null);
+  const rows = useRef([]); // 掴んだ時点の各行の高さ
+  const els = useRef({});  // index -> 要素
 
   const clear = useCallback(() => {
     if (timer.current) {
@@ -28,64 +33,118 @@ export function useReorder(count, onReorder, ms = 450) {
 
   const cancel = useCallback(() => {
     clear();
-    setDragIndex(null);
-    lastTo.current = null;
+    setDrag(null);
   }, [clear]);
+
+  // 掴んでいる間はページのスクロールを止める(指の動きを並び替えに使うため)
+  useEffect(() => {
+    if (!drag) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const block = (e) => e.preventDefault();
+    document.addEventListener("touchmove", block, { passive: false });
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("touchmove", block);
+    };
+  }, [drag]);
+
+  // 指の位置から、今どの位置に入るかを求める
+  function computeTo(index, dy) {
+    const h = rows.current;
+    let to = index;
+    if (dy > 0) {
+      let acc = 0;
+      for (let i = index + 1; i < count; i++) {
+        acc += h[i] || 0;
+        if (dy > acc - (h[i] || 0) / 2) to = i;
+        else break;
+      }
+    } else if (dy < 0) {
+      let acc = 0;
+      for (let i = index - 1; i >= 0; i--) {
+        acc += h[i] || 0;
+        if (-dy > acc - (h[i] || 0) / 2) to = i;
+        else break;
+      }
+    }
+    return to;
+  }
 
   const itemProps = useCallback(
     (index) => ({
+      ref: (el) => { els.current[index] = el; },
       onTouchStart: (e) => {
-        const t = e.touches[0];
-        startY.current = t.clientY;
+        startY.current = e.touches[0].clientY;
         fired.current = false;
-        const el = e.currentTarget;
-        if (el?.offsetHeight) rowH.current = el.offsetHeight;
         clear();
         timer.current = setTimeout(() => {
           fired.current = true;
-          setDragIndex(index);
-          // 掴んだことを触覚で知らせる
+          // 掴んだ時点の各行の高さを実測する(カードの高さがまちまちなため)
+          rows.current = Array.from({ length: count }, (_, i) =>
+            els.current[i]?.offsetHeight || 0
+          );
+          setDrag({ index, dy: 0, to: index });
           if (navigator.vibrate) navigator.vibrate(15);
         }, ms);
       },
       onTouchMove: (e) => {
-        const t = e.touches[0];
-        const dy = t.clientY - startY.current;
-        // まだ掴んでいない状態で指が動いたら、長押しとみなさない
-        if (dragIndex === null) {
+        const dy = e.touches[0].clientY - startY.current;
+        if (!fired.current) {
+          // まだ掴んでいない状態で指が動いたら、長押しとみなさない
           if (Math.abs(dy) > 8) clear();
           return;
         }
-        const shift = Math.round(dy / rowH.current);
-        lastTo.current = Math.min(count - 1, Math.max(0, index + shift));
+        setDrag((d) => (d ? { ...d, dy, to: computeTo(d.index, dy) } : d));
       },
       onTouchEnd: () => {
         clear();
-        if (dragIndex !== null) {
-          const to = lastTo.current;
-          if (to !== null && to !== index) onReorder(index, to);
-          setDragIndex(null);
-          lastTo.current = null;
-        }
+        setDrag((d) => {
+          if (d && d.to !== d.index) onReorder(d.index, d.to);
+          return null;
+        });
       },
       onTouchCancel: cancel,
       onContextMenu: (e) => e.preventDefault(),
-      // 長押しするとSafariが文字選択を始めてしまい、並び替えではなく
-      // 選択ハンドルが出てしまうため、この要素では選択・長押しメニューを止める。
+      // 長押しするとSafariが文字選択を始めてしまうため、選択と長押しメニューを止める
       style: {
         WebkitUserSelect: "none",
         userSelect: "none",
         WebkitTouchCallout: "none",
-        touchAction: "pan-y",
+        ...transformFor(index),
       },
     }),
-    [cancel, clear, count, dragIndex, ms, onReorder]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cancel, clear, count, drag, ms, onReorder]
   );
+
+  // 掴んだカードは指に追従、間のカードは1行ぶんずれて隙間を作る
+  function transformFor(index) {
+    if (!drag) return {};
+    const { index: from, dy, to } = drag;
+    if (index === from) {
+      return {
+        transform: `translateY(${dy}px)`,
+        zIndex: 50,
+        position: "relative",
+        opacity: 0.9,
+        boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+        transition: "none",
+      };
+    }
+    const h = rows.current[from] || 0;
+    let shift = 0;
+    if (from < to && index > from && index <= to) shift = -h;
+    if (from > to && index >= to && index < from) shift = h;
+    return {
+      transform: `translateY(${shift}px)`,
+      transition: "transform 160ms ease",
+    };
+  }
 
   return {
     itemProps,
-    dragIndex,
-    isDragging: (i) => dragIndex === i,
+    isDragging: (i) => drag?.index === i,
     // 長押しが発火した直後かどうか。直後のクリックを打ち消すのに使う。
     wasLongPress: () => {
       const v = fired.current;
