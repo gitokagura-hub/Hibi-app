@@ -55,6 +55,8 @@ function emptyData() {
     tasks: [],     // { id, date, title, completed, createdAt }
     events: [],    // { id, date, time, title, endTime, color, priority, createdAt }
     memos: {},     // { [date]: { text, images: [], files: [] } }
+    tagColors: {}, // { [タグ名]: 色キー } — ノートのタグの色。新規タグには
+                   // 自動で割り当て、あとから変更もできる。
     pinnedTasks: [], // { id, title, createdAt } — 日付に紐づかない常設のタスク。
                      // カレンダーの下に常に表示され、月を移動しても変わらない。
                      // 完了チェックは持たず、終わったら削除する運用。
@@ -297,8 +299,20 @@ export function DataProvider({ children }) {
     return note;
   }
   // 長押しで優先度だけを変更する用(見出しなどには触れない)
-  function setNotePriority(id, priority) {
-    setData(prev => ({ ...prev, notes: prev.notes.map(n => n.id === id ? { ...n, priority } : n) }));
+  // 優先度は色ではなく「並び順」で表す。長押しで掴んで移動させたときに呼ぶ。
+  // from の位置にある要素を to の位置へ差し込む。
+  function setTagColor(tag, color) {
+    setData(prev => ({ ...prev, tagColors: { ...(prev.tagColors || {}), [tag]: color } }));
+  }
+
+  function reorderNotes(from, to) {
+    setData(prev => {
+      const list = [...prev.notes];
+      if (from < 0 || from >= list.length || to < 0 || to >= list.length) return prev;
+      const [moved] = list.splice(from, 1);
+      list.splice(to, 0, moved);
+      return { ...prev, notes: list };
+    });
   }
   function deleteNote(id) {
     setData(prev => ({ ...prev, notes: prev.notes.filter(n => n.id !== id) }));
@@ -441,6 +455,30 @@ export function DataProvider({ children }) {
     }));
   }
   // 長押しで優先度だけを変更する用
+  function reorderProjects(from, to) {
+    setData(prev => {
+      const list = [...prev.projects];
+      if (from < 0 || from >= list.length || to < 0 || to >= list.length) return prev;
+      const [moved] = list.splice(from, 1);
+      list.splice(to, 0, moved);
+      return { ...prev, projects: list };
+    });
+  }
+
+  function reorderProjectItems(projectId, from, to) {
+    setData(prev => ({
+      ...prev,
+      projects: prev.projects.map(p => {
+        if (p.id !== projectId) return p;
+        const list = [...(p.items || [])];
+        if (from < 0 || from >= list.length || to < 0 || to >= list.length) return p;
+        const [moved] = list.splice(from, 1);
+        list.splice(to, 0, moved);
+        return { ...p, items: list };
+      }),
+    }));
+  }
+
   function setProjectItemPriority(projectId, itemId, priority) {
     setData(prev => ({
       ...prev,
@@ -759,12 +797,12 @@ export function DataProvider({ children }) {
     addTask, toggleTask, deleteTask, updateTask,
     addEvent, deleteEvent, updateEvent,
     getMemo, setMemo, clearMemo, addMemoImages, removeMemoImage, updateMemoImageCategories, addMemoFiles, removeMemoFile,
-    addNote, deleteNote, updateNote, setNotePriority,
+    addNote, deleteNote, updateNote, reorderNotes, setTagColor,
     addPinnedTask, updatePinnedTask, deletePinnedTask,
     addLibraryPhotos, deleteLibraryPhoto, deletePhotosBySrc,
     addLibraryFiles, deleteLibraryFile, renameLibraryFile, addLibraryFolder, deleteLibraryFolder, renameLibraryFolder,
     setLibraryTags, setLibraryComments, setLibraryCategories,
-    addProject, setProjectDriveFolderId, setProjectDriveFiles, addProjectDriveFile, removeProjectDriveFile, updateProjectItem, addProjectItem, setProjectItemPriority, deleteProject, deleteProjectItem, sendToProject,
+    addProject, setProjectDriveFolderId, setProjectDriveFiles, addProjectDriveFile, removeProjectDriveFile, updateProjectItem, addProjectItem, setProjectItemPriority, reorderProjects, reorderProjectItems, deleteProject, deleteProjectItem, sendToProject,
     pasteNoteToCalendar, pasteNoteToProject,
     setSettings, addPhotoCategory, removePhotoCategory, replaceAllData,
     // Space switching + Team data

@@ -6,7 +6,7 @@ import { runAIOnNote } from "../aiAssist";
 import { useConfirm } from "../components/ConfirmModal";
 import MediaImg from "../components/MediaImg";
 import { resolveMedia, isDriveRef } from "../media";
-import { useLongPress, nextPriority, PRIORITY_BORDER_COLORS } from "../useLongPress";
+import { tagChipClass, useReorder } from "../useReorder";
 
 function deriveTitle(text) {
   const firstLine = text.split("\n")[0];
@@ -522,24 +522,20 @@ function AIAssistSheet({ provider, apiKeyMissing, onClose, onRun, onApply }) {
 
 const COMPOSER_BAR_H = 44;
 
-function NoteCard({ n, isTeam, copiedNoteId, onOpen, onCopy, onPasteCalendar, onPasteProject, onDelete }) {
-  const { setNotePriority } = useData();
-  const { handlers, wasLongPress } = useLongPress(() => {
-    setNotePriority(n.id, nextPriority(n.priority));
-  });
-  const borderColor = PRIORITY_BORDER_COLORS[n.priority || 0];
+function NoteCard({ n, isTeam, copiedNoteId, onOpen, onCopy, onPasteCalendar, onPasteProject, onDelete, dragProps, dragging, selected, onTap }) {
+  const { data } = useData();
 
   return (
     <div
-      className={`rounded-2xl border p-4 ${isTeam ? "border-blue-100 bg-blue-50" : "border-app-line bg-app-surface"}`}
-      style={borderColor ? { borderColor, borderWidth: 2 } : undefined}
+      {...dragProps}
+      className={`rounded-2xl border p-4 transition-all ${
+        isTeam ? "border-blue-100 bg-blue-50" : "border-app-line bg-app-surface"
+      } ${dragging ? "opacity-60 scale-[0.98] shadow-lg" : ""} ${
+        selected && !dragging ? "bg-app-raised" : ""
+      }`}
     >
       <button
-        {...handlers}
-        onClick={(e) => {
-          if (wasLongPress()) return;
-          onOpen(n);
-        }}
+        onClick={onTap}
         className="w-full text-left"
       >
         {(() => {
@@ -574,7 +570,7 @@ function NoteCard({ n, isTeam, copiedNoteId, onOpen, onCopy, onPasteCalendar, on
         {n.tags && n.tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-3">
             {n.tags.map((t) => (
-              <span key={t} className="text-[11px] text-ink-sub bg-app-bg border border-app-line rounded-full px-2 py-0.5">
+              <span key={t} className={`text-[11px] rounded-full px-2 py-0.5 ${tagChipClass(t, data.tagColors)}`}>
                 #{t}
               </span>
             ))}
@@ -873,7 +869,7 @@ function FullScreenComposer({
 
 export default function NotesPage({ setTab }) {
   const {
-    data, addNote, deleteNote, updateNote, pasteNoteToCalendar, pasteNoteToProject, sendToProject,
+    data, addNote, deleteNote, updateNote, reorderNotes, pasteNoteToCalendar, pasteNoteToProject, sendToProject,
     space, teamData, teamLoading, teamError,
     addTeamNoteAction, updateTeamNoteAction, deleteTeamNoteAction,
   } = useData();
@@ -918,9 +914,16 @@ export default function NotesPage({ setTab }) {
   const [pasteMode, setPasteMode] = useState(null);
   const [selectedAI, setSelectedAI] = useState("Gemini");
   const [now, setNow] = useState(Date.now());
+  // 個人のノートは長押しで並び替えできるので、保存されている順をそのまま使う
+  // (作成日時で並べ直すと、並び替えた結果が消えてしまうため)。
+  // Teamは並び替えに対応していないので従来通り新しい順。
   const sorted = isTeam
     ? [...teamData.notes].sort((a, b) => b.createdAt - a.createdAt)
-    : [...data.notes].sort((a, b) => b.createdAt - a.createdAt);
+    : data.notes;
+
+  // 1タップで選択、2タップで開く。触ってすぐ開くのを避けるため。
+  const [selectedNoteId, setSelectedNoteId] = useState(null);
+  const dnd = useReorder(sorted.length, (from, to) => reorderNotes(from, to));
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30000);
@@ -1077,10 +1080,19 @@ export default function NotesPage({ setTab }) {
 
         <div className="space-y-4 pb-10">
           {sorted.length === 0 && <p className="text-ink-sub">No notes yet</p>}
-          {sorted.map((n) => (
+          {sorted.map((n, index) => (
             <NoteCard
               key={n.id}
               n={n}
+              dragProps={isTeam ? {} : dnd.itemProps(index)}
+              dragging={!isTeam && dnd.isDragging(index)}
+              selected={selectedNoteId === n.id}
+              onTap={() => {
+                // 長押しで掴んだ直後のタップは無視する
+                if (dnd.wasLongPress()) return;
+                if (selectedNoteId === n.id) handleOpenNote(n);
+                else setSelectedNoteId(n.id);
+              }}
               isTeam={isTeam}
               copiedNoteId={copiedNoteId}
               onOpen={handleOpenNote}

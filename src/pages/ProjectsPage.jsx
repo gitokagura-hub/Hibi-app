@@ -6,7 +6,7 @@ import { handleEnterToConfirm } from "../useEnterConfirm";
 import { isDriveConnected, ensureAppFolder, ensureProjectFolder, uploadFileToProjectFolder, listProjectFiles, deleteProjectFile, getTeamRootFolderId } from "../googleDrive";
 import { useConfirm } from "../components/ConfirmModal";
 import MediaImg from "../components/MediaImg";
-import { useLongPress, nextPriority, PRIORITY_BORDER_COLORS } from "../useLongPress";
+import { useReorder } from "../useReorder";
 
 function isImageFile(mimeType) {
   return typeof mimeType === "string" && mimeType.startsWith("image/");
@@ -79,12 +79,41 @@ function FullScreenItemEditor({ item, onChangeText, onChangeHeading, onClose }) 
   );
 }
 
-function ProjectItemCard({ item, projectId, isTeam, copiedItemId, onCopy, onEdit, onDelete }) {
-  const { setProjectItemPriority } = useData();
-  const { handlers, wasLongPress } = useLongPress(() => {
-    setProjectItemPriority(projectId, item.id, nextPriority(item.priority));
-  });
-  const borderColor = PRIORITY_BORDER_COLORS[item.priority || 0];
+// プロジェクトごとに並び替えの状態を持つ必要があるため、リストを別部品に分ける。
+function ProjectItemList({ project, isTeam, copiedItemId, onCopy, onEdit, onDelete }) {
+  const { reorderProjectItems } = useData();
+  const [selectedId, setSelectedId] = useState(null);
+  const items = project.items || [];
+  const dnd = useReorder(items.length, (from, to) => reorderProjectItems(project.id, from, to));
+
+  return (
+    <div className="space-y-2 mb-3">
+      {items.map((item, index) => (
+        <ProjectItemCard
+          key={item.id}
+          item={item}
+          projectId={project.id}
+          isTeam={isTeam}
+          copiedItemId={copiedItemId}
+          onCopy={onCopy}
+          onDelete={onDelete}
+          dragProps={isTeam ? {} : dnd.itemProps(index)}
+          dragging={!isTeam && dnd.isDragging(index)}
+          selected={selectedId === item.id}
+          onTap={() => {
+            // 長押しで掴んだ直後のタップは無視する
+            if (dnd.wasLongPress()) return;
+            // 1タップで選択、2タップで開く
+            if (selectedId === item.id) onEdit(item);
+            else setSelectedId(item.id);
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ProjectItemCard({ item, projectId, isTeam, copiedItemId, onCopy, onEdit, onDelete, dragProps, dragging, selected, onTap }) {
 
   // 一覧は Notes と同じ「見出し(太字)＋本文1行(薄字)」の2段。
   // 見出しが未入力なら本文の1行目を見出し位置に出す。
@@ -99,20 +128,15 @@ function ProjectItemCard({ item, projectId, isTeam, copiedItemId, onCopy, onEdit
 
   return (
     <div
-      className="relative rounded-xl border border-app-line bg-app-surface p-2.5 pr-9 pb-8"
-      style={borderColor ? { borderColor, borderWidth: 2 } : undefined}
+      {...dragProps}
+      className={`relative rounded-xl border border-app-line bg-app-surface p-2.5 pr-9 pb-8 transition-all ${
+        dragging ? "opacity-60 scale-[0.98] shadow-lg" : ""
+      } ${selected && !dragging ? "bg-app-raised" : ""}`}
     >
       <button onClick={() => onCopy(item)} className="absolute top-2 right-2 text-ink-sub p-1" aria-label="コピー">
         {copiedItemId === item.id ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
       </button>
-      <button
-        {...handlers}
-        onClick={(e) => {
-          if (wasLongPress()) return;
-          onEdit(item);
-        }}
-        className="w-full text-left"
-      >
+      <button onClick={onTap} className="w-full text-left">
         {headLine || bodyLine ? (
           <div>
             {headLine && <p className="text-[14px] font-bold leading-snug">{clip(headLine, 40)}</p>}
@@ -427,24 +451,18 @@ export default function ProjectsPage({ setTab }) {
                       </div>
 
                       {p.items.length > 0 && (
-                        <div className="space-y-2 mb-3">
-                          {p.items.map((item) => (
-                            <ProjectItemCard
-                              key={item.id}
-                              item={item}
-                              projectId={p.id}
-                              isTeam={isTeam}
-                              copiedItemId={copiedItemId}
-                              onCopy={handleCopyMemo}
-                              onEdit={(it) => setEditing({ projectId: p.id, itemId: it.id })}
-                              onDelete={async (it) => {
-                                if (await confirm("このメモを削除しますか？", { confirmLabel: "削除する", danger: true })) {
-                                  isTeam ? deleteTeamProjectItemAction(it.id) : deleteProjectItem(p.id, it.id);
-                                }
-                              }}
-                            />
-                          ))}
-                        </div>
+                        <ProjectItemList
+                          project={p}
+                          isTeam={isTeam}
+                          copiedItemId={copiedItemId}
+                          onCopy={handleCopyMemo}
+                          onEdit={(it) => setEditing({ projectId: p.id, itemId: it.id })}
+                          onDelete={async (it) => {
+                            if (await confirm("このメモを削除しますか？", { confirmLabel: "削除する", danger: true })) {
+                              isTeam ? deleteTeamProjectItemAction(it.id) : deleteProjectItem(p.id, it.id);
+                            }
+                          }}
+                        />
                       )}
 
                     </div>
