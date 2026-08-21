@@ -857,12 +857,31 @@ function FullScreenComposer({
         <div className="relative">
           {/* 見出し。textareaは行ごとに文字サイズを変えられないため、
               見出しだけ独立した入力欄にしている(メモアプリと同じ見た目にするため)。 */}
-          <input
-            type="text"
+          {/* 見出しは長くなると横に流れて読めなくなるため、折り返せるようにする。
+              inputは1行しか扱えないのでtextareaを使い、内容に合わせて高さを伸ばす。 */}
+          <textarea
+            rows={1}
             value={heading}
             onChange={(e) => setHeading(e.target.value)}
+            onInput={(e) => {
+              e.target.style.height = "auto";
+              e.target.style.height = e.target.scrollHeight + "px";
+            }}
+            ref={(el) => {
+              if (el) {
+                el.style.height = "auto";
+                el.style.height = el.scrollHeight + "px";
+              }
+            }}
+            onKeyDown={(e) => {
+              // 見出しの中で改行はしない。Enterは本文へ移る操作にする。
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                textareaRef.current?.focus();
+              }
+            }}
             placeholder="見出し"
-            className="w-full px-5 pt-4 pb-1 text-[22px] font-bold outline-none block bg-transparent placeholder:text-ink-sub/50 placeholder:font-normal"
+            className="w-full px-5 pt-4 pb-1 text-[22px] font-bold outline-none block bg-transparent resize-none overflow-hidden placeholder:text-ink-sub/50 placeholder:font-normal"
           />
           <textarea
             ref={textareaRef}
@@ -1139,8 +1158,9 @@ export default function NotesPage({ setTab }) {
         {/* タグでの絞り込み。押すとそのタグのノートだけ表示し、
             もう一度押すと解除する。タグが1つも無いときは出さない。 */}
         {allTags.length > 0 && (
-          <div className="mb-4 -mx-5 px-5 overflow-x-auto">
-            <div className="flex items-center gap-1.5 w-max">
+          <div className="mb-4">
+            {/* 横スクロールだと隠れたタグに気づけないため、折り返して全部見せる */}
+            <div className="flex flex-wrap items-center gap-1.5">
               {/* 絞り込みを解除して全件に戻す */}
               <button
                 onClick={() => setActiveTag(null)}
