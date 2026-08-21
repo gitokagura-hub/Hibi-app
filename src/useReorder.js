@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 /**
  * 長押しで掴んで、指に追従させながら並び替える。
@@ -18,6 +18,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
  */
 export function useReorder(count, onReorder, ms = 400) {
   const [drag, setDrag] = useState(null); // { index, dy, to }
+  // iOSは指が触れた瞬間にスクロールするか決めるため、掴んでから止めても間に合わない。
+  // touchstartの時点で非パッシブのリスナを張っておき、掴んだ瞬間から
+  // preventDefaultできるようにする。その判定にrefを使う。
+  const draggingRef = useRef(false);
+  const moveHandler = useRef(null);
   const timer = useRef(null);
   const startY = useRef(0);
   const fired = useRef(false);
@@ -33,21 +38,13 @@ export function useReorder(count, onReorder, ms = 400) {
 
   const cancel = useCallback(() => {
     clear();
+    draggingRef.current = false;
+    if (moveHandler.current) {
+      moveHandler.current.el.removeEventListener("touchmove", moveHandler.current.onMove);
+      moveHandler.current = null;
+    }
     setDrag(null);
   }, [clear]);
-
-  // 掴んでいる間はページのスクロールを止める(指の動きを並び替えに使うため)
-  useEffect(() => {
-    if (!drag) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const block = (e) => e.preventDefault();
-    document.addEventListener("touchmove", block, { passive: false });
-    return () => {
-      document.body.style.overflow = prev;
-      document.removeEventListener("touchmove", block);
-    };
-  }, [drag]);
 
   // 指の位置から、今どの位置に入るかを求める
   function computeTo(index, dy) {
@@ -77,9 +74,28 @@ export function useReorder(count, onReorder, ms = 400) {
       onTouchStart: (e) => {
         startY.current = e.touches[0].clientY;
         fired.current = false;
+        draggingRef.current = false;
+
+        // 指が触れた時点で非パッシブのリスナを張る。掴んだ後に張っても
+        // iOSは既に始めたスクロールを止めてくれないため。
+        const el = e.currentTarget;
+        const onMove = (ev) => {
+          const dy = ev.touches[0].clientY - startY.current;
+          if (!draggingRef.current) {
+            // まだ掴んでいない状態で指が動いたら、長押しとみなさない
+            if (Math.abs(dy) > 8) clear();
+            return;
+          }
+          ev.preventDefault(); // 掴んでいる間はページを動かさない
+          setDrag((d) => (d ? { ...d, dy, to: computeTo(d.index, dy) } : d));
+        };
+        moveHandler.current = { el, onMove };
+        el.addEventListener("touchmove", onMove, { passive: false });
+
         clear();
         timer.current = setTimeout(() => {
           fired.current = true;
+          draggingRef.current = true;
           // 掴んだ時点の各行の高さを実測する(カードの高さがまちまちなため)
           rows.current = Array.from({ length: count }, (_, i) =>
             els.current[i]?.offsetHeight || 0
@@ -88,17 +104,13 @@ export function useReorder(count, onReorder, ms = 400) {
           if (navigator.vibrate) navigator.vibrate(15);
         }, ms);
       },
-      onTouchMove: (e) => {
-        const dy = e.touches[0].clientY - startY.current;
-        if (!fired.current) {
-          // まだ掴んでいない状態で指が動いたら、長押しとみなさない
-          if (Math.abs(dy) > 8) clear();
-          return;
-        }
-        setDrag((d) => (d ? { ...d, dy, to: computeTo(d.index, dy) } : d));
-      },
       onTouchEnd: () => {
         clear();
+        draggingRef.current = false;
+        if (moveHandler.current) {
+          moveHandler.current.el.removeEventListener("touchmove", moveHandler.current.onMove);
+          moveHandler.current = null;
+        }
         setDrag((d) => {
           if (d && d.to !== d.index) onReorder(d.index, d.to);
           return null;
