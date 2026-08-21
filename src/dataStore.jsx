@@ -53,12 +53,12 @@ export function fileToDataUrl(file) {
 function emptyData() {
   return {
     tasks: [],     // { id, date, title, completed, createdAt }
-    events: [],    // { id, date, time, title, createdAt }
+    events: [],    // { id, date, time, title, endTime, color, priority, createdAt }
     memos: {},     // { [date]: { text, images: [], files: [] } }
     pinnedTasks: [], // { id, title, createdAt } — 日付に紐づかない常設のタスク。
                      // カレンダーの下に常に表示され、月を移動しても変わらない。
                      // 完了チェックは持たず、終わったら削除する運用。
-    notes: [],     // { id, text, images: [], files: [], source: 'text'|'voice', createdAt }
+    notes: [],     // { id, text, images: [], files: [], tags: [], source: 'text'|'voice', createdAt }
     projects: [],  // { id, name, items: [{id, text, images, files, createdAt}], driveFolderId: '', driveFiles: [], createdAt }
     libraryPhotos: [], // { id, src, createdAt } — Photos画面から直接追加された写真(他の画面のメモ等には紐付かない)
     libraryFiles: [], // { id, name, type, dataUrl, folderId, createdAt } — Files画面から直接追加されたファイル。folderId=nullはルート直下
@@ -214,16 +214,31 @@ export function DataProvider({ children }) {
   }
   // endTime は予定の終了時刻。「8:00〜11:20の会議」のように範囲を持たせたい時に使う。
   // 未指定なら、これまで通り開始時刻だけの予定として扱う。
-  function addEvent(date, time, title, endTime) {
-    const event = { id: uid(), date, time, title, endTime: endTime || '', createdAt: Date.now() };
+  // color: 予定に手動で割り当てる枠線の色(未指定なら空文字。タイトルからの
+  // 自動色決定はUI側のフォールバック)。priority: 月表示で同日に予定が
+  // 収まりきらない時、どれを優先して見せるかの目安(数字が大きいほど優先)。
+  function addEvent(date, time, title, endTime, color, priority) {
+    const event = { id: uid(), date, time, title, endTime: endTime || '', color: color || '', priority: priority || 0, createdAt: Date.now() };
     setData(prev => ({ ...prev, events: [...prev.events, event] }));
     return event;
   }
   function deleteEvent(id) {
     setData(prev => ({ ...prev, events: prev.events.filter(e => e.id !== id) }));
   }
-  function updateEvent(id, time, title, endTime) {
-    setData(prev => ({ ...prev, events: prev.events.map(e => e.id === id ? { ...e, time, title, endTime: endTime !== undefined ? endTime : e.endTime } : e) }));
+  function updateEvent(id, time, title, endTime, color, priority) {
+    setData(prev => ({
+      ...prev,
+      events: prev.events.map(e => e.id === id
+        ? {
+            ...e,
+            time,
+            title,
+            endTime: endTime !== undefined ? endTime : e.endTime,
+            color: color !== undefined ? color : e.color,
+            priority: priority !== undefined ? priority : e.priority,
+          }
+        : e),
+    }));
   }
   function getMemo(date) {
     return data.memos[date] || { text: '', images: [], files: [] };
@@ -276,8 +291,8 @@ export function DataProvider({ children }) {
   }
   // heading はノートの見出し。iPhoneのメモのように一覧で太字で出す。
   // 未入力なら空文字のままで、一覧側が本文の1行目を代わりに表示する。
-  function addNote(text, source, images, files, heading) {
-    const note = { id: uid(), heading: heading || '', text, source: source || 'text', images: images || [], files: files || [], createdAt: Date.now() };
+  function addNote(text, source, images, files, heading, tags) {
+    const note = { id: uid(), heading: heading || '', text, source: source || 'text', images: images || [], files: files || [], tags: tags || [], createdAt: Date.now() };
     setData(prev => ({ ...prev, notes: [...prev.notes, note] }));
     return note;
   }
@@ -375,7 +390,7 @@ export function DataProvider({ children }) {
       libraryFiles: (prev.libraryFiles || []).filter(f => f.folderId !== id),
     }));
   }
-  function updateNote(id, text, images, files, heading) {
+  function updateNote(id, text, images, files, heading, tags) {
     setData(prev => ({
       ...prev,
       notes: prev.notes.map(n => n.id === id
@@ -385,6 +400,7 @@ export function DataProvider({ children }) {
             heading: heading !== undefined ? heading : n.heading,
             images: images !== undefined ? images : n.images,
             files: files !== undefined ? files : n.files,
+            tags: tags !== undefined ? tags : n.tags,
           }
         : n),
     }));

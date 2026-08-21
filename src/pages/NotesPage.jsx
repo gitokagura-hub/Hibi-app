@@ -521,8 +521,54 @@ function AIAssistSheet({ provider, apiKeyMissing, onClose, onRun, onApply }) {
 
 const COMPOSER_BAR_H = 44;
 
+// タグの自由入力チップ。Enterまたはフォーカス外れで確定。
+// 既存タグと重複するものは追加しない。
+function TagInput({ tags, setTags }) {
+  const [input, setInput] = useState("");
+  function commit() {
+    const t = input.trim();
+    if (t && !tags.includes(t)) setTags([...tags, t]);
+    setInput("");
+  }
+  return (
+    <div className="px-5 pb-2">
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-1.5">
+          {tags.map((t) => (
+            <span key={t} className="inline-flex items-center gap-1 text-[12px] bg-app-surface border border-app-line rounded-full pl-2.5 pr-1.5 py-1 text-ink-sub">
+              #{t}
+              <button
+                type="button"
+                onClick={() => setTags(tags.filter((x) => x !== t))}
+                className="w-4 h-4 flex items-center justify-center rounded-full"
+                aria-label={`${t}を削除`}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <input
+        type="text"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+          }
+        }}
+        onBlur={commit}
+        placeholder="タグを追加"
+        className="w-full text-[13px] outline-none bg-transparent placeholder:text-ink-sub/50"
+      />
+    </div>
+  );
+}
+
 function FullScreenComposer({
-  text, setText, heading, setHeading, pendingImages, setPendingImages, pendingFiles, setPendingFiles,
+  text, setText, heading, setHeading, tags, setTags, pendingImages, setPendingImages, pendingFiles, setPendingFiles,
   uploading, onPickPhoto, onPickFile, onVoice, onSave, onSend, onClose, isEditing, onAIAssist, confirm,
 }) {
   const photoInputRef = useRef(null);
@@ -653,6 +699,8 @@ function FullScreenComposer({
           />
         </div>
 
+        <TagInput tags={tags} setTags={setTags} />
+
         <div className="px-5">
           {pendingImages.length > 0 && (
             <div className="flex gap-2 overflow-x-auto mb-2">
@@ -717,6 +765,9 @@ export default function NotesPage({ setTab }) {
   const [heading, setHeading] = useState(() => {
     try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || "null")?.heading || ""; } catch { return ""; }
   });
+  const [tags, setTags] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || "null")?.tags || []; } catch { return []; }
+  });
   const [pendingImages, setPendingImages] = useState(() => {
     try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || "null")?.images || []; } catch { return []; }
   });
@@ -754,6 +805,7 @@ export default function NotesPage({ setTab }) {
   function resetComposer() {
     setText("");
     setHeading("");
+    setTags([]);
     setPendingImages([]);
     setPendingFiles([]);
     try { localStorage.removeItem(DRAFT_KEY); } catch {}
@@ -764,14 +816,14 @@ export default function NotesPage({ setTab }) {
   // (editingNoteId有り)は下書き扱いにしない。
   useEffect(() => {
     if (editingNoteId) return;
-    if (!text.trim() && !heading.trim() && pendingImages.length === 0 && pendingFiles.length === 0) {
+    if (!text.trim() && !heading.trim() && tags.length === 0 && pendingImages.length === 0 && pendingFiles.length === 0) {
       try { localStorage.removeItem(DRAFT_KEY); } catch {}
       return;
     }
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ text, heading, images: pendingImages, files: pendingFiles }));
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ text, heading, tags, images: pendingImages, files: pendingFiles }));
     } catch {}
-  }, [text, heading, pendingImages, pendingFiles, editingNoteId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [text, heading, tags, pendingImages, pendingFiles, editingNoteId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSaveNote() {
     if (isTeam) {
@@ -783,14 +835,14 @@ export default function NotesPage({ setTab }) {
       return;
     }
     if (editingNoteId) {
-      updateNote(editingNoteId, text.trim(), pendingImages, pendingFiles, heading.trim());
+      updateNote(editingNoteId, text.trim(), pendingImages, pendingFiles, heading.trim(), tags);
       resetComposer();
       setEditingNoteId(null);
       setComposerOpen(false);
       return;
     }
-    if (!text.trim() && !heading.trim() && pendingImages.length === 0 && pendingFiles.length === 0) return;
-    addNote(text.trim(), "text", pendingImages, pendingFiles, heading.trim());
+    if (!text.trim() && !heading.trim() && tags.length === 0 && pendingImages.length === 0 && pendingFiles.length === 0) return;
+    addNote(text.trim(), "text", pendingImages, pendingFiles, heading.trim(), tags);
     resetComposer();
     setComposerOpen(false);
   }
@@ -799,6 +851,7 @@ export default function NotesPage({ setTab }) {
     setEditingNoteId(n.id);
     setText(n.text || "");
     setHeading(n.heading || "");
+    setTags(n.tags || []);
     setPendingImages(n.images || []);
     setPendingFiles(n.files || []);
     setComposerOpen(true);
@@ -931,6 +984,15 @@ export default function NotesPage({ setTab }) {
                     </div>
                   );
                 })()}
+                {n.tags && n.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {n.tags.map((t) => (
+                      <span key={t} className="text-[11px] text-ink-sub bg-app-bg border border-app-line rounded-full px-2 py-0.5">
+                        #{t}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {n.images && n.images.length > 0 && (
                   <div className="flex gap-2 overflow-x-auto mb-3">
                     {n.images.map((src, i) => (
@@ -1002,6 +1064,7 @@ export default function NotesPage({ setTab }) {
         <FullScreenComposer
           text={text} setText={setText}
           heading={heading} setHeading={setHeading}
+          tags={tags} setTags={setTags}
           pendingImages={pendingImages} setPendingImages={setPendingImages}
           pendingFiles={pendingFiles} setPendingFiles={setPendingFiles}
           uploading={uploading}

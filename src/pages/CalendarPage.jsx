@@ -37,6 +37,48 @@ function eventColorFor(title) {
   return EVENT_COLORS[hash % EVENT_COLORS.length];
 }
 
+const PRIORITY_LEVELS = [
+  { value: 0, label: "低" },
+  { value: 1, label: "中" },
+  { value: 2, label: "高" },
+];
+
+// 予定の枠線色+表示優先度のミニピッカー。B欄のクイック追加とインライン編集で共用。
+function EventColorPriorityRow({ color, onColor, priority, onPriority }) {
+  return (
+    <div className="flex items-center gap-3 flex-wrap py-1">
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => onColor("")}
+          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-[10px] text-ink-sub ${color === "" ? "border-ink" : "border-app-line"}`}
+          aria-label="自動色"
+        >自</button>
+        {EVENT_COLORS.map((c) => (
+          <button key={c} type="button" onClick={() => onColor(c)} className="w-6 h-6 rounded-full flex items-center justify-center" aria-label={`色 ${c}`}>
+            <span
+              className="block rounded-full"
+              style={{ width: color === c ? 22 : 18, height: color === c ? 22 : 18, backgroundColor: c, boxShadow: color === c ? `0 0 0 2px ${c}55` : "none" }}
+            />
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center gap-1.5">
+        {PRIORITY_LEVELS.map((p) => (
+          <button
+            key={p.value}
+            type="button"
+            onClick={() => onPriority(p.value)}
+            className={`rounded-lg px-2 py-1 text-xs font-medium border ${priority === p.value ? "bg-ink text-app-bg border-ink" : "border-app-line text-ink-sub"}`}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CalendarPage({ setTab }) {
   const {
     data, addTask, toggleTask, deleteTask, updateTask, addEvent, deleteEvent, updateEvent,
@@ -74,7 +116,9 @@ export default function CalendarPage({ setTab }) {
   const [editingEventText, setEditingEventText] = useState("");
   const [editingEventTime, setEditingEventTime] = useState("");
   const [editingEventIsAllDay, setEditingEventIsAllDay] = useState(false);
-  const [eventDrafts, setEventDrafts] = useState([{ id: "d0", time: "09:00", title: "", isAllDay: false }]);
+  const [editingEventColor, setEditingEventColor] = useState("");
+  const [editingEventPriority, setEditingEventPriority] = useState(0);
+  const [eventDrafts, setEventDrafts] = useState([{ id: "d0", time: "09:00", title: "", isAllDay: false, color: "", priority: 0 }]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const photoInputRef = useRef(null);
@@ -92,7 +136,7 @@ export default function CalendarPage({ setTab }) {
     const tasks = isTeam ? teamData.tasks : data.tasks;
     events.forEach((e) => {
       if (!map[e.date]) map[e.date] = [];
-      map[e.date].push({ kind: "event", time: e.time, title: e.text || e.title });
+      map[e.date].push({ kind: "event", time: e.time, title: e.text || e.title, color: e.color || "", priority: e.priority || 0 });
     });
     tasks.forEach((t) => {
       if (!map[t.date]) map[t.date] = [];
@@ -145,8 +189,8 @@ export default function CalendarPage({ setTab }) {
     if (!draft || !draft.title.trim()) return;
     const time = draft.isAllDay ? "" : draft.time;
     if (isTeam) addTeamEventAction(selectedDate, time, draft.title.trim());
-    else addEvent(selectedDate, time, draft.title.trim());
-    setEventDrafts((prev) => prev.map((d) => (d.id === draftId ? { ...d, title: "" } : d)));
+    else addEvent(selectedDate, time, draft.title.trim(), "", draft.color, draft.priority);
+    setEventDrafts((prev) => prev.map((d) => (d.id === draftId ? { ...d, title: "", color: "", priority: 0 } : d)));
   }
 
   function updateEventDraft(draftId, patch) {
@@ -154,7 +198,7 @@ export default function CalendarPage({ setTab }) {
   }
 
   function addEventDraft() {
-    setEventDrafts((prev) => [...prev, { id: `d${Date.now()}`, time: "09:00", title: "", isAllDay: false }]);
+    setEventDrafts((prev) => [...prev, { id: `d${Date.now()}`, time: "09:00", title: "", isAllDay: false, color: "", priority: 0 }]);
   }
 
   function removeEventDraft(draftId) {
@@ -190,6 +234,8 @@ export default function CalendarPage({ setTab }) {
     setEditingEventText(e.title || e.text || "");
     setEditingEventTime(e.time || "");
     setEditingEventIsAllDay(!e.time);
+    setEditingEventColor(e.color || "");
+    setEditingEventPriority(e.priority || 0);
   }
 
   function saveEditEvent() {
@@ -198,12 +244,14 @@ export default function CalendarPage({ setTab }) {
     const time = editingEventIsAllDay ? "" : editingEventTime;
     if (text && event) {
       if (isTeam) updateTeamEventAction(event, time, text);
-      else updateEvent(editingEventId, time, text);
+      else updateEvent(editingEventId, time, text, event.endTime, editingEventColor, editingEventPriority);
     }
     setEditingEventId(null);
     setEditingEventText("");
     setEditingEventTime("");
     setEditingEventIsAllDay(false);
+    setEditingEventColor("");
+    setEditingEventPriority(0);
   }
 
   function cancelEditEvent() {
@@ -211,6 +259,8 @@ export default function CalendarPage({ setTab }) {
     setEditingEventText("");
     setEditingEventTime("");
     setEditingEventIsAllDay(false);
+    setEditingEventColor("");
+    setEditingEventPriority(0);
   }
 
   function handleToggleTask(t) {
@@ -316,7 +366,10 @@ export default function CalendarPage({ setTab }) {
               const isSelected = ds === selectedDate;
               const dow = index % 7;
               const isWeekend = dow === 0 || dow === 6;
-              const items = (cellPreview[ds] || []).slice(0, 3);
+              const items = (cellPreview[ds] || [])
+                .slice()
+                .sort((a, b) => (b.priority || 0) - (a.priority || 0))
+                .slice(0, 3);
               const overflowCount = (cellPreview[ds] || []).length - items.length;
               // touchAction は以前 "pan-y" だったが、これだと日付のマスの上で
               // ピンチ操作がブラウザに渡らず、カレンダーを拡大できなかった。
@@ -337,12 +390,13 @@ export default function CalendarPage({ setTab }) {
                   </span>
                   <div className="flex flex-col gap-[3px] w-full items-stretch">
                     {items.map((it, i) => {
-                      const c = eventColorFor(it.title);
+                      const c = it.color || eventColorFor(it.title);
+                      const manual = Boolean(it.color);
                       return (
                         <span
                           key={i}
-                          className="flex items-center gap-1 h-[18px] rounded-full px-1.5 min-w-0"
-                          style={{ backgroundColor: c + "26" }}
+                          className={`flex items-center gap-1 h-[18px] rounded-full px-1.5 min-w-0 ${manual ? "border" : ""}`}
+                          style={manual ? { borderColor: c, backgroundColor: "transparent" } : { backgroundColor: c + "26" }}
                         >
                           <span className="w-[7px] h-[7px] rounded-full flex-shrink-0" style={{ backgroundColor: c }} />
                           <span className={`text-[10px] font-medium truncate text-ink ${it.kind === "task" && it.completed ? "line-through opacity-60" : ""}`}>{it.title}</span>
@@ -461,6 +515,12 @@ export default function CalendarPage({ setTab }) {
                       />
                       <button onClick={saveEditEvent} className="flex-shrink-0 text-xs font-semibold bg-ink text-app-bg rounded-lg px-2.5 py-1">保存</button>
                     </div>
+                    {!isTeam && (
+                      <EventColorPriorityRow
+                        color={editingEventColor} onColor={setEditingEventColor}
+                        priority={editingEventPriority} onPriority={setEditingEventPriority}
+                      />
+                    )}
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
@@ -509,6 +569,12 @@ export default function CalendarPage({ setTab }) {
                     className="flex-1 rounded-2xl border p-4"
                   />
                 </div>
+                {!isTeam && (
+                  <EventColorPriorityRow
+                    color={draft.color} onColor={(c) => updateEventDraft(draft.id, { color: c })}
+                    priority={draft.priority} onPriority={(p) => updateEventDraft(draft.id, { priority: p })}
+                  />
+                )}
               </div>
             ))}
           </div>
