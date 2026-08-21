@@ -70,6 +70,14 @@ export function useReorder(count, onReorder, ms = 450) {
       },
       onTouchCancel: cancel,
       onContextMenu: (e) => e.preventDefault(),
+      // 長押しするとSafariが文字選択を始めてしまい、並び替えではなく
+      // 選択ハンドルが出てしまうため、この要素では選択・長押しメニューを止める。
+      style: {
+        WebkitUserSelect: "none",
+        userSelect: "none",
+        WebkitTouchCallout: "none",
+        touchAction: "pan-y",
+      },
     }),
     [cancel, clear, count, dragIndex, ms, onReorder]
   );
