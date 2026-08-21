@@ -171,7 +171,7 @@ function ProjectItemCard({ item, projectId, isTeam, copiedItemId, onCopy, onEdit
 export default function ProjectsPage({ setTab }) {
   const {
     data, addProject, setProjectDriveFolderId, setProjectDriveFiles, addProjectDriveFile, removeProjectDriveFile,
-    updateProjectItem, addProjectItem, setProjectItemPriority, deleteProject, deleteProjectItem,
+    updateProjectItem, addProjectItem, reorderProjects, deleteProject, deleteProjectItem,
     space, teamData, teamLoading, teamError,
     addTeamProjectAction, deleteTeamProjectAction, updateTeamProjectDriveAction, addTeamProjectItemAction, updateTeamProjectItemAction, deleteTeamProjectItemAction,
   } = useData();
@@ -200,6 +200,9 @@ export default function ProjectsPage({ setTab }) {
         items: teamData.projectItems.filter((it) => it.projectId === p.id),
       }))
     : data.projects;
+
+  // プロジェクト自体も長押しで並び替えできる(優先度は並び順で表す)。
+  const projectDnd = useReorder(projects.length, (from, to) => reorderProjects(from, to));
 
   // Loads (or reloads) the Drive file list for a project's gallery, creating
   // the project's Drive folder on first use if it doesn't exist yet.
@@ -341,11 +344,25 @@ export default function ProjectsPage({ setTab }) {
           {isTeam && teamError && <div className="px-4 pt-2 text-xs text-red-500">{teamError}</div>}
           {isTeam && teamLoading && <div className="px-4 pt-2 text-xs text-ink-sub">同期中…</div>}
 
-          {projects.map((p) => {
+          {projects.map((p, pIndex) => {
             const isOpen = openId === p.id;
             return (
-              <div key={p.id} ref={(el) => (rowRefs.current[p.id] = el)} className="border-b border-app-line last:border-b-0 scroll-mt-2">
-                <button onClick={() => handleToggle(p)} className="w-full text-left px-4 py-5">
+              <div
+                key={p.id}
+                ref={(el) => (rowRefs.current[p.id] = el)}
+                {...(isTeam ? {} : projectDnd.itemProps(pIndex))}
+                className={`border-b border-app-line last:border-b-0 scroll-mt-2 transition-all ${
+                  !isTeam && projectDnd.isDragging(pIndex) ? "opacity-60 shadow-lg" : ""
+                }`}
+              >
+                <button
+                  onClick={() => {
+                    // 長押しで掴んだ直後のタップは無視する
+                    if (!isTeam && projectDnd.wasLongPress()) return;
+                    handleToggle(p);
+                  }}
+                  className="w-full text-left px-4 py-5"
+                >
                   <div className="flex items-center justify-between">
                     <span className="font-bold">{p.name}</span>
                     <div className="flex items-center gap-3">

@@ -16,66 +16,6 @@ const PRIORITY_LEVELS = [
   { value: 2, label: "高" },
 ];
 
-// 予定(event)専用: 枠線色 + 表示優先度のピッカー。タスクには出さない。
-function ColorPriorityPicker({ color, setColor, priority, setPriority }) {
-  return (
-    <div className="space-y-2 pt-1">
-      <div className="flex items-center gap-2">
-        <span className="text-[11px] text-ink-sub shrink-0 w-10">色</span>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <button
-            type="button"
-            onClick={() => setColor("")}
-            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-[10px] text-ink-sub ${
-              color === "" ? "border-ink" : "border-app-line"
-            }`}
-            aria-label="自動"
-          >
-            自
-          </button>
-          {EVENT_COLOR_PALETTE.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setColor(c)}
-              className="w-6 h-6 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: "transparent" }}
-              aria-label={`色 ${c}`}
-            >
-              <span
-                className="block rounded-full"
-                style={{
-                  width: color === c ? 22 : 18,
-                  height: color === c ? 22 : 18,
-                  backgroundColor: c,
-                  boxShadow: color === c ? `0 0 0 2px ${c}55` : "none",
-                }}
-              />
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="text-[11px] text-ink-sub shrink-0 w-10">優先</span>
-        <div className="flex items-center gap-1.5">
-          {PRIORITY_LEVELS.map((p) => (
-            <button
-              key={p.value}
-              type="button"
-              onClick={() => setPriority(p.value)}
-              className={`rounded-lg px-2.5 py-1 text-xs font-medium border ${
-                priority === p.value ? "bg-ink text-app-bg border-ink" : "border-app-line text-ink-sub"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ===== 共通: 指定した1日ぶんの予定・タスク・メモを組み立てる =====
 // AgendaのagendaDaysと同じ考え方だが、範囲を絞らず単一の日付だけを対象にする。
 // (Agendaが+-1ヶ月の外にある日をこの画面で開く可能性は低いが、念のため独立させている)
@@ -88,7 +28,7 @@ export function getDayItems(data, teamData, isTeam, date) {
   events
     .filter((e) => e.date === date)
     .forEach((e) =>
-      items.push({ kind: "event", id: e.id, time: e.time || "", endTime: e.endTime || "", title: e.title, color: e.color || "", priority: e.priority || 0, raw: e })
+      items.push({ kind: "event", id: e.id, time: e.time || "", endTime: e.endTime || "", title: e.title, raw: e })
     );
   tasks
     .filter((t) => t.date === date)
@@ -165,8 +105,6 @@ function ItemEditForm({ item, onSave, onDelete, onCancel, defaultTime }) {
   // 表示してしまい、開始と無関係な時刻(例: 16:49)が入ったように見えるため。
   const [endTime, setEndTime] = useState(item?.endTime || initialStart);
   const isEvent = item?.kind === "event";
-  const [color, setColor] = useState(item?.color || "");
-  const [priority, setPriority] = useState(item?.priority || 0);
 
   // 開始を選んだとき、終了が未設定または開始より前なら、開始と同じ時刻に合わせる。
   // 終了を選び直すとき、ゼロから探さずに開始付近から選べるようにするため。
@@ -192,9 +130,6 @@ function ItemEditForm({ item, onSave, onDelete, onCancel, defaultTime }) {
         <span className="text-ink-sub text-sm">–</span>
         <TimeSelect value={endTime} onChange={setEndTime} label="End" min={time} />
       </div>
-      {isEvent && (
-        <ColorPriorityPicker color={color} setColor={setColor} priority={priority} setPriority={setPriority} />
-      )}
       <div className="flex items-center justify-between pt-1">
         {onDelete ? (
           <button onClick={onDelete} className="text-red-500 text-sm flex items-center gap-1">
@@ -204,7 +139,7 @@ function ItemEditForm({ item, onSave, onDelete, onCancel, defaultTime }) {
         <div className="flex gap-2">
           <button onClick={onCancel} className="text-sm text-ink-sub px-3 py-1.5">Cancel</button>
           <button
-            onClick={() => title.trim() && onSave({ title: title.trim(), time, endTime, ...(isEvent ? { color, priority } : {}) })}
+            onClick={() => title.trim() && onSave({ title: title.trim(), time, endTime })}
             className="text-sm font-semibold bg-ink text-app-bg rounded-lg px-3 py-1.5"
           >
             Save
@@ -231,7 +166,7 @@ function DayList({ date, items }) {
 
   function save(item, values) {
     if (item.kind === "task") updateTask(item.id, values.title, values.time, values.endTime);
-    else updateEvent(item.id, values.time, values.title, values.endTime, values.color, values.priority);
+    else updateEvent(item.id, values.time, values.title, values.endTime);
     setEditingId(null);
   }
 
@@ -287,7 +222,6 @@ function DayList({ date, items }) {
                 <button onClick={() => setEditingId(ev.id)} className="flex-1 flex items-center gap-3 py-2.5 text-left min-w-0">
                   <span
                     className={`w-2.5 h-2.5 rounded-full shrink-0 ${ev.color ? "" : "bg-blue-500"}`}
-                    style={ev.color ? { border: `2px solid ${ev.color}`, backgroundColor: "transparent" } : undefined}
                   />
                   <span className="flex-1 text-[15px] truncate text-ink">{ev.title || "Untitled"}</span>
                   <span className="text-sm text-ink-sub shrink-0">
@@ -335,7 +269,7 @@ function DayList({ date, items }) {
         <ItemEditForm
           item={{ kind: "event" }}
           onCancel={() => setAdding(null)}
-          onSave={(v) => { addEvent(date, v.time, v.title, v.endTime, v.color, v.priority); setAdding(null); }}
+          onSave={(v) => { addEvent(date, v.time, v.title, v.endTime); setAdding(null); }}
         />
       )}
 
@@ -425,7 +359,7 @@ function DayGrid({ items, onEditItem, className = "flex-1 overflow-y-auto" }) {
         ))}
         {laidOut.map((it) => {
           const isEvent = it.kind === "event";
-          const borderColor = isEvent ? (it.color || "#0A84FF") : (it.completed ? "#86EFAC" : "#22C55E");
+          const borderColor = isEvent ? "#0A84FF" : (it.completed ? "#86EFAC" : "#22C55E");
           return (
             <button
               key={it.id}
@@ -521,7 +455,6 @@ export function DateListView({ month, onOpenDate }) {
                   <span key={it.id} className="flex items-center gap-1.5 text-sm">
                     <span
                       className={`w-1.5 h-1.5 rounded-full shrink-0 ${it.kind === "event" && it.color ? "" : it.kind === "event" ? "bg-blue-500" : "bg-green-500"}`}
-                      style={it.kind === "event" && it.color ? { border: `1.5px solid ${it.color}`, backgroundColor: "transparent" } : undefined}
                     />
                     <span className="truncate flex-1">{it.title || "Untitled"}</span>
                     <span className="text-xs text-ink-sub shrink-0">{it.time || ""}</span>
@@ -569,7 +502,7 @@ export function TimeGridScreen({ date, onClose }) {
               onCancel={() => setEditing(null)}
               onSave={(v) => {
                 if (editing.kind === "task") updateTask(editing.id, v.title, v.time, v.endTime);
-                else updateEvent(editing.id, v.time, v.title, v.endTime, v.color, v.priority);
+                else updateEvent(editing.id, v.time, v.title, v.endTime);
                 setEditing(null);
               }}
               onDelete={() => {

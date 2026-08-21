@@ -6,7 +6,7 @@ import { runAIOnNote } from "../aiAssist";
 import { useConfirm } from "../components/ConfirmModal";
 import MediaImg from "../components/MediaImg";
 import { resolveMedia, isDriveRef } from "../media";
-import { tagChipClass, useReorder } from "../useReorder";
+import { tagChipClass, useReorder, TAG_COLORS, TAG_COLOR_KEYS, autoTagColor } from "../useReorder";
 
 function deriveTitle(text) {
   const firstLine = text.split("\n")[0];
@@ -645,6 +645,9 @@ function NoteCard({ n, isTeam, copiedNoteId, onOpen, onCopy, onPasteCalendar, on
 // タグの自由入力チップ。Enterまたはフォーカス外れで確定。
 // 既存タグと重複するものは追加しない。
 function TagInput({ tags, setTags }) {
+  const { data, setTagColor } = useData();
+  // 色を選ぶ対象のタグ(選んでいないときは null)
+  const [colorFor, setColorFor] = useState(null);
   const [input, setInput] = useState("");
   function commit() {
     const t = input.trim();
@@ -656,8 +659,15 @@ function TagInput({ tags, setTags }) {
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-1.5">
           {tags.map((t) => (
-            <span key={t} className="inline-flex items-center gap-1 text-[12px] bg-app-surface border border-app-line rounded-full pl-2.5 pr-1.5 py-1 text-ink-sub">
-              #{t}
+            <span
+              key={t}
+              className={`inline-flex items-center gap-1 text-[12px] rounded-full pl-2.5 pr-1.5 py-1 ${tagChipClass(t, data.tagColors)}`}
+            >
+              {/* タップで色を選ぶ。新規タグには自動で色が付くので、
+                  気に入らないときだけ変えればよい。 */}
+              <button type="button" onClick={() => setColorFor(colorFor === t ? null : t)}>
+                #{t}
+              </button>
               <button
                 type="button"
                 onClick={() => setTags(tags.filter((x) => x !== t))}
@@ -668,6 +678,28 @@ function TagInput({ tags, setTags }) {
               </button>
             </span>
           ))}
+        </div>
+      )}
+
+      {colorFor && (
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-[11px] text-ink-sub">#{colorFor}</span>
+          <div className="flex items-center gap-1.5">
+            {TAG_COLOR_KEYS.map((key) => {
+              const active = (data.tagColors?.[colorFor] || autoTagColor(colorFor)) === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => { setTagColor(colorFor, key); setColorFor(null); }}
+                  className={`w-6 h-6 rounded-full flex items-center justify-center ${active ? "ring-2 ring-ink" : ""}`}
+                  aria-label={key}
+                >
+                  <span className={`block w-4 h-4 rounded-full ${TAG_COLORS[key].dot}`} />
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
       <input
