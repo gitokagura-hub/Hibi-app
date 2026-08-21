@@ -947,6 +947,10 @@ export default function NotesPage({ setTab }) {
   // 個人のノートは長押しで並び替えできるので、保存されている順をそのまま使う
   // (作成日時で並べ直すと、並び替えた結果が消えてしまうため)。
   // Teamは並び替えに対応していないので従来通り新しい順。
+  // タグでの絞り込み(null なら絞り込みなし)。
+  // 下の sorted で参照するため、必ずその前に宣言する。
+  const [activeTag, setActiveTag] = useState(null);
+
   const allNotes = isTeam
     ? [...teamData.notes].sort((a, b) => b.createdAt - a.createdAt)
     : data.notes;
@@ -960,8 +964,6 @@ export default function NotesPage({ setTab }) {
 
   // 1タップで選択、2タップで開く。触ってすぐ開くのを避けるため。
   const [selectedNoteId, setSelectedNoteId] = useState(null);
-  // タグでの絞り込み(null なら絞り込みなし)
-  const [activeTag, setActiveTag] = useState(null);
   // 絞り込み中は並び替えを止める。表示している順と保存されている順がずれるため、
   // そのまま入れ替えると意図しない位置に移動してしまう。
   const canReorder = !isTeam && !activeTag;
