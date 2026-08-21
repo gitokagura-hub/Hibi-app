@@ -72,6 +72,10 @@ export function useReorder(count, onReorder, ms = 400) {
     (index) => ({
       ref: (el) => { els.current[index] = el; },
       onTouchStart: (e) => {
+        // 並び替えできる要素が入れ子になっている場合(プロジェクト行の中の
+        // テキストなど)、内側で受けたら外側には渡さない。両方が同時に
+        // 動き出すと互いに干渉し、背景がスクロールしてしまう。
+        e.stopPropagation();
         startY.current = e.touches[0].clientY;
         fired.current = false;
         draggingRef.current = false;
@@ -104,7 +108,8 @@ export function useReorder(count, onReorder, ms = 400) {
           if (navigator.vibrate) navigator.vibrate(15);
         }, ms);
       },
-      onTouchEnd: () => {
+      onTouchEnd: (e) => {
+        e.stopPropagation();
         clear();
         draggingRef.current = false;
         if (moveHandler.current) {
