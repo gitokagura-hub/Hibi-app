@@ -947,12 +947,24 @@ export default function NotesPage({ setTab }) {
   // 個人のノートは長押しで並び替えできるので、保存されている順をそのまま使う
   // (作成日時で並べ直すと、並び替えた結果が消えてしまうため)。
   // Teamは並び替えに対応していないので従来通り新しい順。
-  const sorted = isTeam
+  const allNotes = isTeam
     ? [...teamData.notes].sort((a, b) => b.createdAt - a.createdAt)
     : data.notes;
 
+  // 使われているタグを、ノートの並び順に沿って重複なく集める
+  const allTags = [...new Set(allNotes.flatMap((n) => n.tags || []))];
+
+  const sorted = activeTag
+    ? allNotes.filter((n) => (n.tags || []).includes(activeTag))
+    : allNotes;
+
   // 1タップで選択、2タップで開く。触ってすぐ開くのを避けるため。
   const [selectedNoteId, setSelectedNoteId] = useState(null);
+  // タグでの絞り込み(null なら絞り込みなし)
+  const [activeTag, setActiveTag] = useState(null);
+  // 絞り込み中は並び替えを止める。表示している順と保存されている順がずれるため、
+  // そのまま入れ替えると意図しない位置に移動してしまう。
+  const canReorder = !isTeam && !activeTag;
   const dnd = useReorder(sorted.length, (from, to) => reorderNotes(from, to));
 
   useEffect(() => {
@@ -1092,11 +1104,34 @@ export default function NotesPage({ setTab }) {
   }
 
   return (
-    <Layout title="Notes" subtitle="Ideas & Conversations" current="notes" setTab={setTab} hideSpaceSwitcher>
+    <Layout title="Notes" current="notes" setTab={setTab} hideSpaceSwitcher>
       <div className="px-5">
-        <div className="mb-4 overflow-x-auto">
+        <div className="mb-2 overflow-x-auto">
           <AIConnections selected={selectedAI} onSelect={setSelectedAI} />
         </div>
+
+        {/* タグでの絞り込み。押すとそのタグのノートだけ表示し、
+            もう一度押すと解除する。タグが1つも無いときは出さない。 */}
+        {allTags.length > 0 && (
+          <div className="mb-4 -mx-5 px-5 overflow-x-auto">
+            <div className="flex items-center gap-1.5 w-max">
+              {allTags.map((t) => {
+                const active = activeTag === t;
+                return (
+                  <button
+                    key={t}
+                    onClick={() => setActiveTag(active ? null : t)}
+                    className={`text-[12px] rounded-full px-2.5 py-1 whitespace-nowrap ${
+                      active ? "ring-1 ring-ink " : ""
+                    }${tagChipClass(t, data.tagColors)}`}
+                  >
+                    #{t}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <button
           onClick={handleOpenNewComposer}
@@ -1114,8 +1149,8 @@ export default function NotesPage({ setTab }) {
             <NoteCard
               key={n.id}
               n={n}
-              dragProps={isTeam ? {} : dnd.itemProps(index)}
-              dragging={!isTeam && dnd.isDragging(index)}
+              dragProps={canReorder ? dnd.itemProps(index) : {}}
+              dragging={canReorder && dnd.isDragging(index)}
               selected={selectedNoteId === n.id}
               onTap={() => {
                 // 長押しで掴んだ直後のタップは無視する
