@@ -1117,6 +1117,17 @@ export default function NotesPage({ setTab }) {
         {allTags.length > 0 && (
           <div className="mb-4 -mx-5 px-5 overflow-x-auto">
             <div className="flex items-center gap-1.5 w-max">
+              {/* 絞り込みを解除して全件に戻す */}
+              <button
+                onClick={() => setActiveTag(null)}
+                className={`text-[12px] rounded-full px-2.5 py-1 whitespace-nowrap border ${
+                  activeTag === null
+                    ? "bg-ink text-app-bg border-ink"
+                    : "bg-app-surface text-ink-sub border-app-line"
+                }`}
+              >
+                All
+              </button>
               {allTags.map((t) => {
                 const active = activeTag === t;
                 return (
