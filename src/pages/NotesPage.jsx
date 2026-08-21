@@ -6,6 +6,7 @@ import { runAIOnNote } from "../aiAssist";
 import { useConfirm } from "../components/ConfirmModal";
 import MediaImg from "../components/MediaImg";
 import { resolveMedia, isDriveRef } from "../media";
+import { useLongPress, nextPriority, PRIORITY_BORDER_COLORS } from "../useLongPress";
 
 function deriveTitle(text) {
   const firstLine = text.split("\n")[0];
@@ -521,6 +522,130 @@ function AIAssistSheet({ provider, apiKeyMissing, onClose, onRun, onApply }) {
 
 const COMPOSER_BAR_H = 44;
 
+function NoteCard({ n, isTeam, copiedNoteId, onOpen, onCopy, onPasteCalendar, onPasteProject, onDelete }) {
+  const { setNotePriority } = useData();
+  const { handlers, wasLongPress } = useLongPress(() => {
+    setNotePriority(n.id, nextPriority(n.priority));
+  });
+  const borderColor = PRIORITY_BORDER_COLORS[n.priority || 0];
+
+  return (
+    <div
+      className={`rounded-2xl border p-4 ${isTeam ? "border-blue-100 bg-blue-50" : "border-app-line bg-app-surface"}`}
+      style={borderColor ? { borderColor, borderWidth: 2 } : undefined}
+    >
+      <button
+        {...handlers}
+        onClick={(e) => {
+          if (wasLongPress()) return;
+          onOpen(n);
+        }}
+        className="w-full text-left"
+      >
+        {(() => {
+          // 一覧は「見出し(太字)＋本文1行(薄字)」の2段。
+          // 見出しが未入力のノート(既存のものはすべてそう)は、本文の1行目を
+          // 見出しの位置に出して見た目を揃える。
+          const lines = (n.text || "")
+            .split(/[\r\n]+/)
+            .map((l) => l.trim())
+            .filter(Boolean);
+          const hasHeading = Boolean((n.heading || "").trim());
+          const headLine = hasHeading ? n.heading.trim() : lines[0] || "";
+          const bodyLine = hasHeading ? lines[0] || "" : lines[1] || "";
+          const clip = (v, max) => (v.length > max ? v.slice(0, max) + "…" : v);
+          if (!headLine && !bodyLine) return null;
+          return (
+            <div className="mb-3">
+              {headLine && (
+                <p className="text-[15px] font-bold leading-snug">
+                  {n.source === "voice" ? "🎤 " : ""}
+                  {clip(headLine, 40)}
+                </p>
+              )}
+              {bodyLine && (
+                <p className="text-[13px] text-ink-sub leading-snug mt-0.5">
+                  {clip(bodyLine, 50)}
+                </p>
+              )}
+            </div>
+          );
+        })()}
+        {n.tags && n.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-3">
+            {n.tags.map((t) => (
+              <span key={t} className="text-[11px] text-ink-sub bg-app-bg border border-app-line rounded-full px-2 py-0.5">
+                #{t}
+              </span>
+            ))}
+          </div>
+        )}
+        {n.images && n.images.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto mb-3">
+            {n.images.map((src, i) => (
+              <PhotoThumb key={i} src={src} images={n.images} index={i} />
+            ))}
+          </div>
+        )}
+        {n.files && n.files.length > 0 && (
+          <div className="space-y-1.5 mb-3">
+            {n.files.map((f, i) => (
+              <a
+                key={i}
+                href={isDriveRef(f.dataUrl) ? undefined : f.dataUrl}
+                download={f.name}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  // Drive上の実体は直接hrefに置けないので、取得してから保存させる。
+                  if (!isDriveRef(f.dataUrl)) return;
+                  e.preventDefault();
+                  try {
+                    const url = await resolveMedia(f.dataUrl);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = f.name;
+                    a.click();
+                  } catch {
+                    alert("ファイルを取得できませんでした。");
+                  }
+                }}
+                className="flex items-center gap-1.5 text-xs rounded-lg border p-2 truncate text-indigo-600 active:bg-app-surface"
+              >
+                📄 {f.name}
+              </a>
+            ))}
+          </div>
+        )}
+      </button>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <span className="text-[11px] text-ink-sub font-semibold">
+          {formatDateTime(n.createdAt)}
+          {isTeam && (
+            <span className="ml-1.5 inline-flex items-center gap-1 text-blue-600 bg-blue-100 rounded-full px-2 py-0.5">
+              ● {n.author || "名無し"}
+            </span>
+          )}
+        </span>
+        <div className="flex items-center gap-1.5">
+          {n.text && (
+            <button onClick={() => onCopy(n)} className="bg-app-surface border border-app-line text-ink-sub rounded-lg p-1.5" aria-label="コピー">
+              {copiedNoteId === n.id ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+            </button>
+          )}
+          <button onClick={() => onOpen(n)} className="bg-app-surface border border-app-line text-ink-sub rounded-lg px-2.5 py-1 text-xs font-medium">Edit</button>
+          {!isTeam && (
+            <>
+              <button onClick={() => onPasteCalendar(n)} className="bg-app-surface border border-app-line text-ink-sub rounded-lg px-2.5 py-1 text-xs font-medium">To Calendar</button>
+              <button onClick={() => onPasteProject(n)} className="bg-app-surface border border-app-line text-ink-sub rounded-lg px-2.5 py-1 text-xs font-medium">To Project</button>
+            </>
+          )}
+          <button onClick={() => onDelete(n)} className="text-ink-sub text-xs px-1">Delete</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // タグの自由入力チップ。Enterまたはフォーカス外れで確定。
 // 既存タグと重複するものは追加しない。
 function TagInput({ tags, setTags }) {
@@ -887,7 +1012,7 @@ export default function NotesPage({ setTab }) {
 
   function handleSendPick(projectId) {
     if (!text.trim() && pendingImages.length === 0 && pendingFiles.length === 0) return;
-    sendToProject(projectId, text.trim(), pendingImages, pendingFiles);
+    sendToProject(projectId, text.trim(), pendingImages, pendingFiles, heading.trim());
     resetComposer();
     setProjectPickerOpen(false);
     setComposerOpen(false);
@@ -953,109 +1078,21 @@ export default function NotesPage({ setTab }) {
         <div className="space-y-4 pb-10">
           {sorted.length === 0 && <p className="text-ink-sub">No notes yet</p>}
           {sorted.map((n) => (
-            <div key={n.id} className={`rounded-2xl border p-4 ${isTeam ? "border-blue-100 bg-blue-50" : "border-app-line bg-app-surface"}`}>
-              <button onClick={() => handleOpenNote(n)} className="w-full text-left">
-                {(() => {
-                  // 一覧は「見出し(太字)＋本文1行(薄字)」の2段。
-                  // 見出しが未入力のノート(既存のものはすべてそう)は、本文の1行目を
-                  // 見出しの位置に出して見た目を揃える。
-                  const lines = (n.text || "")
-                    .split(/[\r\n]+/)
-                    .map((l) => l.trim())
-                    .filter(Boolean);
-                  const hasHeading = Boolean((n.heading || "").trim());
-                  const headLine = hasHeading ? n.heading.trim() : lines[0] || "";
-                  const bodyLine = hasHeading ? lines[0] || "" : lines[1] || "";
-                  const clip = (v, max) => (v.length > max ? v.slice(0, max) + "…" : v);
-                  if (!headLine && !bodyLine) return null;
-                  return (
-                    <div className="mb-3">
-                      {headLine && (
-                        <p className="text-[15px] font-bold leading-snug">
-                          {n.source === "voice" ? "🎤 " : ""}
-                          {clip(headLine, 40)}
-                        </p>
-                      )}
-                      {bodyLine && (
-                        <p className="text-[13px] text-ink-sub leading-snug mt-0.5">
-                          {clip(bodyLine, 50)}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })()}
-                {n.tags && n.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {n.tags.map((t) => (
-                      <span key={t} className="text-[11px] text-ink-sub bg-app-bg border border-app-line rounded-full px-2 py-0.5">
-                        #{t}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {n.images && n.images.length > 0 && (
-                  <div className="flex gap-2 overflow-x-auto mb-3">
-                    {n.images.map((src, i) => (
-                      <PhotoThumb key={i} src={src} images={n.images} index={i} />
-                    ))}
-                  </div>
-                )}
-                {n.files && n.files.length > 0 && (
-                  <div className="space-y-1.5 mb-3">
-                    {n.files.map((f, i) => (
-                      <a
-                        key={i}
-                        href={isDriveRef(f.dataUrl) ? undefined : f.dataUrl}
-                        download={f.name}
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          // Drive上の実体は直接hrefに置けないので、取得してから保存させる。
-                          if (!isDriveRef(f.dataUrl)) return;
-                          e.preventDefault();
-                          try {
-                            const url = await resolveMedia(f.dataUrl);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = f.name;
-                            a.click();
-                          } catch {
-                            alert("ファイルを取得できませんでした。");
-                          }
-                        }}
-                        className="flex items-center gap-1.5 text-xs rounded-lg border p-2 truncate text-indigo-600 active:bg-app-surface"
-                      >
-                        📄 {f.name}
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </button>
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <span className="text-[11px] text-ink-sub font-semibold">
-                  {formatDateTime(n.createdAt)}
-                  {isTeam && (
-                    <span className="ml-1.5 inline-flex items-center gap-1 text-blue-600 bg-blue-100 rounded-full px-2 py-0.5">
-                      ● {n.author || "名無し"}
-                    </span>
-                  )}
-                </span>
-                <div className="flex items-center gap-1.5">
-                  {n.text && (
-                    <button onClick={() => handleCopyNote(n)} className="bg-app-surface border border-app-line text-ink-sub rounded-lg p-1.5" aria-label="コピー">
-                      {copiedNoteId === n.id ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                    </button>
-                  )}
-                  <button onClick={() => handleOpenNote(n)} className="bg-app-surface border border-app-line text-ink-sub rounded-lg px-2.5 py-1 text-xs font-medium">Edit</button>
-                  {!isTeam && (
-                    <>
-                      <button onClick={() => { setPasteTarget(n); setPasteMode("calendar"); }} className="bg-app-surface border border-app-line text-ink-sub rounded-lg px-2.5 py-1 text-xs font-medium">To Calendar</button>
-                      <button onClick={() => { setPasteTarget(n); setPasteMode("projects"); }} className="bg-app-surface border border-app-line text-ink-sub rounded-lg px-2.5 py-1 text-xs font-medium">To Project</button>
-                    </>
-                  )}
-                  <button onClick={async () => { if (await confirm("このノートを削除しますか？", { confirmLabel: "削除する", danger: true })) (isTeam ? deleteTeamNoteAction(n.id) : deleteNote(n.id)); }} className="text-ink-sub text-xs px-1">Delete</button>
-                </div>
-              </div>
-            </div>
+            <NoteCard
+              key={n.id}
+              n={n}
+              isTeam={isTeam}
+              copiedNoteId={copiedNoteId}
+              onOpen={handleOpenNote}
+              onCopy={handleCopyNote}
+              onPasteCalendar={(note) => { setPasteTarget(note); setPasteMode("calendar"); }}
+              onPasteProject={(note) => { setPasteTarget(note); setPasteMode("projects"); }}
+              onDelete={async (note) => {
+                if (await confirm("このノートを削除しますか？", { confirmLabel: "削除する", danger: true })) {
+                  isTeam ? deleteTeamNoteAction(note.id) : deleteNote(note.id);
+                }
+              }}
+            />
           ))}
         </div>
       </div>

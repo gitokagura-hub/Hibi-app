@@ -291,10 +291,14 @@ export function DataProvider({ children }) {
   }
   // heading はノートの見出し。iPhoneのメモのように一覧で太字で出す。
   // 未入力なら空文字のままで、一覧側が本文の1行目を代わりに表示する。
-  function addNote(text, source, images, files, heading, tags) {
-    const note = { id: uid(), heading: heading || '', text, source: source || 'text', images: images || [], files: files || [], tags: tags || [], createdAt: Date.now() };
+  function addNote(text, source, images, files, heading, tags, priority) {
+    const note = { id: uid(), heading: heading || '', text, source: source || 'text', images: images || [], files: files || [], tags: tags || [], priority: priority || 0, createdAt: Date.now() };
     setData(prev => ({ ...prev, notes: [...prev.notes, note] }));
     return note;
+  }
+  // 長押しで優先度だけを変更する用(見出しなどには触れない)
+  function setNotePriority(id, priority) {
+    setData(prev => ({ ...prev, notes: prev.notes.map(n => n.id === id ? { ...n, priority } : n) }));
   }
   function deleteNote(id) {
     setData(prev => ({ ...prev, notes: prev.notes.filter(n => n.id !== id) }));
@@ -390,7 +394,7 @@ export function DataProvider({ children }) {
       libraryFiles: (prev.libraryFiles || []).filter(f => f.folderId !== id),
     }));
   }
-  function updateNote(id, text, images, files, heading, tags) {
+  function updateNote(id, text, images, files, heading, tags, priority) {
     setData(prev => ({
       ...prev,
       notes: prev.notes.map(n => n.id === id
@@ -401,6 +405,7 @@ export function DataProvider({ children }) {
             images: images !== undefined ? images : n.images,
             files: files !== undefined ? files : n.files,
             tags: tags !== undefined ? tags : n.tags,
+            priority: priority !== undefined ? priority : n.priority,
           }
         : n),
     }));
@@ -427,11 +432,20 @@ export function DataProvider({ children }) {
       projects: prev.projects.map(p => p.id === projectId ? { ...p, driveFiles: p.driveFiles.filter(f => f.id !== fileId) } : p),
     }));
   }
-  function updateProjectItem(projectId, itemId, text) {
+  function updateProjectItem(projectId, itemId, text, heading) {
     setData(prev => ({
       ...prev,
       projects: prev.projects.map(p => p.id === projectId
-        ? { ...p, items: p.items.map(it => it.id === itemId ? { ...it, text } : it) }
+        ? { ...p, items: p.items.map(it => it.id === itemId ? { ...it, text, heading: heading !== undefined ? heading : it.heading } : it) }
+        : p),
+    }));
+  }
+  // 長押しで優先度だけを変更する用
+  function setProjectItemPriority(projectId, itemId, priority) {
+    setData(prev => ({
+      ...prev,
+      projects: prev.projects.map(p => p.id === projectId
+        ? { ...p, items: p.items.map(it => it.id === itemId ? { ...it, priority } : it) }
         : p),
     }));
   }
@@ -446,19 +460,19 @@ export function DataProvider({ children }) {
         : p),
     }));
   }
-  function sendToProject(projectId, text, images, files) {
+  function sendToProject(projectId, text, images, files, heading) {
     setData(prev => ({
       ...prev,
       projects: prev.projects.map(p => p.id === projectId
-        ? { ...p, items: [...p.items, { id: uid(), text, images: images || [], files: files || [], createdAt: Date.now() }] }
+        ? { ...p, items: [...p.items, { id: uid(), text, heading: heading || '', images: images || [], files: files || [], priority: 0, createdAt: Date.now() }] }
         : p),
     }));
   }
-  function addProjectItem(projectId, text) {
+  function addProjectItem(projectId, text, heading) {
     setData(prev => ({
       ...prev,
       projects: prev.projects.map(p => p.id === projectId
-        ? { ...p, items: [...p.items, { id: uid(), text, images: [], files: [], createdAt: Date.now() }] }
+        ? { ...p, items: [...p.items, { id: uid(), text, heading: heading || '', images: [], files: [], priority: 0, createdAt: Date.now() }] }
         : p),
     }));
   }
@@ -472,7 +486,7 @@ export function DataProvider({ children }) {
     setData(prev => ({
       ...prev,
       projects: prev.projects.map(p => p.id === projectId
-        ? { ...p, items: [...p.items, { id: uid(), text: note.text, images: note.images || [], files: note.files || [], createdAt: Date.now() }] }
+        ? { ...p, items: [...p.items, { id: uid(), text: note.text, heading: note.heading || '', images: note.images || [], files: note.files || [], priority: 0, createdAt: Date.now() }] }
         : p),
     }));
     deleteNote(note.id);
@@ -745,12 +759,12 @@ export function DataProvider({ children }) {
     addTask, toggleTask, deleteTask, updateTask,
     addEvent, deleteEvent, updateEvent,
     getMemo, setMemo, clearMemo, addMemoImages, removeMemoImage, updateMemoImageCategories, addMemoFiles, removeMemoFile,
-    addNote, deleteNote, updateNote,
+    addNote, deleteNote, updateNote, setNotePriority,
     addPinnedTask, updatePinnedTask, deletePinnedTask,
     addLibraryPhotos, deleteLibraryPhoto, deletePhotosBySrc,
     addLibraryFiles, deleteLibraryFile, renameLibraryFile, addLibraryFolder, deleteLibraryFolder, renameLibraryFolder,
     setLibraryTags, setLibraryComments, setLibraryCategories,
-    addProject, setProjectDriveFolderId, setProjectDriveFiles, addProjectDriveFile, removeProjectDriveFile, updateProjectItem, addProjectItem, deleteProject, deleteProjectItem, sendToProject,
+    addProject, setProjectDriveFolderId, setProjectDriveFiles, addProjectDriveFile, removeProjectDriveFile, updateProjectItem, addProjectItem, setProjectItemPriority, deleteProject, deleteProjectItem, sendToProject,
     pasteNoteToCalendar, pasteNoteToProject,
     setSettings, addPhotoCategory, removePhotoCategory, replaceAllData,
     // Space switching + Team data

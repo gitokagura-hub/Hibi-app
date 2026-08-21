@@ -6,12 +6,13 @@ import { handleEnterToConfirm } from "../useEnterConfirm";
 import { isDriveConnected, ensureAppFolder, ensureProjectFolder, uploadFileToProjectFolder, listProjectFiles, deleteProjectFile, getTeamRootFolderId } from "../googleDrive";
 import { useConfirm } from "../components/ConfirmModal";
 import MediaImg from "../components/MediaImg";
+import { useLongPress, nextPriority, PRIORITY_BORDER_COLORS } from "../useLongPress";
 
 function isImageFile(mimeType) {
   return typeof mimeType === "string" && mimeType.startsWith("image/");
 }
 
-function FullScreenItemEditor({ item, onChange, onClose }) {
+function FullScreenItemEditor({ item, onChangeText, onChangeHeading, onClose }) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -44,10 +45,17 @@ function FullScreenItemEditor({ item, onChange, onClose }) {
         )}
       </div>
 
+      <input
+        type="text"
+        value={item.heading || ""}
+        onChange={(e) => onChangeHeading(e.target.value)}
+        placeholder="見出し"
+        className="w-full px-5 pt-4 pb-1 text-[20px] font-bold outline-none block bg-transparent placeholder:text-ink-sub/50 placeholder:font-normal"
+      />
       <textarea
         value={item.text}
-        onChange={(e) => onChange(e.target.value)}
-        className="flex-1 w-full px-5 py-4 text-[16px] outline-none resize-none"
+        onChange={(e) => onChangeText(e.target.value)}
+        className="flex-1 w-full px-5 py-2 text-[16px] outline-none resize-none"
       />
 
       <div className="px-5" style={{ paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }}>
@@ -71,10 +79,75 @@ function FullScreenItemEditor({ item, onChange, onClose }) {
   );
 }
 
+function ProjectItemCard({ item, projectId, isTeam, copiedItemId, onCopy, onEdit, onDelete }) {
+  const { setProjectItemPriority } = useData();
+  const { handlers, wasLongPress } = useLongPress(() => {
+    setProjectItemPriority(projectId, item.id, nextPriority(item.priority));
+  });
+  const borderColor = PRIORITY_BORDER_COLORS[item.priority || 0];
+
+  // 一覧は Notes と同じ「見出し(太字)＋本文1行(薄字)」の2段。
+  // 見出しが未入力なら本文の1行目を見出し位置に出す。
+  const lines = (item.text || "")
+    .split(/[\r\n]+/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const hasHeading = Boolean((item.heading || "").trim());
+  const headLine = hasHeading ? item.heading.trim() : lines[0] || "";
+  const bodyLine = hasHeading ? lines[0] || "" : lines[1] || "";
+  const clip = (v, max) => (v.length > max ? v.slice(0, max) + "…" : v);
+
+  return (
+    <div
+      className="relative rounded-xl border border-app-line bg-app-surface p-2.5 pr-9 pb-8"
+      style={borderColor ? { borderColor, borderWidth: 2 } : undefined}
+    >
+      <button onClick={() => onCopy(item)} className="absolute top-2 right-2 text-ink-sub p-1" aria-label="コピー">
+        {copiedItemId === item.id ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+      </button>
+      <button
+        {...handlers}
+        onClick={(e) => {
+          if (wasLongPress()) return;
+          onEdit(item);
+        }}
+        className="w-full text-left"
+      >
+        {headLine || bodyLine ? (
+          <div>
+            {headLine && <p className="text-[14px] font-bold leading-snug">{clip(headLine, 40)}</p>}
+            {bodyLine && <p className="text-[12px] text-ink-sub leading-snug mt-0.5">{clip(bodyLine, 50)}</p>}
+          </div>
+        ) : (
+          <span className="text-[13px] text-ink-sub">（空のメモ）</span>
+        )}
+        {isTeam && <span className="block text-[10px] text-blue-500 mt-1">● {item.author || "名無し"}</span>}
+      </button>
+      <button onClick={() => onDelete(item)} className="absolute bottom-2 right-2 text-ink-sub p-1" aria-label="削除">
+        <Trash2 size={14} />
+      </button>
+      {item.images && item.images.length > 0 && (
+        <div className="flex gap-1.5 overflow-x-auto mt-1.5">
+          {item.images.map((src, i) => (
+            <MediaImg key={i} src={src} alt="" className="w-12 h-12 object-cover rounded-lg border flex-shrink-0" />
+          ))}
+        </div>
+      )}
+      {item.files && item.files.length > 0 && (
+        <div className="space-y-1 mt-1.5">
+          {item.files.map((f, i) => (
+            <div key={i} className="text-[11px] truncate">📄 {f.name}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProjectsPage({ setTab }) {
   const {
     data, addProject, setProjectDriveFolderId, setProjectDriveFiles, addProjectDriveFile, removeProjectDriveFile,
-    updateProjectItem, addProjectItem, deleteProject, deleteProjectItem,
+    updateProjectItem, addProjectItem, setProjectItemPriority, deleteProject, deleteProjectItem,
     space, teamData, teamLoading, teamError,
     addTeamProjectAction, deleteTeamProjectAction, updateTeamProjectDriveAction, addTeamProjectItemAction, updateTeamProjectItemAction, deleteTeamProjectItemAction,
   } = useData();
@@ -86,6 +159,7 @@ export default function ProjectsPage({ setTab }) {
   const [copiedItemId, setCopiedItemId] = useState(null);
   const [editing, setEditing] = useState(null); // { projectId, itemId }
   const [newMemoText, setNewMemoText] = useState({}); // { [projectId]: text }
+  const [newMemoHeading, setNewMemoHeading] = useState({}); // { [projectId]: heading }
   const [galleryUploading, setGalleryUploading] = useState({}); // { [projectId]: boolean }
   const [galleryError, setGalleryError] = useState({}); // { [projectId]: string }
   const [brokenThumbs, setBrokenThumbs] = useState({}); // { [fileId]: true } — Drive thumbnails that failed to load
@@ -170,10 +244,12 @@ export default function ProjectsPage({ setTab }) {
 
   function handleAddMemo(projectId) {
     const text = (newMemoText[projectId] || "").trim();
-    if (!text) return;
+    const heading = (newMemoHeading[projectId] || "").trim();
+    if (!text && !heading) return;
     if (isTeam) addTeamProjectItemAction(projectId, text);
-    else addProjectItem(projectId, text);
+    else addProjectItem(projectId, text, heading);
     setNewMemoText((prev) => ({ ...prev, [projectId]: "" }));
+    setNewMemoHeading((prev) => ({ ...prev, [projectId]: "" }));
   }
 
   async function handleCopyMemo(item) {
@@ -327,6 +403,13 @@ export default function ProjectsPage({ setTab }) {
                       </div>
 
                       <div className="mb-3">
+                        <input
+                          type="text"
+                          value={newMemoHeading[p.id] || ""}
+                          onChange={(e) => setNewMemoHeading((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                          placeholder="見出し"
+                          className="w-full rounded-lg border p-2 text-xs font-bold bg-app-surface mb-1.5"
+                        />
                         <textarea
                           value={newMemoText[p.id] || ""}
                           onChange={(e) => setNewMemoText((prev) => ({ ...prev, [p.id]: e.target.value }))}
@@ -346,35 +429,20 @@ export default function ProjectsPage({ setTab }) {
                       {p.items.length > 0 && (
                         <div className="space-y-2 mb-3">
                           {p.items.map((item) => (
-                            <div key={item.id} className="relative rounded-xl border border-app-line bg-app-surface p-2.5 pr-9 pb-8">
-                              <button onClick={() => handleCopyMemo(item)} className="absolute top-2 right-2 text-ink-sub p-1" aria-label="コピー">
-                                {copiedItemId === item.id ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                              </button>
-                              <button
-                                onClick={() => setEditing({ projectId: p.id, itemId: item.id })}
-                                className="w-full text-left text-[13px] whitespace-pre-wrap"
-                              >
-                                {item.text || <span className="text-ink-sub">（空のメモ）</span>}
-                                {isTeam && <span className="block text-[10px] text-blue-500 mt-1">● {item.author || "名無し"}</span>}
-                              </button>
-                              <button onClick={async () => { if (await confirm("このメモを削除しますか？", { confirmLabel: "削除する", danger: true })) (isTeam ? deleteTeamProjectItemAction(item.id) : deleteProjectItem(p.id, item.id)); }} className="absolute bottom-2 right-2 text-ink-sub p-1" aria-label="削除">
-                                <Trash2 size={14} />
-                              </button>
-                              {item.images && item.images.length > 0 && (
-                                <div className="flex gap-1.5 overflow-x-auto mt-1.5">
-                                  {item.images.map((src, i) => (
-                                    <MediaImg key={i} src={src} alt="" className="w-12 h-12 object-cover rounded-lg border flex-shrink-0" />
-                                  ))}
-                                </div>
-                              )}
-                              {item.files && item.files.length > 0 && (
-                                <div className="space-y-1 mt-1.5">
-                                  {item.files.map((f, i) => (
-                                    <div key={i} className="text-[11px] truncate">📄 {f.name}</div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
+                            <ProjectItemCard
+                              key={item.id}
+                              item={item}
+                              projectId={p.id}
+                              isTeam={isTeam}
+                              copiedItemId={copiedItemId}
+                              onCopy={handleCopyMemo}
+                              onEdit={(it) => setEditing({ projectId: p.id, itemId: it.id })}
+                              onDelete={async (it) => {
+                                if (await confirm("このメモを削除しますか？", { confirmLabel: "削除する", danger: true })) {
+                                  isTeam ? deleteTeamProjectItemAction(it.id) : deleteProjectItem(p.id, it.id);
+                                }
+                              }}
+                            />
                           ))}
                         </div>
                       )}
@@ -402,7 +470,8 @@ export default function ProjectsPage({ setTab }) {
       {editing && editingItem && (
         <FullScreenItemEditor
           item={editingItem}
-          onChange={(text) => (isTeam ? updateTeamProjectItemAction(editing.itemId, text, editing.projectId) : updateProjectItem(editing.projectId, editing.itemId, text))}
+          onChangeText={(text) => (isTeam ? updateTeamProjectItemAction(editing.itemId, text, editing.projectId) : updateProjectItem(editing.projectId, editing.itemId, text, editingItem.heading))}
+          onChangeHeading={(heading) => (isTeam ? updateTeamProjectItemAction(editing.itemId, editingItem.text, editing.projectId) : updateProjectItem(editing.projectId, editing.itemId, editingItem.text, heading))}
           onClose={() => setEditing(null)}
         />
       )}
