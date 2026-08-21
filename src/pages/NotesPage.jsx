@@ -528,9 +528,9 @@ function NoteCard({ n, isTeam, copiedNoteId, onOpen, onCopy, onPasteCalendar, on
   return (
     <div
       {...dragProps}
-      className={`rounded-2xl border p-4 ${
+      className={`rounded-2xl border p-4 transition-colors ${
         isTeam ? "border-blue-100 bg-blue-50" : "border-app-line bg-app-surface"
-      } ${selected && !dragging ? "bg-app-raised" : ""}`}
+      } ${selected && !dragging ? "!bg-ink/10 !border-ink/30" : ""}`}
     >
       <button
         onClick={onTap}
@@ -644,6 +644,9 @@ function NoteCard({ n, isTeam, copiedNoteId, onOpen, onCopy, onPasteCalendar, on
 // 既存タグと重複するものは追加しない。
 function TagInput({ tags, setTags }) {
   const { data, setTagColor } = useData();
+  // これまでに使ったタグを候補として出す(すでに付いているものは除く)
+  const suggestions = [...new Set((data.notes || []).flatMap((n) => n.tags || []))]
+    .filter((t) => !tags.includes(t));
   // 色を選ぶ対象のタグ(選んでいないときは null)
   const [colorFor, setColorFor] = useState(null);
   const [input, setInput] = useState("");
@@ -714,6 +717,23 @@ function TagInput({ tags, setTags }) {
         placeholder="タグを追加"
         className="w-full text-[13px] outline-none bg-transparent placeholder:text-ink-sub/50"
       />
+
+      {/* 既存タグの候補。押すだけで付けられるようにして、毎回打ち直さずに済むようにする。
+          すでに付いているタグは候補から外す。 */}
+      {suggestions.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {suggestions.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTags([...tags, t])}
+              className={`text-[12px] rounded-full px-2.5 py-1 opacity-70 ${tagChipClass(t, data.tagColors)}`}
+            >
+              + {t}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
