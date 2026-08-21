@@ -129,8 +129,10 @@ function ProjectItemCard({ item, projectId, isTeam, copiedItemId, onCopy, onEdit
   return (
     <div
       {...dragProps}
-      className={`relative rounded-xl border border-app-line bg-app-surface p-2.5 pr-9 pb-8 transition-colors ${
-        selected && !dragging ? "!bg-ink/10 !border-ink/30" : ""
+      className={`relative rounded-xl border p-2.5 pr-9 pb-8 transition-colors ${
+        selected && !dragging
+          ? "border-ink/40 bg-ink/10"
+          : "border-app-line bg-app-surface"
       }`}
     >
       <button onClick={() => onCopy(item)} className="absolute top-2 right-2 text-ink-sub p-1" aria-label="コピー">
