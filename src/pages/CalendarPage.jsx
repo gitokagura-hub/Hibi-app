@@ -635,11 +635,20 @@ export default function CalendarPage({ setTab }) {
                  従来の1件は「1件目」として引き継がれる。 */}
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-2xl font-semibold">Memo</h2>
+            {!isTeam && (
+              <button
+                onClick={() => addMemo(selectedDate)}
+                className="w-9 h-9 rounded-full bg-app-raised flex items-center justify-center"
+                aria-label="Add memo"
+              >
+                <Plus size={18} />
+              </button>
+            )}
           </div>
 
           {(isTeam ? [{ id: "main", text: memoText, images: memo.images, files: memo.files }] : memoList).map((m, mi) => (
             <div key={m.id} className="mb-5">
-              <div className="flex items-center justify-end gap-2 mb-1.5">
+              <div className="flex items-center gap-2 mb-1.5">
                 <button
                   onClick={() => { setActiveMemoId(m.id); fileInputRef.current?.click(); }}
                   disabled={uploadingFile}
@@ -723,15 +732,6 @@ export default function CalendarPage({ setTab }) {
               )}
             </div>
           ))}
-
-          {!isTeam && (
-            <button
-              onClick={() => addMemo(selectedDate)}
-              className="w-full rounded-xl border border-app-line py-2.5 text-sm font-semibold flex items-center justify-center gap-1 mb-3"
-            >
-              <Plus size={14} /> Add Memo
-            </button>
-          )}
 
           <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={handlePickPhoto} className="hidden" />
           <input ref={fileInputRef} type="file" multiple onChange={handlePickFile} className="hidden" />
