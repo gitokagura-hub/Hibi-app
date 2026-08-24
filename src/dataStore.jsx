@@ -245,6 +245,55 @@ export function DataProvider({ children }) {
   function getMemo(date) {
     return data.memos[date] || { text: '', images: [], files: [] };
   }
+
+  // ===== 1日に複数のメモを持てるようにする =====
+  // 従来は1日1件(memos[date])だったため、既存のメモは「1件目」として扱う。
+  // 2件目以降は memos[date].extra に配列で持ち、既存データを壊さない形にしている。
+  // 各メモはテキスト・写真・ファイルを個別に持つ。
+  function getMemoList(date) {
+    const m = data.memos[date] || {};
+    const first = { id: 'main', text: m.text || '', images: m.images || [], files: m.files || [] };
+    return [first, ...(m.extra || [])];
+  }
+
+  // id が 'main' のときは従来の場所を、それ以外は extra の該当要素を書き換える
+  function updateMemoAt(date, id, patch) {
+    setData(prev => {
+      const m = prev.memos[date] || { text: '', images: [], files: [] };
+      if (id === 'main') {
+        return { ...prev, memos: { ...prev.memos, [date]: { ...m, ...patch } } };
+      }
+      return {
+        ...prev,
+        memos: {
+          ...prev.memos,
+          [date]: { ...m, extra: (m.extra || []).map(e => (e.id === id ? { ...e, ...patch } : e)) },
+        },
+      };
+    });
+  }
+
+  function addMemo(date) {
+    setData(prev => {
+      const m = prev.memos[date] || { text: '', images: [], files: [] };
+      const entry = { id: uid(), text: '', images: [], files: [], createdAt: Date.now() };
+      return { ...prev, memos: { ...prev.memos, [date]: { ...m, extra: [...(m.extra || []), entry] } } };
+    });
+  }
+
+  function deleteMemoAt(date, id) {
+    setData(prev => {
+      const m = prev.memos[date] || { text: '', images: [], files: [] };
+      // 1件目は器として残す必要があるため、中身だけ空にする
+      if (id === 'main') {
+        return { ...prev, memos: { ...prev.memos, [date]: { ...m, text: '', images: [], files: [] } } };
+      }
+      return {
+        ...prev,
+        memos: { ...prev.memos, [date]: { ...m, extra: (m.extra || []).filter(e => e.id !== id) } },
+      };
+    });
+  }
   function setMemo(date, text) {
     setData(prev => ({ ...prev, memos: { ...prev.memos, [date]: { ...(prev.memos[date] || { images: [], files: [] }), text } } }));
   }
@@ -796,7 +845,8 @@ export function DataProvider({ children }) {
     runLibraryRecovery,
     addTask, toggleTask, deleteTask, updateTask,
     addEvent, deleteEvent, updateEvent,
-    getMemo, setMemo, clearMemo, addMemoImages, removeMemoImage, updateMemoImageCategories, addMemoFiles, removeMemoFile,
+    getMemo, getMemoList, addMemo, updateMemoAt, deleteMemoAt,
+    setMemo, clearMemo, addMemoImages, removeMemoImage, updateMemoImageCategories, addMemoFiles, removeMemoFile,
     addNote, deleteNote, updateNote, reorderNotes, setTagColor,
     addPinnedTask, updatePinnedTask, deletePinnedTask,
     addLibraryPhotos, deleteLibraryPhoto, deletePhotosBySrc,

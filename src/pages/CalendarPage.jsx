@@ -42,7 +42,8 @@ export default function CalendarPage({ setTab }) {
   const {
     data, addTask, toggleTask, deleteTask, updateTask, addEvent, deleteEvent, updateEvent,
     addPinnedTask, updatePinnedTask, deletePinnedTask,
-    getMemo, setMemo, clearMemo, addMemoImages, removeMemoImage, addMemoFiles, removeMemoFile, addNote,
+    getMemo, getMemoList, addMemo, updateMemoAt, deleteMemoAt,
+    setMemo, clearMemo, addMemoImages, removeMemoImage, addMemoFiles, removeMemoFile, addNote,
     space, teamData, teamLoading, teamError,
     addTeamTaskAction, toggleTeamTaskAction, updateTeamTaskAction, deleteTeamTaskAction,
     addTeamEventAction, deleteTeamEventAction, updateTeamEventAction,
@@ -72,6 +73,8 @@ export default function CalendarPage({ setTab }) {
   const [reminderWheelFor, setReminderWheelFor] = useState(null);
   // 日付に紐づかない常設タスクの入力欄
   const [pinnedDraft, setPinnedDraft] = useState("");
+  // 写真・ファイルをどのメモに追加するか(直前に押したボタンのメモID)
+  const [activeMemoId, setActiveMemoId] = useState("main");
   const [editingEventText, setEditingEventText] = useState("");
   const [editingEventTime, setEditingEventTime] = useState("");
   const [editingEventIsAllDay, setEditingEventIsAllDay] = useState(false);
@@ -107,6 +110,8 @@ export default function CalendarPage({ setTab }) {
     .sort((a, b) => (a.time || "").localeCompare(b.time || ""));
   const dayTasks = (isTeam ? teamData.tasks : data.tasks).filter((t) => t.date === selectedDate);
   const memo = isTeam ? getTeamMemo(selectedDate) : getMemo(selectedDate);
+  // 1日に複数のメモを持てる。既存の1件は「1件目」として含まれる。
+  const memoList = getMemoList(selectedDate);
   const [teamMemoDraft, setTeamMemoDraft] = useState(null); // local text while editing, to avoid a Sheets write per keystroke
   const memoText = isTeam && teamMemoDraft !== null ? teamMemoDraft : memo.text;
 
@@ -243,7 +248,11 @@ export default function CalendarPage({ setTab }) {
     try {
       const dataUrls = await Promise.all(files.map((f) => fileToCompressedDataUrl(f)));
       if (isTeam) await addTeamMemoImagesAction(selectedDate, dataUrls);
-      else addMemoImages(selectedDate, dataUrls);
+      else {
+        // どのメモに追加するかは、直前に押したボタンのメモIDで決まる
+        const target = memoList.find((m) => m.id === activeMemoId) || memoList[0];
+        updateMemoAt(selectedDate, target.id, { images: [...target.images, ...dataUrls] });
+      }
     } catch {} finally { setUploadingPhoto(false); }
   }
 
@@ -255,21 +264,26 @@ export default function CalendarPage({ setTab }) {
     try {
       const items = await Promise.all(files.map((f) => fileToDataUrl(f)));
       if (isTeam) await addTeamMemoFilesAction(selectedDate, items);
-      else addMemoFiles(selectedDate, items);
+      else {
+        const target = memoList.find((m) => m.id === activeMemoId) || memoList[0];
+        updateMemoAt(selectedDate, target.id, { files: [...target.files, ...items] });
+      }
     } catch {} finally { setUploadingFile(false); }
   }
 
   const [memoSent, setMemoSent] = useState(false);
-  async function handleSendMemoToNote() {
-    if (!memoText.trim() && memo.images.length === 0 && memo.files.length === 0) return;
+  async function handleSendMemoToNote(m) {
+    const target = m || memoList[0];
+    if (!target.text.trim() && target.images.length === 0 && target.files.length === 0) return;
     if (isTeam) {
       // Team notes don't support images/files yet — text only.
       await addTeamNoteAction(memoText.trim());
     } else {
-      addNote(memoText.trim(), "text", memo.images, memo.files);
+      addNote(target.text.trim(), "text", target.images, target.files);
     }
     // 送信は「移動」の意味なので、送ったメモは日付側から消す。
-    clearMemo(selectedDate);
+    // 戻したい場合はノート側の「To Calendar」を使う。
+    if (!isTeam) deleteMemoAt(selectedDate, target.id);
     setMemoSent(true);
     setTimeout(() => setMemoSent(false), 2000);
   }
@@ -617,57 +631,108 @@ export default function CalendarPage({ setTab }) {
             </div>
           ))}
 
-          {/* 3. Memo */}
+          {/* 3. Memo — 1日に複数持てる。1件ごとに写真・ファイル・to noteを扱う。
+                 従来の1件は「1件目」として引き継がれる。 */}
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-2xl font-semibold">Memo</h2>
-            <div className="flex gap-2">
-              <button onClick={() => fileInputRef.current?.click()} disabled={uploadingFile} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center">
-                {uploadingFile ? "…" : <Paperclip size={16} />}
-              </button>
-              <button onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto} className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center">
-                {uploadingPhoto ? "…" : <Camera size={16} />}
-              </button>
-              <button
-                onClick={handleSendMemoToNote}
-                disabled={!memoText.trim() && memo.images.length === 0 && memo.files.length === 0}
-                className="h-9 px-3 rounded-full border border-app-line bg-app-surface text-xs font-semibold flex items-center gap-1 disabled:opacity-30"
-              >
-                <PencilLine size={14} />
-                {memoSent ? "済" : "to note"}
-              </button>
-            </div>
           </div>
-          {isTeam && memo.author && <p className="text-[11px] text-blue-500 mb-1.5">● 最終更新: {memo.author}</p>}
-          <textarea
-            value={memoText}
-            onChange={(e) => {
-              if (isTeam) setTeamMemoDraft(e.target.value);
-              else setMemo(selectedDate, e.target.value);
-            }}
-            onBlur={() => { if (isTeam && teamMemoDraft !== null) setTeamMemoAction(selectedDate, teamMemoDraft); }}
-            placeholder="Add Memo..."
-            className="w-full h-64 rounded-2xl border p-4 mb-3"
-          />
-          {memo.images.length > 0 && (
-            <div className="flex gap-2 overflow-x-auto mb-3">
-              {memo.images.map((src, i) => (
-                <div key={i} className="relative flex-shrink-0">
-                  <MediaImg src={src} alt="" className="w-20 h-20 object-cover rounded-xl border" />
-                  <button onClick={() => (isTeam ? removeTeamMemoImageAction(selectedDate, i) : removeMemoImage(selectedDate, i))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-ink text-app-bg text-xs flex items-center justify-center">×</button>
+
+          {(isTeam ? [{ id: "main", text: memoText, images: memo.images, files: memo.files }] : memoList).map((m, mi) => (
+            <div key={m.id} className="mb-5">
+              <div className="flex items-center justify-end gap-2 mb-1.5">
+                <button
+                  onClick={() => { setActiveMemoId(m.id); fileInputRef.current?.click(); }}
+                  disabled={uploadingFile}
+                  className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center"
+                >
+                  {uploadingFile ? "…" : <Paperclip size={16} />}
+                </button>
+                <button
+                  onClick={() => { setActiveMemoId(m.id); photoInputRef.current?.click(); }}
+                  disabled={uploadingPhoto}
+                  className="w-9 h-9 rounded-full border bg-app-surface flex items-center justify-center"
+                >
+                  {uploadingPhoto ? "…" : <Camera size={16} />}
+                </button>
+                <button
+                  onClick={() => handleSendMemoToNote(m)}
+                  disabled={!m.text.trim() && m.images.length === 0 && m.files.length === 0}
+                  className="h-9 px-3 rounded-full border border-app-line bg-app-surface text-xs font-semibold flex items-center gap-1 disabled:opacity-30"
+                >
+                  <PencilLine size={14} />
+                  {memoSent ? "済" : "to note"}
+                </button>
+                {!isTeam && memoList.length > 1 && (
+                  <button
+                    onClick={() => deleteMemoAt(selectedDate, m.id)}
+                    className="w-9 h-9 flex items-center justify-center text-ink-sub"
+                    aria-label="Delete"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                )}
+              </div>
+
+              {isTeam && mi === 0 && memo.author && (
+                <p className="text-[11px] text-blue-500 mb-1.5">● 最終更新: {memo.author}</p>
+              )}
+
+              <textarea
+                value={m.text}
+                onChange={(e) => {
+                  if (isTeam) setTeamMemoDraft(e.target.value);
+                  else updateMemoAt(selectedDate, m.id, { text: e.target.value });
+                }}
+                onBlur={() => { if (isTeam && teamMemoDraft !== null) setTeamMemoAction(selectedDate, teamMemoDraft); }}
+                placeholder="Add Memo..."
+                className="w-full h-48 rounded-2xl border p-4 mb-3"
+              />
+
+              {m.images.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto mb-3">
+                  {m.images.map((src, i) => (
+                    <div key={i} className="relative flex-shrink-0">
+                      <MediaImg src={src} alt="" className="w-20 h-20 object-cover rounded-xl border" />
+                      <button
+                        onClick={() => {
+                          if (isTeam) removeTeamMemoImageAction(selectedDate, i);
+                          else updateMemoAt(selectedDate, m.id, { images: m.images.filter((_, x) => x !== i) });
+                        }}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-ink text-app-bg text-xs flex items-center justify-center"
+                      >×</button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-          {memo.files.length > 0 && (
-            <div className="space-y-2 mb-3">
-              {memo.files.map((f, i) => (
-                <div key={i} className="flex items-center justify-between rounded-xl border p-2.5 text-sm">
-                  <span className="truncate flex items-center gap-1.5"><FileText size={13} className="shrink-0" /> {f.name}</span>
-                  <button onClick={() => (isTeam ? removeTeamMemoFileAction(selectedDate, i) : removeMemoFile(selectedDate, i))} className="text-ink-sub ml-2">×</button>
+              )}
+
+              {m.files.length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {m.files.map((f, i) => (
+                    <div key={i} className="flex items-center justify-between rounded-xl border p-2.5 text-sm">
+                      <span className="truncate flex items-center gap-1.5"><FileText size={13} className="shrink-0" /> {f.name}</span>
+                      <button
+                        onClick={() => {
+                          if (isTeam) removeTeamMemoFileAction(selectedDate, i);
+                          else updateMemoAt(selectedDate, m.id, { files: m.files.filter((_, x) => x !== i) });
+                        }}
+                        className="text-ink-sub ml-2"
+                      >×</button>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
+          ))}
+
+          {!isTeam && (
+            <button
+              onClick={() => addMemo(selectedDate)}
+              className="w-full rounded-xl border border-app-line py-2.5 text-sm font-semibold flex items-center justify-center gap-1 mb-3"
+            >
+              <Plus size={14} /> Add Memo
+            </button>
           )}
+
           <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={handlePickPhoto} className="hidden" />
           <input ref={fileInputRef} type="file" multiple onChange={handlePickFile} className="hidden" />
         </section>
