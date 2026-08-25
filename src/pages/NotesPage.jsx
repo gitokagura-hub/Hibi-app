@@ -522,7 +522,7 @@ function AIAssistSheet({ provider, apiKeyMissing, onClose, onRun, onApply }) {
 
 const COMPOSER_BAR_H = 44;
 
-function NoteCard({ n, isTeam, copiedNoteId, onOpen, onCopy, onPasteCalendar, onPasteProject, onDelete, dragProps, dragging, selected, onTap }) {
+function NoteCard({ n, isTeam, copiedNoteId, onOpen, onCopy, onPasteCalendar, onPasteProject, onSendTeam, onDelete, dragProps, dragging, selected, onTap }) {
   const { data } = useData();
 
   return (
@@ -635,6 +635,7 @@ function NoteCard({ n, isTeam, copiedNoteId, onOpen, onCopy, onPasteCalendar, on
             <>
               <button onClick={() => onPasteCalendar(n)} className="bg-app-surface border border-app-line text-ink-sub rounded-lg px-2.5 py-1 text-xs font-medium">To Calendar</button>
               <button onClick={() => onPasteProject(n)} className="bg-app-surface border border-app-line text-ink-sub rounded-lg px-2.5 py-1 text-xs font-medium">To Project</button>
+              <button onClick={() => onSendTeam(n)} className="bg-app-surface border border-app-line text-ink-sub rounded-lg px-2.5 py-1 text-xs font-medium">To Team</button>
             </>
           )}
           <button onClick={() => onDelete(n)} className="text-ink-sub text-xs px-1">Delete</button>
@@ -1221,6 +1222,13 @@ export default function NotesPage({ setTab }) {
               onCopy={handleCopyNote}
               onPasteCalendar={(note) => { setPasteTarget(note); setPasteMode("calendar"); }}
               onPasteProject={(note) => { setPasteTarget(note); setPasteMode("projects"); }}
+              onSendTeam={async (note) => {
+                // チームへ送るのは「移動」。送ったノートは手元から消える。
+                // Team側はテキストのみ対応。見出しがあれば先頭に付けて送る。
+                const body = [note.heading, note.text].filter(Boolean).join("\n");
+                await addTeamNoteAction(body);
+                deleteNote(note.id);
+              }}
               onDelete={async (note) => {
                 if (await confirm("このノートを削除しますか？", { confirmLabel: "削除する", danger: true })) {
                   isTeam ? deleteTeamNoteAction(note.id) : deleteNote(note.id);
