@@ -93,22 +93,34 @@ function EntrySheet({ title, onCancel, onSave }) {
   );
 }
 
-// ===== 商品追加シート =====
-function ProductSheet({ onCancel, onSave }) {
-  const [name, setName] = useState("");
-  const [volumeMl, setVolumeMl] = useState("720");
-  const [retailPrice, setRetailPrice] = useState("");
-  const [wholesalePrice, setWholesalePrice] = useState("");
-  const [brewery, setBrewery] = useState("");
+// ===== 商品の追加・編集シート =====
+// product を渡すと編集モードになり、既存の値が入った状態で開く。
+// 規格書(spec sheet)は名前だけを控える。ファイル本体はこの画面では扱わず、
+// あとでGoogle Driveと連携させる前提の器として置いている。
+function ProductSheet({ product, onCancel, onSave, onDelete }) {
+  const isEdit = Boolean(product);
+  const [name, setName] = useState(product?.name || "");
+  const [volumeMl, setVolumeMl] = useState(String(product?.volumeMl ?? "720"));
+  const [abv, setAbv] = useState(product?.abv ?? "");
+  const [brewery, setBrewery] = useState(product?.brewery || "");
+  const [retailPrice, setRetailPrice] = useState(String(product?.retailPrice ?? ""));
+  const [wholesalePrice, setWholesalePrice] = useState(String(product?.wholesalePrice ?? ""));
+  const [docs, setDocs] = useState(product?.docs || []);
+  const [docInput, setDocInput] = useState("");
+
   return (
     <div className="fixed inset-0 z-[60] bg-black/40 flex items-end" onClick={onCancel}>
       <div className="w-full bg-app-bg rounded-t-2xl p-5 pb-8 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <p className="text-sm font-semibold mb-3">Add product</p>
+        <p className="text-sm font-semibold mb-3">{isEdit ? "Edit product" : "Add product"}</p>
         <div className="space-y-2.5">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
-          <input value={volumeMl} onChange={(e) => setVolumeMl(e.target.value)} inputMode="numeric" placeholder="Volume (ml)"
-            className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
+          <div className="flex gap-2.5">
+            <input value={volumeMl} onChange={(e) => setVolumeMl(e.target.value)} inputMode="numeric" placeholder="Volume (ml)"
+              className="flex-1 rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
+            <input value={abv} onChange={(e) => setAbv(e.target.value)} inputMode="numeric" placeholder="Alcohol (%)"
+              className="flex-1 rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
+          </div>
           <input value={brewery} onChange={(e) => setBrewery(e.target.value)} placeholder="Brewery"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
           <input value={retailPrice} onChange={(e) => setRetailPrice(e.target.value)} inputMode="numeric" placeholder="Retail price (¥)"
@@ -116,7 +128,42 @@ function ProductSheet({ onCancel, onSave }) {
           <input value={wholesalePrice} onChange={(e) => setWholesalePrice(e.target.value)} inputMode="numeric" placeholder="Wholesale price (¥)"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
         </div>
+
+        {/* 規格書。小林醸造から受け取った書類の名前を控えておく場所。 */}
+        <div className="mt-4 pt-4 border-t border-app-line">
+          <p className="text-[11px] tracking-[0.14em] uppercase text-ink-sub mb-2">Spec sheet / documents</p>
+          {docs.length > 0 && (
+            <ul className="space-y-1.5 mb-2">
+              {docs.map((d, i) => (
+                <li key={i} className="flex items-center justify-between text-sm bg-app-surface rounded-lg px-3 py-2">
+                  <span className="truncate">{d}</span>
+                  <button onClick={() => setDocs(docs.filter((_, x) => x !== i))} className="text-ink-sub ml-2">
+                    <Trash2 size={13} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex gap-2">
+            <input
+              value={docInput}
+              onChange={(e) => setDocInput(e.target.value)}
+              placeholder="e.g. Spec sheet.pdf"
+              className="flex-1 rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface"
+            />
+            <button
+              onClick={() => { if (docInput.trim()) { setDocs([...docs, docInput.trim()]); setDocInput(""); } }}
+              className="px-4 rounded-xl border border-app-line text-sm font-semibold"
+            >Add</button>
+          </div>
+        </div>
+
         <div className="flex gap-2 mt-4">
+          {isEdit && (
+            <button onClick={() => onDelete(product.id)} className="px-4 rounded-xl border border-red-200 text-red-600 text-sm font-semibold">
+              Delete
+            </button>
+          )}
           <button onClick={onCancel} className="flex-1 rounded-xl border border-app-line py-2.5 text-sm font-semibold">Cancel</button>
           <button
             onClick={() => {
@@ -124,9 +171,11 @@ function ProductSheet({ onCancel, onSave }) {
               onSave({
                 name: name.trim(),
                 volumeMl: Number(volumeMl) || 0,
+                abv: abv === "" ? "" : Number(abv),
                 brewery: brewery.trim(),
                 retailPrice: Number(retailPrice) || 0,
                 wholesalePrice: Number(wholesalePrice) || 0,
+                docs,
               });
             }}
             className="flex-1 rounded-xl bg-ink text-app-bg py-2.5 text-sm font-semibold"
@@ -141,8 +190,9 @@ function ProductSheet({ onCancel, onSave }) {
 
 // ===== 1. Now on sale =====
 function NowOnSale() {
-  const { data, addProduct, updateProduct } = useLedger();
+  const { data, addProduct, updateProduct, deleteProduct } = useLedger();
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState(null); // 編集中の商品(nullなら閉じている)
   const [pairingFor, setPairingFor] = useState(null);
   const [pairingText, setPairingText] = useState("");
 
@@ -163,7 +213,9 @@ function NowOnSale() {
           <div className="h-40 -mx-4 -mt-4 mb-4 bg-app-raised border-b border-app-line flex items-center justify-center text-[10px] tracking-[0.2em] text-ink-sub/60">
             PRODUCT PHOTO
           </div>
-          <p className="text-lg font-semibold">{p.name}</p>
+          <button onClick={() => setEditing(p)} className="w-full text-left">
+            <p className="text-lg font-semibold underline decoration-app-line underline-offset-4">{p.name}</p>
+          </button>
           <div className="grid grid-cols-2 gap-y-1 mt-3 text-xs font-mono">
             <span className="text-ink-sub">Volume</span><span className="text-right">{p.volumeMl}ml</span>
             {p.abv && (<><span className="text-ink-sub">Alcohol</span><span className="text-right">{p.abv}%</span></>)}
@@ -204,6 +256,15 @@ function NowOnSale() {
               <button onClick={() => setPairingFor(p.id)} className="text-xs text-ink mt-2">＋ Add pairing</button>
             )}
           </div>
+
+          {(p.docs || []).length > 0 && (
+            <div className="mt-3 pt-3 border-t border-app-line">
+              <p className="text-[10px] tracking-[0.2em] uppercase text-ink-sub">Spec sheet / documents</p>
+              <ul className="mt-2 space-y-0.5">
+                {p.docs.map((d, i) => <li key={i} className="text-sm text-ink-sub">{d}</li>)}
+              </ul>
+            </div>
+          )}
         </article>
       ))}
 
@@ -211,6 +272,14 @@ function NowOnSale() {
         <ProductSheet
           onCancel={() => setAdding(false)}
           onSave={(v) => { addProduct(v); setAdding(false); }}
+        />
+      )}
+      {editing && (
+        <ProductSheet
+          product={editing}
+          onCancel={() => setEditing(null)}
+          onSave={(v) => { updateProduct(editing.id, v); setEditing(null); }}
+          onDelete={(id) => { deleteProduct(id); setEditing(null); }}
         />
       )}
     </div>

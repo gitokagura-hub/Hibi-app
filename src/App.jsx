@@ -13,6 +13,8 @@ import TimelessListPage from "./pages/TimelessListPage";
 import TimelessEditorPage from "./pages/TimelessEditorPage";
 import MasterPandoPage from "./pages/MasterPandoPage";
 import ByMaeNikkoPage from "./pages/ByMaeNikkoPage";
+import LedgerApp from "./components/LedgerApp";
+import { LedgerProvider } from "./ledgerStore";
 import { TimelessProvider } from "./timelessStore";
 import CalendarPage from "./pages/CalendarPage";
 import NotesPage from "./pages/NotesPage";
@@ -94,14 +96,14 @@ function TimelessApp({ onHome }) {
       ) : tab === "pando" ? (
         <MasterPandoPage onHome={onHome} tab={tab} setTab={setTab} />
       ) : (
-        <ByMaeNikkoPage onHome={onHome} />
+        <ByMaeNikkoPage onHome={onHome} tab={tab} setTab={setTab} />
       )}
     </TimelessProvider>
   );
 }
 
 function AppRouter() {
-  // "home" | "brains" | "sukima" | "timeless" | "library"
+  // "home" | "brains" | "sukima" | "timeless" | "library" | "ledger"
   const [app, setApp] = useState("home");
 
   if (app === "brains") {
@@ -115,6 +117,13 @@ function AppRouter() {
   }
   if (app === "library") {
     return <LibraryPage onHome={() => setApp("home")} />;
+  }
+  if (app === "ledger") {
+    return (
+      <LedgerProvider>
+        <LedgerApp onHome={() => setApp("home")} />
+      </LedgerProvider>
+    );
   }
   if (app === "reader") {
     return (

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CalendarDays, Search, FileText, Image, ChevronRight, HardDrive, Headphones } from "lucide-react";
+import { CalendarDays, Search, FileText, Image, ChevronRight, HardDrive, Headphones, BookOpen } from "lucide-react";
 import {
   isDriveConfigured,
   isDriveConnected,
@@ -43,6 +43,14 @@ const apps = [
     accent: "brown",
   },
   {
+    id: "ledger",
+    title: "Ledger",
+    icon: BookOpen,
+    description: "酒類台帳・仕入/販売の記帳",
+    status: "ACTIVE",
+    accent: "navy",
+  },
+  {
     id: "sukima",
     title: "Sukima",
     icon: Search,
@@ -58,6 +66,7 @@ const accentMap = {
   brown: { border: "border-amber-700", iconBg: "bg-amber-50", iconText: "text-amber-800", badgeBg: "bg-amber-50", badgeText: "text-amber-800" },
   slate: { border: "border-slate-500", iconBg: "bg-slate-100", iconText: "text-slate-600", badgeBg: "bg-slate-100", badgeText: "text-slate-600" },
   indigo: { border: "border-indigo-500", iconBg: "bg-indigo-50", iconText: "text-indigo-600", badgeBg: "bg-indigo-50", badgeText: "text-indigo-600" },
+  navy: { border: "border-slate-700", iconBg: "bg-slate-100", iconText: "text-slate-700", badgeBg: "bg-slate-100", badgeText: "text-slate-700" },
 };
 
 function DriveStatusCard() {
