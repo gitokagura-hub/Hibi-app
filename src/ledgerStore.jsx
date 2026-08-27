@@ -18,6 +18,33 @@ function uid() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
+// ラベル写真は端末内(localStorage)にbase64のまま持つ。Driveとは連携せず、
+// このアプリの中だけで完結させる方針のため、圧縮して容量を抑える。
+export function compressPhoto(file, maxDim = 1000, quality = 0.72) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) { height = Math.round((height * maxDim) / width); width = maxDim; }
+          else { width = Math.round((width * maxDim) / height); height = maxDim; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function loadData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -66,7 +93,8 @@ export function LedgerProvider({ children }) {
 
   // ---- 商品マスタ ----
   function addProduct(p) {
-    const product = { id: uid(), pairing: [], docs: [], photo: null, ...p };
+    // photoFront/photoBack: ラベルの表・裏。photoは古い形の名残で使っていない。
+    const product = { id: uid(), pairing: [], docs: [], photoFront: null, photoBack: null, ...p };
     setData((prev) => ({ ...prev, products: [...prev.products, product] }));
     return product.id;
   }

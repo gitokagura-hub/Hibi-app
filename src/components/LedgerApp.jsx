@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import AcidityWheel from "./AcidityWheel";
+import { compressPhoto } from "../ledgerStore";
 import { ChevronLeft, Plus, Trash2 } from "lucide-react";
 import { useLedger, monthKey, sumQty, sumAmount, toLiters } from "../ledgerStore";
 import TimelessBottomNav from "./TimelessBottomNav";
@@ -115,12 +116,48 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
   const [retailPrice, setRetailPrice] = useState(String(product?.retailPrice ?? ""));
   const [wholesalePrice, setWholesalePrice] = useState(String(product?.wholesalePrice ?? ""));
   const [docs, setDocs] = useState(product?.docs || []);
+  const [photoFront, setPhotoFront] = useState(product?.photoFront || null);
+  const [photoBack, setPhotoBack] = useState(product?.photoBack || null);
   const [docInput, setDocInput] = useState("");
 
   return (
     <div className="fixed inset-0 z-[60] bg-black/40 flex items-end" onClick={onCancel}>
       <div className="w-full bg-app-bg rounded-t-2xl p-5 pb-8 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <p className="text-sm font-semibold mb-3">{isEdit ? "Edit product" : "Add product"}</p>
+        {/* ラベル写真。表・裏を縦に続けて置く。撮影/選択のみで、Driveへは送らず
+            この端末の中に保存する。 */}
+        <div className="space-y-2 mb-3">
+          {[["Front", photoFront, setPhotoFront], ["Back", photoBack, setPhotoBack]].map(([label, val, setter]) => (
+            <label key={label} className="block relative h-36 bg-app-raised border border-app-line overflow-hidden cursor-pointer">
+              {val ? (
+                <img src={val} alt={label} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-[10px] tracking-[0.2em] text-ink-sub/60">
+                  LABEL — {label.toUpperCase()}
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setter(await compressPhoto(file));
+                }}
+              />
+              {val && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); setter(null); }}
+                  className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center"
+                >×</button>
+              )}
+            </label>
+          ))}
+        </div>
+
         <div className="space-y-2.5">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
@@ -206,6 +243,8 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
               if (!name.trim()) return;
               onSave({
                 name: name.trim(),
+                photoFront,
+                photoBack,
                 volumeMl: Number(volumeMl) || 0,
                 abv: abv === "" ? "" : Number(abv),
                 brewery: brewery.trim(),
@@ -251,9 +290,13 @@ function NowOnSale() {
 
       {data.products.map((p) => (
         <article key={p.id} className="bg-app-surface border border-app-line mx-5 my-4 p-4 rounded-none">
-          <div className="h-40 -mx-4 -mt-4 mb-4 bg-app-raised border-b border-app-line flex items-center justify-center text-[10px] tracking-[0.2em] text-ink-sub/60">
-            PRODUCT PHOTO
-          </div>
+          {p.photoFront ? (
+            <img src={p.photoFront} alt={p.name} className="h-40 w-[calc(100%+32px)] -mx-4 -mt-4 mb-4 object-cover border-b border-app-line" />
+          ) : (
+            <div className="h-40 -mx-4 -mt-4 mb-4 bg-app-raised border-b border-app-line flex items-center justify-center text-[10px] tracking-[0.2em] text-ink-sub/60">
+              PRODUCT PHOTO
+            </div>
+          )}
           <button onClick={() => setEditing(p)} className="w-full text-left">
             <p className="text-lg font-semibold underline decoration-app-line underline-offset-4">{p.name}</p>
           </button>
