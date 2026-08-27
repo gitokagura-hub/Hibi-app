@@ -13,7 +13,8 @@
 
 import { sendWebPush } from './webpush.js';
 
-const ALLOWED_APPS = new Set(["brains", "sukima", "timeless"]);
+// ledger: 酒類台帳。他と同じapp_dataテーブルにキー"ledger"で保存する。
+const ALLOWED_APPS = new Set(["brains", "sukima", "timeless", "ledger"]);
 
 function corsHeaders() {
   return {

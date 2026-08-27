@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { reconcileOnStartup, saveCloud } from "./cloudSync";
 
 /**
  * Ledger（酒類台帳）のデータ管理。
@@ -33,13 +34,34 @@ function loadData() {
 
 const LedgerContext = createContext(null);
 
+// クラウドが空かどうかの判定。商品が1件も無ければ「空」とみなす
+// (仕入・販売だけあって商品が無い状態は通常起きないため、これで足りる)。
+function isEmpty(d) {
+  return !d || !Array.isArray(d.products) || d.products.length === 0;
+}
+
 export function LedgerProvider({ children }) {
   const [data, setData] = useState(loadData);
+  const hydrated = useRef(false); // 起動時のクラウド照合が終わるまで、上書き保存を待つ
+
+  // 起動時、クラウドと端末内のデータを照合する。他の端末で更新していれば
+  // それを取り込み、クラウドがまだ空(初回)なら端末内のデータをそのまま
+  // アップロードして守る(Daily Brains/Sukimaと同じ仕組み)。
+  useEffect(() => {
+    reconcileOnStartup("ledger", loadData(), isEmpty).then((resolved) => {
+      setData(resolved);
+      hydrated.current = true;
+    });
+  }, []);
 
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch {}
+    // 起動直後、まだクラウドと照合していない状態でここに来ると、
+    // 初期値(空)をクラウドへ送って他端末のデータを消しかねないため待つ。
+    if (!hydrated.current) return;
+    saveCloud("ledger", data).catch(() => {});
   }, [data]);
 
   // ---- 商品マスタ ----
