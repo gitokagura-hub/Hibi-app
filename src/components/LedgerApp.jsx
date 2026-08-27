@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import AcidityWheel from "./AcidityWheel";
 import { ChevronLeft, Plus, Trash2 } from "lucide-react";
 import { useLedger, monthKey, sumQty, sumAmount, toLiters } from "../ledgerStore";
 import TimelessBottomNav from "./TimelessBottomNav";
@@ -110,6 +111,7 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
   const [yeast, setYeast] = useState(product?.yeast || "");
   const [polish, setPolish] = useState(product?.polish ?? "");
   const [acidity, setAcidity] = useState(product?.acidity ?? "");
+  const [acidityWheelOpen, setAcidityWheelOpen] = useState(false);
   const [retailPrice, setRetailPrice] = useState(String(product?.retailPrice ?? ""));
   const [wholesalePrice, setWholesalePrice] = useState(String(product?.wholesalePrice ?? ""));
   const [docs, setDocs] = useState(product?.docs || []);
@@ -139,26 +141,24 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
           <input value={polish} onChange={(e) => setPolish(e.target.value)} inputMode="numeric" placeholder="Polish ratio (%)"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
 
-          {/* 酸度は日本酒の一般的な実測範囲(1.0〜3.0程度)より広く、
-              0〜5の範囲で0.1刻みの+/-ボタンを付ける。0.1違うだけで
-              味の印象が変わるとされるため、キーボード入力よりボタンの方が
-              誤差なく調整しやすい。 */}
-          <div className="flex items-center justify-between rounded-xl border border-app-line px-3 py-2 bg-app-surface">
+          {/* 酸度は数値入力ではなく、時刻と同じ仕組みのホイールで選ぶ。
+              -5〜5を0.1刻み。上に大きい数、下に小さい数という並びで、
+              指で下に払うとプラス側が出てくる動き。 */}
+          <button
+            type="button"
+            onClick={() => setAcidityWheelOpen(true)}
+            className="flex items-center justify-between rounded-xl border border-app-line px-3 py-2.5 bg-app-surface w-full"
+          >
             <span className="text-sm text-ink-sub">Acidity</span>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setAcidity((v) => Math.max(-5, Math.round(((v === "" ? 0 : Number(v)) - 0.1) * 10) / 10))}
-                className="w-8 h-8 rounded-full border border-app-line flex items-center justify-center text-lg leading-none"
-              >−</button>
-              <span className="w-10 text-center font-mono text-sm">{acidity === "" ? "0.0" : Number(acidity).toFixed(1)}</span>
-              <button
-                type="button"
-                onClick={() => setAcidity((v) => Math.min(5, Math.round(((v === "" ? 0 : Number(v)) + 0.1) * 10) / 10))}
-                className="w-8 h-8 rounded-full border border-app-line flex items-center justify-center text-lg leading-none"
-              >＋</button>
-            </div>
-          </div>
+            <span className="font-mono text-sm">{acidity === "" ? "Not set" : Number(acidity).toFixed(1)}</span>
+          </button>
+          {acidityWheelOpen && (
+            <AcidityWheel
+              value={acidity}
+              onChange={setAcidity}
+              onClose={() => setAcidityWheelOpen(false)}
+            />
+          )}
           <input value={retailPrice} onChange={(e) => setRetailPrice(e.target.value)} inputMode="numeric" placeholder="Retail price (¥)"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
           <input value={wholesalePrice} onChange={(e) => setWholesalePrice(e.target.value)} inputMode="numeric" placeholder="Wholesale price (¥)"
