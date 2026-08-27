@@ -290,7 +290,8 @@ function NowOnSale() {
       {data.products.map((p) => (
         <article key={p.id} className="bg-app-surface border border-app-line mx-5 my-4 p-4 rounded-none">
           {p.photoFront ? (
-            <img src={p.photoFront} alt={p.name} className="h-64 w-[calc(100%+32px)] -mx-4 -mt-4 mb-4 object-contain bg-app-raised border-b border-app-line" />
+            // 高さを固定せず写真の比率のまま出す。ラベルが主役の画面なので幅いっぱいに見せる。
+            <img src={p.photoFront} alt={p.name} className="w-[calc(100%+32px)] h-auto -mx-4 -mt-4 mb-4 block border-b border-app-line" />
           ) : (
             <div className="h-64 -mx-4 -mt-4 mb-4 bg-app-raised border-b border-app-line flex items-center justify-center text-[10px] tracking-[0.2em] text-ink-sub/60">
               PRODUCT PHOTO
