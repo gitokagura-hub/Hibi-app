@@ -103,6 +103,13 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
   const [volumeMl, setVolumeMl] = useState(String(product?.volumeMl ?? "720"));
   const [abv, setAbv] = useState(product?.abv ?? "");
   const [brewery, setBrewery] = useState(product?.brewery || "");
+  // 米・掛米・酵母・精米歩合・酸度は一律の欄として持つ(米や麹米以外の掛米が
+  // 使われる場合もあるため両方持たせる)
+  const [rice, setRice] = useState(product?.rice || "");
+  const [kakemai, setKakemai] = useState(product?.kakemai || "");
+  const [yeast, setYeast] = useState(product?.yeast || "");
+  const [polish, setPolish] = useState(product?.polish ?? "");
+  const [acidity, setAcidity] = useState(product?.acidity ?? "");
   const [retailPrice, setRetailPrice] = useState(String(product?.retailPrice ?? ""));
   const [wholesalePrice, setWholesalePrice] = useState(String(product?.wholesalePrice ?? ""));
   const [docs, setDocs] = useState(product?.docs || []);
@@ -123,6 +130,18 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
           </div>
           <input value={brewery} onChange={(e) => setBrewery(e.target.value)} placeholder="Brewery"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
+          <input value={rice} onChange={(e) => setRice(e.target.value)} placeholder="Rice (e.g. Yamada Nishiki)"
+            className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
+          <input value={kakemai} onChange={(e) => setKakemai(e.target.value)} placeholder="Kakemai (secondary rice, if different)"
+            className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
+          <input value={yeast} onChange={(e) => setYeast(e.target.value)} placeholder="Yeast"
+            className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
+          <div className="flex gap-2.5">
+            <input value={polish} onChange={(e) => setPolish(e.target.value)} inputMode="numeric" placeholder="Polish ratio (%)"
+              className="flex-1 rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
+            <input value={acidity} onChange={(e) => setAcidity(e.target.value)} inputMode="decimal" placeholder="Acidity"
+              className="flex-1 rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
+          </div>
           <input value={retailPrice} onChange={(e) => setRetailPrice(e.target.value)} inputMode="numeric" placeholder="Retail price (¥)"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
           <input value={wholesalePrice} onChange={(e) => setWholesalePrice(e.target.value)} inputMode="numeric" placeholder="Wholesale price (¥)"
@@ -173,6 +192,11 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
                 volumeMl: Number(volumeMl) || 0,
                 abv: abv === "" ? "" : Number(abv),
                 brewery: brewery.trim(),
+                rice: rice.trim(),
+                kakemai: kakemai.trim(),
+                yeast: yeast.trim(),
+                polish: polish === "" ? "" : Number(polish),
+                acidity: acidity === "" ? "" : Number(acidity),
                 retailPrice: Number(retailPrice) || 0,
                 wholesalePrice: Number(wholesalePrice) || 0,
                 docs,
@@ -218,7 +242,12 @@ function NowOnSale() {
           </button>
           <div className="grid grid-cols-2 gap-y-1 mt-3 text-xs font-mono">
             <span className="text-ink-sub">Volume</span><span className="text-right">{p.volumeMl}ml</span>
-            {p.abv && (<><span className="text-ink-sub">Alcohol</span><span className="text-right">{p.abv}%</span></>)}
+            {p.abv !== "" && p.abv != null && (<><span className="text-ink-sub">Alcohol</span><span className="text-right">{p.abv}%</span></>)}
+            {p.polish !== "" && p.polish != null && (<><span className="text-ink-sub">Polish ratio</span><span className="text-right">{p.polish}%</span></>)}
+            {p.rice && (<><span className="text-ink-sub">Rice</span><span className="text-right">{p.rice}</span></>)}
+            {p.kakemai && (<><span className="text-ink-sub">Kakemai</span><span className="text-right">{p.kakemai}</span></>)}
+            {p.yeast && (<><span className="text-ink-sub">Yeast</span><span className="text-right">{p.yeast}</span></>)}
+            {p.acidity !== "" && p.acidity != null && (<><span className="text-ink-sub">Acidity</span><span className="text-right">{p.acidity}</span></>)}
           </div>
           {p.brewery && <p className="text-xs text-ink-sub mt-3">{p.brewery}</p>}
 
