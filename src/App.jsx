@@ -94,7 +94,7 @@ function TimelessApp({ onHome }) {
       ) : tab === "pando" ? (
         <MasterPandoPage onHome={onHome} tab={tab} setTab={setTab} />
       ) : (
-        <ByMaeNikkoPage onHome={onHome} tab={tab} setTab={setTab} />
+        <ByMaeNikkoPage onHome={onHome} />
       )}
     </TimelessProvider>
   );
