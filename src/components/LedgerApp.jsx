@@ -136,11 +136,28 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
           <input value={yeast} onChange={(e) => setYeast(e.target.value)} placeholder="Yeast"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
-          <div className="flex gap-2.5">
-            <input value={polish} onChange={(e) => setPolish(e.target.value)} inputMode="numeric" placeholder="Polish ratio (%)"
-              className="flex-1 rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
-            <input value={acidity} onChange={(e) => setAcidity(e.target.value)} inputMode="decimal" placeholder="Acidity"
-              className="flex-1 rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
+          <input value={polish} onChange={(e) => setPolish(e.target.value)} inputMode="numeric" placeholder="Polish ratio (%)"
+            className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
+
+          {/* 酸度は日本酒の一般的な実測範囲(1.0〜3.0程度)より広く、
+              0〜5の範囲で0.1刻みの+/-ボタンを付ける。0.1違うだけで
+              味の印象が変わるとされるため、キーボード入力よりボタンの方が
+              誤差なく調整しやすい。 */}
+          <div className="flex items-center justify-between rounded-xl border border-app-line px-3 py-2 bg-app-surface">
+            <span className="text-sm text-ink-sub">Acidity</span>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setAcidity((v) => Math.max(-5, Math.round(((v === "" ? 0 : Number(v)) - 0.1) * 10) / 10))}
+                className="w-8 h-8 rounded-full border border-app-line flex items-center justify-center text-lg leading-none"
+              >−</button>
+              <span className="w-10 text-center font-mono text-sm">{acidity === "" ? "0.0" : Number(acidity).toFixed(1)}</span>
+              <button
+                type="button"
+                onClick={() => setAcidity((v) => Math.min(5, Math.round(((v === "" ? 0 : Number(v)) + 0.1) * 10) / 10))}
+                className="w-8 h-8 rounded-full border border-app-line flex items-center justify-center text-lg leading-none"
+              >＋</button>
+            </div>
           </div>
           <input value={retailPrice} onChange={(e) => setRetailPrice(e.target.value)} inputMode="numeric" placeholder="Retail price (¥)"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
