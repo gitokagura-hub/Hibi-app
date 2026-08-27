@@ -130,7 +130,7 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
           {[["Front", photoFront, setPhotoFront], ["Back", photoBack, setPhotoBack]].map(([label, val, setter]) => (
             <label key={label} className="block relative h-36 bg-app-raised border border-app-line overflow-hidden cursor-pointer">
               {val ? (
-                <img src={val} alt={label} className="w-full h-full object-cover" />
+                <img src={val} alt={label} className="w-full h-full object-contain" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-[10px] tracking-[0.2em] text-ink-sub/60">
                   LABEL — {label.toUpperCase()}
@@ -290,7 +290,7 @@ function NowOnSale() {
       {data.products.map((p) => (
         <article key={p.id} className="bg-app-surface border border-app-line mx-5 my-4 p-4 rounded-none">
           {p.photoFront ? (
-            <img src={p.photoFront} alt={p.name} className="h-40 w-[calc(100%+32px)] -mx-4 -mt-4 mb-4 object-cover border-b border-app-line" />
+            <img src={p.photoFront} alt={p.name} className="h-40 w-[calc(100%+32px)] -mx-4 -mt-4 mb-4 object-contain bg-app-raised border-b border-app-line" />
           ) : (
             <div className="h-40 -mx-4 -mt-4 mb-4 bg-app-raised border-b border-app-line flex items-center justify-center text-[10px] tracking-[0.2em] text-ink-sub/60">
               PRODUCT PHOTO
