@@ -17,6 +17,14 @@ import TimelessBottomNav from "./TimelessBottomNav";
  * 商品マスタでのみ編集し、仕入・販売の個々の行では変更させない。
  */
 
+// ペアリングは以前 pairing(配列) で持っていたため、古いデータも読めるようにする。
+// 新しく打った内容は pairingNote(文字列)に入る。
+function pairingTextOf(p) {
+  if (typeof p.pairingNote === "string") return p.pairingNote;
+  if (Array.isArray(p.pairing) && p.pairing.length > 0) return p.pairing.join("\n");
+  return "";
+}
+
 function fmtYen(n) {
   return `¥${Math.round(n || 0).toLocaleString("ja-JP")}`;
 }
@@ -109,6 +117,7 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
   // 使われる場合もあるため両方持たせる)
   const [rice, setRice] = useState(product?.rice || "");
   const [kakemai, setKakemai] = useState(product?.kakemai || "");
+  const [kojimai, setKojimai] = useState(product?.kojimai || "");
   const [yeast, setYeast] = useState(product?.yeast || "");
   const [polish, setPolish] = useState(product?.polish ?? "");
   const [acidity, setAcidity] = useState(product?.acidity ?? "");
@@ -160,21 +169,23 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
         <div className="space-y-2.5">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
-          <div className="flex gap-2.5">
-            <input value={volumeMl} onChange={(e) => setVolumeMl(e.target.value)} inputMode="numeric" placeholder="Volume (ml)"
-              className="flex-1 rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
-            <input value={abv} onChange={(e) => setAbv(e.target.value)} inputMode="numeric" placeholder="Alcohol (%)"
-              className="flex-1 rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
-          </div>
+          <input value={volumeMl} onChange={(e) => setVolumeMl(e.target.value)} inputMode="numeric" placeholder="Volume (ml)"
+            className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
           <input value={brewery} onChange={(e) => setBrewery(e.target.value)} placeholder="Brewery"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
-          <input value={rice} onChange={(e) => setRice(e.target.value)} placeholder="Rice (e.g. Yamada Nishiki)"
+
+          {/* 規格は 米 → 掛米 → 麹米 → 酵母 → 精米歩合 → アルコール → 酸度 の順で並べる */}
+          <input value={rice} onChange={(e) => setRice(e.target.value)} placeholder="Rice"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
-          <input value={kakemai} onChange={(e) => setKakemai(e.target.value)} placeholder="Kakemai (secondary rice, if different)"
+          <input value={kakemai} onChange={(e) => setKakemai(e.target.value)} placeholder="Kakemai"
+            className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
+          <input value={kojimai} onChange={(e) => setKojimai(e.target.value)} placeholder="Kojimai"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
           <input value={yeast} onChange={(e) => setYeast(e.target.value)} placeholder="Yeast"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
           <input value={polish} onChange={(e) => setPolish(e.target.value)} inputMode="numeric" placeholder="Polish ratio (%)"
+            className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
+          <input value={abv} onChange={(e) => setAbv(e.target.value)} inputMode="numeric" placeholder="Alcohol (%)"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
 
           {/* 酸度は数値入力ではなく、時刻と同じ仕組みのホイールで選ぶ。
@@ -249,6 +260,7 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
                 brewery: brewery.trim(),
                 rice: rice.trim(),
                 kakemai: kakemai.trim(),
+                kojimai: kojimai.trim(),
                 yeast: yeast.trim(),
                 polish: polish === "" ? "" : Number(polish),
                 acidity: acidity === "" ? "" : Number(acidity),
@@ -272,8 +284,6 @@ function NowOnSale() {
   const { data, addProduct, updateProduct, deleteProduct } = useLedger();
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null); // 編集中の商品(nullなら閉じている)
-  const [pairingFor, setPairingFor] = useState(null);
-  const [pairingText, setPairingText] = useState("");
 
   return (
     <div>
@@ -302,11 +312,12 @@ function NowOnSale() {
           </button>
           <div className="grid grid-cols-2 gap-y-1 mt-3 text-xs font-mono">
             <span className="text-ink-sub">Volume</span><span className="text-right">{p.volumeMl}ml</span>
-            {p.abv !== "" && p.abv != null && (<><span className="text-ink-sub">Alcohol</span><span className="text-right">{p.abv}%</span></>)}
-            {p.polish !== "" && p.polish != null && (<><span className="text-ink-sub">Polish ratio</span><span className="text-right">{p.polish}%</span></>)}
             {p.rice && (<><span className="text-ink-sub">Rice</span><span className="text-right">{p.rice}</span></>)}
             {p.kakemai && (<><span className="text-ink-sub">Kakemai</span><span className="text-right">{p.kakemai}</span></>)}
+            {p.kojimai && (<><span className="text-ink-sub">Kojimai</span><span className="text-right">{p.kojimai}</span></>)}
             {p.yeast && (<><span className="text-ink-sub">Yeast</span><span className="text-right">{p.yeast}</span></>)}
+            {p.polish !== "" && p.polish != null && (<><span className="text-ink-sub">Polish ratio</span><span className="text-right">{p.polish}%</span></>)}
+            {p.abv !== "" && p.abv != null && (<><span className="text-ink-sub">Alcohol</span><span className="text-right">{p.abv}%</span></>)}
             {p.acidity !== "" && p.acidity != null && (<><span className="text-ink-sub">Acidity</span><span className="text-right">{p.acidity}</span></>)}
           </div>
           {p.brewery && <p className="text-xs text-ink-sub mt-3">{p.brewery}</p>}
@@ -316,34 +327,17 @@ function NowOnSale() {
             <div className="flex justify-between text-xs"><span className="text-ink-sub">Wholesale</span><span className="font-mono">{fmtYen(p.wholesalePrice)}</span></div>
           </div>
 
+          {/* ペアリングは1行ずつ足す形をやめ、メモのように自由に改行して
+              書ける欄にする。打った内容はそのまま保存される。 */}
           <div className="mt-3 pt-3 border-t border-app-line">
             <p className="text-[10px] tracking-[0.2em] uppercase text-ink-sub">Pairing</p>
-            {(p.pairing || []).length > 0 ? (
-              <ul className="mt-2 space-y-0.5">
-                {p.pairing.map((x, i) => <li key={i} className="text-sm">{x}</li>)}
-              </ul>
-            ) : null}
-            {pairingFor === p.id ? (
-              <div className="mt-2 flex gap-2">
-                <input
-                  autoFocus
-                  value={pairingText}
-                  onChange={(e) => setPairingText(e.target.value)}
-                  placeholder="e.g. Grilled fish"
-                  className="flex-1 rounded-lg border border-app-line px-2.5 py-1.5 text-sm bg-app-bg"
-                />
-                <button
-                  onClick={() => {
-                    if (!pairingText.trim()) return;
-                    updateProduct(p.id, { pairing: [...(p.pairing || []), pairingText.trim()] });
-                    setPairingText(""); setPairingFor(null);
-                  }}
-                  className="text-xs font-semibold px-3 rounded-lg bg-ink text-app-bg"
-                >Add</button>
-              </div>
-            ) : (
-              <button onClick={() => setPairingFor(p.id)} className="text-xs text-ink mt-2">＋ Add pairing</button>
-            )}
+            <textarea
+              value={pairingTextOf(p)}
+              onChange={(e) => updateProduct(p.id, { pairingNote: e.target.value })}
+              placeholder="合う料理や飲み方を自由に書く"
+              rows={3}
+              className="w-full mt-2 bg-transparent text-sm outline-none resize-none placeholder:text-ink-sub/40"
+            />
           </div>
 
           {(p.docs || []).length > 0 && (
