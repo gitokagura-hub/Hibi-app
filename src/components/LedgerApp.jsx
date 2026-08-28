@@ -57,10 +57,18 @@ function useMonthCursor() {
 }
 
 // ===== 入力シート(仕入・販売の1行を追加する) =====
-function EntrySheet({ title, onCancel, onSave, showCustomer }) {
+// 単価は商品マスタで固定しているため、ここでは打たない。金額は 本数×単価 で
+// 自動的に出す。端数値引きなどで額が変わるときだけ、手で上書きできる。
+function EntrySheet({ title, onCancel, onSave, showCustomer, unitPrice, unitLabel }) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [qty, setQty] = useState("");
   const [amount, setAmount] = useState("");
+  const [overriding, setOverriding] = useState(false);
+  const unit = Number(unitPrice) || 0;
+  const q = Number(qty) || 0;
+  const auto = unit * q;
+  // 上書き中は打った額を、それ以外は自動計算の額を使う
+  const effective = overriding ? Number(amount) || 0 : auto;
   // 販売先。小売は住所・氏名を省略できるが、卸は記帳が要る。切替は設けず、
   // 常に欄を出して任意入力にする(小売のときは空のままでよい)。
   const [customer, setCustomer] = useState("");
@@ -84,14 +92,38 @@ function EntrySheet({ title, onCancel, onSave, showCustomer }) {
             placeholder="Bottles"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface"
           />
-          <input
-            type="number"
-            inputMode="numeric"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="Amount (¥)"
-            className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface"
-          />
+          {/* 単価 × 本数 = 金額。保存前にここで確かめられるようにする。 */}
+          <div className="rounded-xl border border-app-line px-3 py-2.5 bg-app-surface">
+            <div className="flex justify-between items-baseline">
+              <span className="text-[11px] tracking-[0.12em] uppercase text-ink-sub">{unitLabel}</span>
+              <span className="font-mono text-sm">{fmtYen(unit)}</span>
+            </div>
+            <div className="flex justify-between items-baseline mt-2 pt-2 border-t border-app-line">
+              <span className="font-mono text-[12.5px] text-ink-sub">
+                {fmtYen(unit)} × {q || 0}
+              </span>
+              <span className="font-mono text-base font-semibold">{fmtYen(effective)}</span>
+            </div>
+            {overriding ? (
+              <input
+                autoFocus
+                type="number"
+                inputMode="numeric"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="Amount (¥)"
+                className="w-full mt-2 rounded-lg border border-app-line px-2.5 py-1.5 text-sm bg-app-bg"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => { setOverriding(true); setAmount(String(auto || "")); }}
+                className="text-[11px] text-ink-sub mt-2"
+              >
+                Edit amount
+              </button>
+            )}
+          </div>
           {showCustomer && (
             <>
               <input
@@ -115,10 +147,9 @@ function EntrySheet({ title, onCancel, onSave, showCustomer }) {
           </button>
           <button
             onClick={() => {
-              const q = Number(qty), a = Number(amount);
               if (!date || !q) return;
               onSave({
-                date, qty: q, amount: a || 0,
+                date, qty: q, amount: effective, unitPrice: unit,
                 ...(showCustomer ? { customer: customer.trim(), address: address.trim() } : {}),
               });
             }}
@@ -471,6 +502,8 @@ function LedgerCard({ product, entries, month, kind, onAdd, onDelete, priceLabel
         <EntrySheet
           title={`${kind === "purchase" ? "Add purchase" : "Add sale"} — ${product.name}`}
           showCustomer={kind === "sale"}
+          unitPrice={priceValue}
+          unitLabel={priceLabel}
           onCancel={() => setAdding(false)}
           onSave={(v) => { onAdd(product.id, v); setAdding(false); }}
         />
@@ -677,12 +710,18 @@ function Total() {
                   <p className="text-[11px] font-mono text-ink-sub">
                     {p.volumeMl}ml · {(p.volumeMl / 1000).toFixed(2)}L
                   </p>
+                  {/* 本数がまだ0でも単価は決まっているので、行の頭に出しておく。
+                      左が単価、右がその単価で積み上がった金額。 */}
                   <div className="mt-2 border-t border-app-line">
                     <div className="grid grid-cols-[80px_1fr_auto] gap-2 py-2 border-b border-app-line font-mono text-[12.5px]">
-                      <span className="text-ink-sub">Purchased</span><span>{purchased} btl</span><span className="text-right">{fmtYen(sumAmount(data.purchases, p.id))}</span>
+                      <span className="text-ink-sub">Purchased</span>
+                      <span>{purchased} btl<span className="text-ink-sub"> @ {fmtYen(p.wholesalePrice)}</span></span>
+                      <span className="text-right">{fmtYen(sumAmount(data.purchases, p.id))}</span>
                     </div>
                     <div className="grid grid-cols-[80px_1fr_auto] gap-2 py-2 border-b border-app-line font-mono text-[12.5px]">
-                      <span className="text-ink-sub">Sold</span><span>{sold} btl</span><span className="text-right">{fmtYen(sumAmount(data.sales, p.id))}</span>
+                      <span className="text-ink-sub">Sold</span>
+                      <span>{sold} btl<span className="text-ink-sub"> @ {fmtYen(p.retailPrice)}</span></span>
+                      <span className="text-right">{fmtYen(sumAmount(data.sales, p.id))}</span>
                     </div>
                     <div className="grid grid-cols-[80px_1fr_auto] gap-2 py-2 border-b border-app-line font-mono text-[12.5px]">
                       <span className="text-ink-sub">In stock</span><span>{inStock} btl</span><span className="text-right">{toLiters(p.volumeMl, inStock).toFixed(2)} L</span>
