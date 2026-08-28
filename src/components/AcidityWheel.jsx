@@ -1,9 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useResetZoomOnOpen } from "../useResetZoom";
 
 /**
- * 酸度専用のホイール。TimeWheelと同じ仕組み(scroll-snapで1行ずつ吸着)を使う。
+ * 小数を0.1刻みで選ぶホイール。TimeWheelと同じ仕組み(scroll-snapで1行ずつ吸着)を使う。
  *
  * 【並びについて】
  * 整数列・小数点列とも、上から大きい数、下にいくほど小さい数という並びにする。
@@ -11,16 +11,20 @@ import { useResetZoomOnOpen } from "../useResetZoom";
  * 指で下に払うとプラス側が手前に出てくる動きが欲しい、という指定のため。
  *
  * 【範囲】
- * -5.0〜5.0を0.1刻み。実際の日本酒の酸度はおおむね1.0〜3.0程度だが、
- * 日本酒度と同じ0を中心にした範囲で余裕を持たせている。
+ * intMin/intMaxで整数部の範囲を渡す。酸度と日本酒度で実際の値域が違うため、
+ * 呼び出す側で指定する。
+ *   酸度      … 0.0〜3.0
+ *   日本酒度  … -20.0〜20.0
  */
 
 const ITEM_H = 36;
 const VISIBLE = 5;
 const PAD = ((VISIBLE - 1) / 2) * ITEM_H;
 
-// 上から大きい順(5→0→-5)。指で下に払うとプラス側が出てくる。
-const INT_OPTIONS = Array.from({ length: 11 }, (_, i) => 5 - i); // [5,4,...,0,...,-4,-5]
+// 上から大きい順に並べる。指で下に払うとプラス側が出てくる。
+function intOptions(min, max) {
+  return Array.from({ length: max - min + 1 }, (_, i) => max - i);
+}
 const DEC_OPTIONS = Array.from({ length: 10 }, (_, i) => 9 - i); // [9,8,...,0]
 
 function Column({ options, value, onChange, align, innerRef }) {
@@ -73,10 +77,15 @@ function Column({ options, value, onChange, align, innerRef }) {
   );
 }
 
-// value: -5.0〜5.0の数値、または "" (未設定)。未設定は0.0起点で開く。
-export default function AcidityWheel({ value, onChange, onClose }) {
-  const initial = value === "" || value == null ? 0 : Number(value);
-  const [intPart, setIntPart] = useState(Math.trunc(Math.abs(initial)) * Math.sign(initial || 1));
+// value: 数値、または "" (未設定)。未設定は範囲内の0(無ければ最小値)起点で開く。
+export default function AcidityWheel({ value, onChange, onClose, intMin = -5, intMax = 5 }) {
+  const INT_OPTIONS = useMemo(() => intOptions(intMin, intMax), [intMin, intMax]);
+  const zero = intMin <= 0 && intMax >= 0 ? 0 : intMin;
+  const initial = value === "" || value == null ? zero : Number(value);
+  const [intPart, setIntPart] = useState(() => {
+    const i = Math.trunc(Math.abs(initial)) * (initial < 0 ? -1 : 1);
+    return INT_OPTIONS.includes(i) ? i : zero;
+  });
   const [decPart, setDecPart] = useState(Math.round((Math.abs(initial) % 1) * 10));
 
   useResetZoomOnOpen();
@@ -108,7 +117,9 @@ export default function AcidityWheel({ value, onChange, onClose }) {
     const i = pick(iRef, INT_OPTIONS, intPart);
     const d = pick(dRef, DEC_OPTIONS, decPart);
     const sign = i < 0 ? -1 : 1;
-    return sign * (Math.abs(i) + d / 10);
+    const v = sign * (Math.abs(i) + d / 10);
+    // 上限ちょうど(例: 酸度3.0、日本酒度20.0)を超えないように丸める
+    return Math.min(intMax, Math.max(intMin, v));
   }
 
   return createPortal(

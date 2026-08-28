@@ -25,6 +25,12 @@ function pairingTextOf(p) {
   return "";
 }
 
+// 日本酒度は符号込みで読む数値なので、プラスにも符号を付けて出す。
+function fmtSigned(n) {
+  const v = Number(n);
+  return `${v > 0 ? "+" : ""}${v.toFixed(1)}`;
+}
+
 function fmtYen(n) {
   return `¥${Math.round(n || 0).toLocaleString("ja-JP")}`;
 }
@@ -51,10 +57,14 @@ function useMonthCursor() {
 }
 
 // ===== 入力シート(仕入・販売の1行を追加する) =====
-function EntrySheet({ title, onCancel, onSave }) {
+function EntrySheet({ title, onCancel, onSave, showCustomer }) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [qty, setQty] = useState("");
   const [amount, setAmount] = useState("");
+  // 販売先。小売は住所・氏名を省略できるが、卸は記帳が要る。切替は設けず、
+  // 常に欄を出して任意入力にする(小売のときは空のままでよい)。
+  const [customer, setCustomer] = useState("");
+  const [address, setAddress] = useState("");
   return (
     <div className="fixed inset-0 z-[60] bg-black/40 flex items-end" onClick={onCancel}>
       <div className="w-full bg-app-bg rounded-t-2xl p-5 pb-8" onClick={(e) => e.stopPropagation()}>
@@ -82,6 +92,22 @@ function EntrySheet({ title, onCancel, onSave }) {
             placeholder="Amount (¥)"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface"
           />
+          {showCustomer && (
+            <>
+              <input
+                value={customer}
+                onChange={(e) => setCustomer(e.target.value)}
+                placeholder="Customer (optional)"
+                className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface"
+              />
+              <input
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Address (optional)"
+                className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface"
+              />
+            </>
+          )}
         </div>
         <div className="flex gap-2 mt-4">
           <button onClick={onCancel} className="flex-1 rounded-xl border border-app-line py-2.5 text-sm font-semibold">
@@ -91,7 +117,10 @@ function EntrySheet({ title, onCancel, onSave }) {
             onClick={() => {
               const q = Number(qty), a = Number(amount);
               if (!date || !q) return;
-              onSave({ date, qty: q, amount: a || 0 });
+              onSave({
+                date, qty: q, amount: a || 0,
+                ...(showCustomer ? { customer: customer.trim(), address: address.trim() } : {}),
+              });
             }}
             className="flex-1 rounded-xl bg-ink text-app-bg py-2.5 text-sm font-semibold"
           >
@@ -113,13 +142,15 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
   const [volumeMl, setVolumeMl] = useState(String(product?.volumeMl ?? "720"));
   const [abv, setAbv] = useState(product?.abv ?? "");
   const [brewery, setBrewery] = useState(product?.brewery || "");
-  // 米・掛米・酵母・精米歩合・酸度は一律の欄として持つ(米や麹米以外の掛米が
+  // 米・掛米・酵母・精米歩合・日本酒度・酸度は一律の欄として持つ(米や麹米以外の掛米が
   // 使われる場合もあるため両方持たせる)
   const [rice, setRice] = useState(product?.rice || "");
   const [kakemai, setKakemai] = useState(product?.kakemai || "");
   const [kojimai, setKojimai] = useState(product?.kojimai || "");
   const [yeast, setYeast] = useState(product?.yeast || "");
   const [polish, setPolish] = useState(product?.polish ?? "");
+  const [smv, setSmv] = useState(product?.smv ?? "");
+  const [smvWheelOpen, setSmvWheelOpen] = useState(false);
   const [acidity, setAcidity] = useState(product?.acidity ?? "");
   const [acidityWheelOpen, setAcidityWheelOpen] = useState(false);
   const [retailPrice, setRetailPrice] = useState(String(product?.retailPrice ?? ""));
@@ -174,7 +205,7 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
           <input value={brewery} onChange={(e) => setBrewery(e.target.value)} placeholder="Brewery"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
 
-          {/* 規格は 米 → 掛米 → 麹米 → 酵母 → 精米歩合 → アルコール → 酸度 の順で並べる */}
+          {/* 規格は 米 → 掛米 → 麹米 → 酵母 → 精米歩合 → アルコール → 日本酒度 → 酸度 の順で並べる */}
           <input value={rice} onChange={(e) => setRice(e.target.value)} placeholder="Rice"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
           <input value={kakemai} onChange={(e) => setKakemai(e.target.value)} placeholder="Kakemai"
@@ -188,9 +219,28 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
           <input value={abv} onChange={(e) => setAbv(e.target.value)} inputMode="numeric" placeholder="Alcohol (%)"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
 
-          {/* 酸度は数値入力ではなく、時刻と同じ仕組みのホイールで選ぶ。
-              -5〜5を0.1刻み。上に大きい数、下に小さい数という並びで、
-              指で下に払うとプラス側が出てくる動き。 */}
+          {/* 日本酒度と酸度は数値入力ではなく、時刻と同じ仕組みのホイールで選ぶ。
+              上に大きい数、下に小さい数という並びで、指で下に払うと
+              プラス側が出てくる動き。値域は項目ごとに違う。
+                日本酒度 … -20.0〜20.0(0を中心に甘辛を表す)
+                酸度     … 0.0〜3.0(マイナスは存在しない) */}
+          <button
+            type="button"
+            onClick={() => setSmvWheelOpen(true)}
+            className="flex items-center justify-between rounded-xl border border-app-line px-3 py-2.5 bg-app-surface w-full"
+          >
+            <span className="text-sm text-ink-sub">Sake meter value</span>
+            <span className="font-mono text-sm">{smv === "" ? "Not set" : fmtSigned(smv)}</span>
+          </button>
+          {smvWheelOpen && (
+            <AcidityWheel
+              value={smv}
+              onChange={setSmv}
+              onClose={() => setSmvWheelOpen(false)}
+              intMin={-20}
+              intMax={20}
+            />
+          )}
           <button
             type="button"
             onClick={() => setAcidityWheelOpen(true)}
@@ -204,6 +254,8 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
               value={acidity}
               onChange={setAcidity}
               onClose={() => setAcidityWheelOpen(false)}
+              intMin={0}
+              intMax={3}
             />
           )}
           <input value={retailPrice} onChange={(e) => setRetailPrice(e.target.value)} inputMode="numeric" placeholder="Retail price (¥)"
@@ -263,6 +315,7 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
                 kojimai: kojimai.trim(),
                 yeast: yeast.trim(),
                 polish: polish === "" ? "" : Number(polish),
+                smv: smv === "" ? "" : Number(smv),
                 acidity: acidity === "" ? "" : Number(acidity),
                 retailPrice: Number(retailPrice) || 0,
                 wholesalePrice: Number(wholesalePrice) || 0,
@@ -318,13 +371,14 @@ function NowOnSale() {
             {p.yeast && (<><span className="text-ink-sub">Yeast</span><span className="text-right">{p.yeast}</span></>)}
             {p.polish !== "" && p.polish != null && (<><span className="text-ink-sub">Polish ratio</span><span className="text-right">{p.polish}%</span></>)}
             {p.abv !== "" && p.abv != null && (<><span className="text-ink-sub">Alcohol</span><span className="text-right">{p.abv}%</span></>)}
-            {p.acidity !== "" && p.acidity != null && (<><span className="text-ink-sub">Acidity</span><span className="text-right">{p.acidity}</span></>)}
+            {p.smv !== "" && p.smv != null && (<><span className="text-ink-sub">Sake meter value</span><span className="text-right">{fmtSigned(p.smv)}</span></>)}
+            {p.acidity !== "" && p.acidity != null && (<><span className="text-ink-sub">Acidity</span><span className="text-right">{Number(p.acidity).toFixed(1)}</span></>)}
           </div>
           {p.brewery && <p className="text-xs text-ink-sub mt-3">{p.brewery}</p>}
 
-          <div className="mt-3 pt-3 border-t border-app-line space-y-1">
+          {/* 営業用カタログなので、出すのは販売価格(定価)だけ。仕入価格は見せない。 */}
+          <div className="mt-3 pt-3 border-t border-app-line">
             <div className="flex justify-between text-xs"><span className="text-ink-sub">Retail</span><span className="font-mono">{fmtYen(p.retailPrice)}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-ink-sub">Wholesale</span><span className="font-mono">{fmtYen(p.wholesalePrice)}</span></div>
           </div>
 
           {/* ペアリングは1行ずつ足す形をやめ、メモのように自由に改行して
@@ -394,7 +448,12 @@ function LedgerCard({ product, entries, month, kind, onAdd, onDelete, priceLabel
         {list.map((e) => (
           <div key={e.id} className="grid grid-cols-[56px_1fr_auto_28px] items-baseline gap-2 py-2.5 border-b border-app-line font-mono text-[12.5px]">
             <span className="text-ink-sub">{fmtDate(e.date)}</span>
-            <span>{e.qty} btl</span>
+            <span>
+              {e.qty} btl
+              {e.customer && (
+                <span className="block text-[11px] text-ink-sub truncate">{e.customer}</span>
+              )}
+            </span>
             <span className="text-right">{fmtYen(e.amount)}</span>
             <button onClick={() => onDelete(e.id)} className="text-ink-sub/60"><Trash2 size={13} /></button>
           </div>
@@ -411,6 +470,7 @@ function LedgerCard({ product, entries, month, kind, onAdd, onDelete, priceLabel
       {adding && (
         <EntrySheet
           title={`${kind === "purchase" ? "Add purchase" : "Add sale"} — ${product.name}`}
+          showCustomer={kind === "sale"}
           onCancel={() => setAdding(false)}
           onSave={(v) => { onAdd(product.id, v); setAdding(false); }}
         />
@@ -566,6 +626,26 @@ function Total() {
     return { pQty, pAmt, pL, sQty, sAmt, sL, stockQty, stockL, counted, hasCounted };
   }, [data]);
 
+  // 同じ銘柄名の商品(720ml/1.8L等)をひとつのブロックにまとめる。
+  // 並び順は商品を登録した順のまま。
+  const byBrand = useMemo(() => {
+    const groups = [];
+    const index = new Map();
+    data.products.forEach((p) => {
+      const key = (p.name || "").trim();
+      if (!index.has(key)) {
+        index.set(key, groups.length);
+        groups.push({ name: p.name, items: [], inStock: 0, stockL: 0 });
+      }
+      const g = groups[index.get(key)];
+      g.items.push(p);
+      const inStock = sumQty(data.purchases, p.id) - sumQty(data.sales, p.id);
+      g.inStock += inStock;
+      g.stockL += toLiters(p.volumeMl, inStock);
+    });
+    return groups;
+  }, [data]);
+
   return (
     <div>
       <div className="flex items-center justify-center gap-6 pt-6">
@@ -579,48 +659,75 @@ function Total() {
       </div>
       <div className="h-px bg-app-line mx-5" />
 
-      {data.products.map((p) => {
-        const purchased = sumQty(data.purchases, p.id);
-        const sold = sumQty(data.sales, p.id);
-        const inStock = purchased - sold;
-        const count = data.stockCounts[p.id]?.count;
+      {byBrand.map((g) => {
+        // 銘柄を見出しにして、その中に容量別(720ml / 1.8L)の行を並べる。
+        // 税務署の指導どおり、集計は銘柄×容量ごとに分けて持つ。
+        const multi = g.items.length > 1;
         return (
-          <article key={p.id} className="bg-app-surface border border-app-line mx-5 my-4 p-4">
-            <p className="text-lg font-semibold">{p.name}</p>
-            <p className="text-[11px] font-mono text-ink-sub mt-1">{p.volumeMl}ml · {(p.volumeMl / 1000).toFixed(2)}L</p>
-            <div className="mt-3 border-t border-app-line">
-              <div className="grid grid-cols-[80px_1fr_auto] gap-2 py-2 border-b border-app-line font-mono text-[12.5px]">
-                <span className="text-ink-sub">Purchased</span><span>{purchased} btl</span><span className="text-right">{fmtYen(sumAmount(data.purchases, p.id))}</span>
-              </div>
-              <div className="grid grid-cols-[80px_1fr_auto] gap-2 py-2 border-b border-app-line font-mono text-[12.5px]">
-                <span className="text-ink-sub">Sold</span><span>{sold} btl</span><span className="text-right">{fmtYen(sumAmount(data.sales, p.id))}</span>
-              </div>
-              <div className="grid grid-cols-[80px_1fr_auto] gap-2 py-2 border-b border-app-line font-mono text-[12.5px]">
-                <span className="text-ink-sub">In stock</span><span>{inStock} btl</span><span className="text-right">{toLiters(p.volumeMl, inStock).toFixed(2)} L</span>
-              </div>
-            </div>
+          <article key={g.name} className="bg-app-surface border border-app-line mx-5 my-4 p-4">
+            <p className="text-lg font-semibold">{g.name}</p>
 
-            {editingCount === p.id ? (
-              <div className="flex gap-2 pt-3">
-                <input
-                  autoFocus type="number" inputMode="numeric"
-                  value={countInput} onChange={(e) => setCountInput(e.target.value)}
-                  placeholder="Bottles counted"
-                  className="flex-1 rounded-lg border border-app-line px-2.5 py-1.5 text-sm bg-app-bg"
-                />
-                <button
-                  onClick={() => { setStockCount(p.id, countInput === "" ? null : Number(countInput)); setEditingCount(null); }}
-                  className="text-xs font-semibold px-3 rounded-lg bg-ink text-app-bg"
-                >Save</button>
+            {g.items.map((p, idx) => {
+              const purchased = sumQty(data.purchases, p.id);
+              const sold = sumQty(data.sales, p.id);
+              const inStock = purchased - sold;
+              const count = data.stockCounts[p.id]?.count;
+              return (
+                <div key={p.id} className={idx > 0 ? "mt-5 pt-4 border-t border-app-line" : "mt-3"}>
+                  <p className="text-[11px] font-mono text-ink-sub">
+                    {p.volumeMl}ml · {(p.volumeMl / 1000).toFixed(2)}L
+                  </p>
+                  <div className="mt-2 border-t border-app-line">
+                    <div className="grid grid-cols-[80px_1fr_auto] gap-2 py-2 border-b border-app-line font-mono text-[12.5px]">
+                      <span className="text-ink-sub">Purchased</span><span>{purchased} btl</span><span className="text-right">{fmtYen(sumAmount(data.purchases, p.id))}</span>
+                    </div>
+                    <div className="grid grid-cols-[80px_1fr_auto] gap-2 py-2 border-b border-app-line font-mono text-[12.5px]">
+                      <span className="text-ink-sub">Sold</span><span>{sold} btl</span><span className="text-right">{fmtYen(sumAmount(data.sales, p.id))}</span>
+                    </div>
+                    <div className="grid grid-cols-[80px_1fr_auto] gap-2 py-2 border-b border-app-line font-mono text-[12.5px]">
+                      <span className="text-ink-sub">In stock</span><span>{inStock} btl</span><span className="text-right">{toLiters(p.volumeMl, inStock).toFixed(2)} L</span>
+                    </div>
+                  </div>
+
+                  {editingCount === p.id ? (
+                    <div className="flex gap-2 pt-3">
+                      <input
+                        autoFocus type="number" inputMode="numeric"
+                        value={countInput} onChange={(e) => setCountInput(e.target.value)}
+                        placeholder="Bottles counted"
+                        className="flex-1 rounded-lg border border-app-line px-2.5 py-1.5 text-sm bg-app-bg"
+                      />
+                      <button
+                        onClick={() => { setStockCount(p.id, countInput === "" ? null : Number(countInput)); setEditingCount(null); }}
+                        className="text-xs font-semibold px-3 rounded-lg bg-ink text-app-bg"
+                      >Save</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setEditingCount(p.id); setCountInput(count ?? ""); }}
+                      className="flex justify-between items-baseline w-full pt-3"
+                    >
+                      <span className="text-xs text-ink-sub">Inventory count</span>
+                      <span className="text-sm font-semibold">
+                        {count != null ? `${count} bottles` : "Not counted"}
+                        {count != null && count - inStock !== 0 && (
+                          <span className="text-ink-sub font-normal ml-2">({count - inStock > 0 ? "+" : ""}{count - inStock})</span>
+                        )}
+                      </span>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* 容量が2種類以上ある銘柄だけ、ブロックの下に小計を出す。
+                1種類しか無いときは上の行と同じ数字になるため出さない。 */}
+            {multi && (
+              <div className="mt-4 pt-3 border-t border-app-line grid grid-cols-[80px_1fr_auto] gap-2 font-mono text-[12.5px]">
+                <span className="text-ink-sub">Subtotal</span>
+                <span>{g.inStock} btl</span>
+                <span className="text-right">{g.stockL.toFixed(2)} L</span>
               </div>
-            ) : (
-              <button
-                onClick={() => { setEditingCount(p.id); setCountInput(count ?? ""); }}
-                className="flex justify-between items-baseline w-full pt-3 border-t border-app-line mt-3"
-              >
-                <span className="text-xs text-ink-sub">Inventory count</span>
-                <span className="text-sm font-semibold">{count != null ? `${count} bottles` : "Not counted"}</span>
-              </button>
             )}
           </article>
         );
