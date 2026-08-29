@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { DataProvider } from "./dataStore";
 import { ConfirmProvider } from "./components/ConfirmModal";
@@ -102,72 +102,9 @@ function TimelessApp({ onHome }) {
   );
 }
 
-// URLとアプリの対応。ホーム画面にアイコンを置いたとき、そのURLで開いた
-// アプリがそのまま立ち上がるようにするために使う。
-// 例) /ledger を追加 → アイコンからLedgerが開く。/ ならランチャー。
-const APP_PATHS = {
-  brains: "/brains",
-  sukima: "/sukima",
-  timeless: "/timeless",
-  library: "/library",
-  ledger: "/ledger",
-  reader: "/reader",
-  home: "/",
-};
-
-// ホーム画面のアイコン名。iOSは「ホーム画面に追加」した瞬間のmanifestを読むので、
-// 開いているアプリに合わせてmanifestを差し替える。これをやらないと
-// manifestのstart_url(/)が優先され、どのアイコンからでもランチャーに落ちる。
-const APP_TITLES = {
-  brains: "Daily Brains",
-  sukima: "Sukima",
-  timeless: "Timeless",
-  library: "Library",
-  ledger: "Ledger",
-  reader: "Reader",
-  home: "Dayliy Brains",
-};
-
-function appFromPath(pathname) {
-  const hit = Object.keys(APP_PATHS).find((k) => APP_PATHS[k] === pathname);
-  return hit || "home";
-}
-
 function AppRouter() {
   // "home" | "brains" | "sukima" | "timeless" | "library" | "ledger"
-  // 初期値はURLから決める。ホーム画面のアイコンはstart_urlで開くため、
-  // これが無いとどのアイコンからでもランチャーに落ちる。
-  const [app, setApp] = useState(() => appFromPath(window.location.pathname));
-
-  // アプリを切り替えたらURLも合わせる。これでこの画面のまま
-  // 「ホーム画面に追加」すれば、次からそのアプリが直接開く。
-  useEffect(() => {
-    const path = APP_PATHS[app] || "/";
-    if (window.location.pathname !== path) {
-      window.history.replaceState({}, "", path + window.location.search);
-    }
-
-    const link = document.querySelector('link[rel="manifest"]');
-    if (link) {
-      link.href = app === "home" ? "/manifest.webmanifest" : `/manifest-${app}.webmanifest`;
-    }
-    const title = APP_TITLES[app] || APP_TITLES.home;
-    document.title = title;
-    let meta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-    if (!meta) {
-      meta = document.createElement("meta");
-      meta.setAttribute("name", "apple-mobile-web-app-title");
-      document.head.appendChild(meta);
-    }
-    meta.setAttribute("content", title);
-  }, [app]);
-
-  // Safariの戻る/進むで表示も戻す
-  useEffect(() => {
-    const onPop = () => setApp(appFromPath(window.location.pathname));
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
-  }, []);
+  const [app, setApp] = useState("home");
 
   if (app === "brains") {
     return <DailyBrainsRouter onHome={() => setApp("home")} />;
