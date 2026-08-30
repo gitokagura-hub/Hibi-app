@@ -427,19 +427,20 @@ export default function ReaderPage({ onHome }) {
               <X size={18} />
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6">
-            <div>
+          {/* 長い歌詞を貼ることがあるので、フレーズ欄は余っている高さを
+              全部使う。下に空白が余ったまま4行しか見えない状態を避ける。 */}
+          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-6 flex flex-col gap-6">
+            <div className="flex-1 min-h-0 flex flex-col">
               <label className="text-xs font-medium text-ink-sub">フレーズ</label>
               <textarea
                 value={editEn}
                 onChange={(e) => setEditEn(e.target.value)}
                 placeholder="フレーズ"
                 autoFocus
-                rows={4}
-                className="w-full text-base border-b border-app-line py-2 mt-1 outline-none focus:border-gray-400 resize-none"
+                className="w-full flex-1 min-h-[8rem] text-base border-b border-app-line py-2 mt-1 outline-none focus:border-gray-400 resize-none overflow-y-auto"
               />
             </div>
-            <div>
+            <div className="flex-none">
               <label className="text-xs font-medium text-ink-sub">訳(任意)</label>
               <textarea
                 value={editJa}
@@ -449,7 +450,7 @@ export default function ReaderPage({ onHome }) {
                 className="w-full text-base border-b border-app-line py-2 mt-1 outline-none focus:border-gray-400 resize-none"
               />
             </div>
-            <div>
+            <div className="flex-none">
               <label className="text-xs font-medium text-ink-sub">カテゴリー(任意)</label>
               <input
                 value={editCategory}
