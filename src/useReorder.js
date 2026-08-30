@@ -15,7 +15,29 @@ import { useCallback, useRef, useState } from "react";
  * 掴んだ時点で各行の高さと位置を実測しておき、指の移動量から「今どの位置に
  * 入るか」を求める。掴んだカードは translateY で指に追従させ、間にある
  * カードは1行ぶんずらして隙間を作る。指を離した時点の位置で確定する。
+ *
+ * 【端まで持っていったとき】
+ * iOSの標準アプリと同じく、掴んだまま画面の上端・下端に近づけると自動で
+ * スクロールする。端に近いほど速く流れる。これが無いと見えている範囲でしか
+ * 動かせず、リストが長いと一番上まで持っていけない。
+ * スクロールした分は指の移動量に足し込む(でないと画面が流れた分だけ
+ * 入る位置がずれる)。
  */
+
+// 自動スクロールの効き始める幅と、いちばん端での速さ(1フレームあたりのpx)
+const EDGE = 72;
+const MAX_SPEED = 14;
+
+// その要素が実際に乗っているスクロール領域を探す。見つからなければページ全体。
+function scrollParentOf(el) {
+  let n = el?.parentElement;
+  while (n) {
+    const oy = getComputedStyle(n).overflowY;
+    if ((oy === "auto" || oy === "scroll") && n.scrollHeight > n.clientHeight) return n;
+    n = n.parentElement;
+  }
+  return document.scrollingElement || document.documentElement;
+}
 export function useReorder(count, onReorder, ms = 400) {
   const [drag, setDrag] = useState(null); // { index, dy, to }
   // iOSは指が触れた瞬間にスクロールするか決めるため、掴んでから止めても間に合わない。
@@ -28,6 +50,10 @@ export function useReorder(count, onReorder, ms = 400) {
   const fired = useRef(false);
   const rows = useRef([]); // 掴んだ時点の各行の高さ
   const els = useRef({});  // index -> 要素
+  const scroller = useRef(null);   // 自動スクロールさせる領域
+  const startScroll = useRef(0);   // 掴んだ時点のスクロール位置
+  const lastY = useRef(0);         // 最後に触れていた指のY座標
+  const raf = useRef(null);        // 自動スクロールのループ
 
   const clear = useCallback(() => {
     if (timer.current) {
@@ -36,15 +62,23 @@ export function useReorder(count, onReorder, ms = 400) {
     }
   }, []);
 
+  const stopAutoScroll = useCallback(() => {
+    if (raf.current) {
+      cancelAnimationFrame(raf.current);
+      raf.current = null;
+    }
+  }, []);
+
   const cancel = useCallback(() => {
     clear();
+    stopAutoScroll();
     draggingRef.current = false;
     if (moveHandler.current) {
       moveHandler.current.el.removeEventListener("touchmove", moveHandler.current.onMove);
       moveHandler.current = null;
     }
     setDrag(null);
-  }, [clear]);
+  }, [clear, stopAutoScroll]);
 
   // 指の位置から、今どの位置に入るかを求める
   function computeTo(index, dy) {
@@ -68,6 +102,42 @@ export function useReorder(count, onReorder, ms = 400) {
     return to;
   }
 
+  // 指の移動量に、掴んでからスクロールした分を足す。
+  // これが無いと、画面が流れた分だけ入る位置がずれる。
+  function dyNow() {
+    const sc = scroller.current;
+    const scrolled = sc ? sc.scrollTop - startScroll.current : 0;
+    return lastY.current - startY.current + scrolled;
+  }
+
+  // 端に近いほど速く流す。指を止めていても流れ続ける。
+  function autoScrollStep() {
+    if (!draggingRef.current) return;
+    const sc = scroller.current;
+    if (sc) {
+      const isPage = sc === document.scrollingElement || sc === document.documentElement;
+      const r = isPage ? null : sc.getBoundingClientRect();
+      const top = isPage ? 0 : r.top;
+      const bottom = isPage ? window.innerHeight : r.bottom;
+      const y = lastY.current;
+
+      let v = 0;
+      if (y < top + EDGE) v = -MAX_SPEED * Math.min(1, (top + EDGE - y) / EDGE);
+      else if (y > bottom - EDGE) v = MAX_SPEED * Math.min(1, (y - (bottom - EDGE)) / EDGE);
+
+      if (v) {
+        const before = sc.scrollTop;
+        sc.scrollTop = before + v;
+        // 端まで来て動かなくなったら、位置の計算もやり直さない
+        if (sc.scrollTop !== before) {
+          const dy = dyNow();
+          setDrag((d) => (d ? { ...d, dy, to: computeTo(d.index, dy) } : d));
+        }
+      }
+    }
+    raf.current = requestAnimationFrame(autoScrollStep);
+  }
+
   const itemProps = useCallback(
     (index) => ({
       ref: (el) => { els.current[index] = el; },
@@ -84,13 +154,14 @@ export function useReorder(count, onReorder, ms = 400) {
         // iOSは既に始めたスクロールを止めてくれないため。
         const el = e.currentTarget;
         const onMove = (ev) => {
-          const dy = ev.touches[0].clientY - startY.current;
+          lastY.current = ev.touches[0].clientY;
           if (!draggingRef.current) {
             // まだ掴んでいない状態で指が動いたら、長押しとみなさない
-            if (Math.abs(dy) > 8) clear();
+            if (Math.abs(lastY.current - startY.current) > 8) clear();
             return;
           }
           ev.preventDefault(); // 掴んでいる間はページを動かさない
+          const dy = dyNow();
           setDrag((d) => (d ? { ...d, dy, to: computeTo(d.index, dy) } : d));
         };
         moveHandler.current = { el, onMove };
@@ -104,13 +175,20 @@ export function useReorder(count, onReorder, ms = 400) {
           rows.current = Array.from({ length: count }, (_, i) =>
             els.current[i]?.offsetHeight || 0
           );
+          // 自動スクロールさせる領域と、その時点の位置を控える
+          scroller.current = scrollParentOf(el);
+          startScroll.current = scroller.current ? scroller.current.scrollTop : 0;
+          lastY.current = startY.current;
           setDrag({ index, dy: 0, to: index });
           if (navigator.vibrate) navigator.vibrate(15);
+          stopAutoScroll();
+          raf.current = requestAnimationFrame(autoScrollStep);
         }, ms);
       },
       onTouchEnd: (e) => {
         e.stopPropagation();
         clear();
+        stopAutoScroll();
         draggingRef.current = false;
         if (moveHandler.current) {
           moveHandler.current.el.removeEventListener("touchmove", moveHandler.current.onMove);
@@ -132,7 +210,7 @@ export function useReorder(count, onReorder, ms = 400) {
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cancel, clear, count, drag, ms, onReorder]
+    [cancel, clear, count, drag, ms, onReorder, stopAutoScroll]
   );
 
   // 掴んだカードは指に追従、間のカードは1行ぶんずれて隙間を作る
