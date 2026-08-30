@@ -344,7 +344,9 @@ export function DataProvider({ children }) {
   // 未入力なら空文字のままで、一覧側が本文の1行目を代わりに表示する。
   function addNote(text, source, images, files, heading, tags, priority) {
     const note = { id: uid(), heading: heading || '', text, source: source || 'text', images: images || [], files: files || [], tags: tags || [], priority: priority || 0, createdAt: Date.now() };
-    setData(prev => ({ ...prev, notes: [...prev.notes, note] }));
+    // 新しいノートは先頭に入れる。一覧は保存されている順をそのまま出すので、
+    // 末尾に足すと一番下に埋もれてしまう。
+    setData(prev => ({ ...prev, notes: [note, ...prev.notes] }));
     return note;
   }
   // 長押しで優先度だけを変更する用(見出しなどには触れない)
