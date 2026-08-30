@@ -57,6 +57,9 @@ export default function ReaderPage({ onHome }) {
   const [categoryFilter, setCategoryFilter] = useState("すべて");
   const [editingId, setEditingId] = useState(null);
   const [editEn, setEditEn] = useState("");
+  // フレーズ欄は中身の高さに合わせて伸ばす。欄の中でスクロールさせず、
+  // 全文をそのまま出して、訳やカテゴリーは画面ごとスクロールして見る形にする。
+  const editEnRef = useRef(null);
   const [editJa, setEditJa] = useState("");
   const [editCategory, setEditCategory] = useState("");
   const [deletingId, setDeletingId] = useState(null);
@@ -142,6 +145,14 @@ export default function ReaderPage({ onHome }) {
     setEditJa(item.ja);
     setEditCategory(item.category || "");
   }
+
+  // 開いた直後と入力のたびに、中身の高さぶんだけ欄を伸ばす
+  useEffect(() => {
+    const el = editEnRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [editEn, editingId]);
 
   function cancelEdit() {
     setEditingId(null);
@@ -430,14 +441,16 @@ export default function ReaderPage({ onHome }) {
           {/* 長い歌詞を貼ることがあるので、フレーズ欄は余っている高さを
               全部使う。下に空白が余ったまま4行しか見えない状態を避ける。 */}
           <div className="flex-1 min-h-0 overflow-y-auto px-5 py-6 flex flex-col gap-6">
-            <div className="flex-1 min-h-0 flex flex-col">
+            <div className="flex-none">
               <label className="text-xs font-medium text-ink-sub">フレーズ</label>
               <textarea
+                ref={editEnRef}
                 value={editEn}
                 onChange={(e) => setEditEn(e.target.value)}
                 placeholder="フレーズ"
                 autoFocus
-                className="w-full flex-1 min-h-[8rem] text-base border-b border-app-line py-2 mt-1 outline-none focus:border-gray-400 resize-none overflow-y-auto"
+                rows={1}
+                className="w-full min-h-[8rem] text-base border-b border-app-line py-2 mt-1 outline-none focus:border-gray-400 resize-none overflow-hidden"
               />
             </div>
             <div className="flex-none">
