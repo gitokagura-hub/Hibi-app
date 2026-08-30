@@ -473,21 +473,23 @@ export default function ReaderPage({ onHome }) {
                 className="w-full text-base border-b border-app-line py-2 mt-1 outline-none focus:border-gray-400"
               />
             </div>
-          </div>
-          <div className="px-5 pb-8 pt-3 border-t border-app-line flex gap-3">
-            <button
-              onClick={cancelEdit}
-              className="flex-1 h-12 rounded-full border border-app-line text-sm font-medium text-ink-sub"
-            >
-              キャンセル
-            </button>
-            <button
-              onClick={saveEdit}
-              disabled={!editEn.trim()}
-              className="flex-1 h-12 rounded-full bg-gray-900 text-white text-sm font-medium disabled:opacity-30"
-            >
-              更新
-            </button>
+            {/* ボタンは画面下に貼り付けず、中身の末尾に置く。
+                貼り付けているとフレーズの表示できる高さが削られるため。 */}
+            <div className="flex-none flex gap-3 pt-2 pb-8">
+              <button
+                onClick={cancelEdit}
+                className="flex-1 h-12 rounded-full border border-app-line text-sm font-medium text-ink-sub"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={saveEdit}
+                disabled={!editEn.trim()}
+                className="flex-1 h-12 rounded-full bg-gray-900 text-white text-sm font-medium disabled:opacity-30"
+              >
+                更新
+              </button>
+            </div>
           </div>
         </div>
       )}
