@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { reconcileOnStartup, saveCloud } from "./cloudSync";
+import { scheduleAutoBackup } from "./driveAutoBackup";
+import { backupNamedDataToDrive } from "./googleDrive";
 
 /**
  * Ledger（酒類台帳）のデータ管理。
@@ -89,7 +91,19 @@ export function LedgerProvider({ children }) {
     // 初期値(空)をクラウドへ送って他端末のデータを消しかねないため待つ。
     if (!hydrated.current) return;
     saveCloud("ledger", data).catch(() => {});
+    // 他のアプリと同じくDriveにも出す。D1だけだと復元先が一つしか無い。
+    scheduleAutoBackup("ledger", data, (d) =>
+      backupNamedDataToDrive("ledger-backup.json", "hibi-drive-ledger-file-id", d)
+    );
   }, [data]);
+
+  // バックアップから丸ごと戻す。足りない項目は初期値で埋める。
+  function replaceAllData(restored) {
+    setData({
+      products: [], purchases: [], sales: [], stockCounts: {},
+      ...(restored || {}),
+    });
+  }
 
   // ---- 商品マスタ ----
   function addProduct(p) {
@@ -149,6 +163,7 @@ export function LedgerProvider({ children }) {
     addPurchase, deletePurchase,
     addSale, deleteSale,
     setStockCount,
+    replaceAllData,
   };
 
   return <LedgerContext.Provider value={value}>{children}</LedgerContext.Provider>;

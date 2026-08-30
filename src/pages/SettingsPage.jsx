@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Layout } from "../components";
 import { useData } from "../dataStore";
-import { isDriveConfigured, isDriveConnected, wasDriveConnectedBefore, connectDrive, disconnectDrive, ensureDriveConnection, backupDataToDrive } from "../googleDrive";
+import { isDriveConfigured, isDriveConnected, wasDriveConnectedBefore, connectDrive, disconnectDrive, ensureDriveConnection, backupDataToDrive, restoreDataFromDrive, restoreNamedDataFromDrive } from "../googleDrive";
+import { saveCloud } from "../cloudSync";
 import { isTeamConfigured, isTeamConnected, connectTeam, disconnectTeam, getAuthorName, setAuthorName } from "../googleSheets";
 import { useConfirm } from "../components/ConfirmModal";
 import { isPushSupported, wasPushSubscribedBefore, notificationPermission, subscribeToPush, unsubscribeFromPush, resetServiceWorker } from "../pushNotifications";
@@ -24,6 +25,67 @@ export default function SettingsPage({ setTab }) {
   const [recoverBusy, setRecoverBusy] = useState(false);
   const [migrateMessage, setMigrateMessage] = useState("");
   const driveReady = isDriveConfigured();
+
+  // 復元はアプリごとに分ける。壊れたものだけを戻せるようにするため。
+  // 写真・ファイルはJSONの中ではなくDrive上に実体があり、JSONはそのIDだけを
+  // 持っているので、JSONを戻せば写真も一緒に戻る。
+  const [restoreBusy, setRestoreBusy] = useState("");
+  const [restoreMessage, setRestoreMessage] = useState("");
+
+  // 設定画面は Daily Brains の中にあり、他のアプリのProviderの外側にいる。
+  // そのため各アプリの関数は呼べない。端末内の保存先とクラウドに直接書いてから
+  // 読み込み直す形にする(起動時にそこから読むので、確実に反映される)。
+  const RESTORE_TARGETS = [
+    { key: "brains", label: "Daily Brains", cloud: "brains", storageKey: "dayliybrains-data",
+      count: (d) => `ノート${(d.notes || []).length}件・タスク${(d.tasks || []).length}件` },
+    { key: "kikinagashi", label: "英語", cloud: "kikinagashi", storageKey: "kikinagashi-items",
+      file: "kikinagashi-backup.json", idKey: "hibi-drive-kikinagashi-file-id",
+      count: (d) => `フレーズ${(d.items || []).length}件` },
+    { key: "sukima", label: "Sukima", cloud: "sukima", storageKey: "sukima-data-v1",
+      file: "sukima-backup.json", idKey: "hibi-drive-sukima-file-id",
+      count: (d) => `${(d.entries || []).length}件` },
+    { key: "timeless", label: "Timeless", cloud: "timeless", storageKey: "timeless-data-v1",
+      file: "timeless-backup.json", idKey: "hibi-drive-timeless-file-id",
+      count: (d) => `${(d.articles || []).length}件` },
+    { key: "ledger", label: "台帳", cloud: "ledger", storageKey: "ledger-data-v1",
+      file: "ledger-backup.json", idKey: "hibi-drive-ledger-file-id",
+      count: (d) => `商品${(d.products || []).length}件` },
+  ];
+
+  async function handleRestore(t) {
+    setRestoreMessage("");
+    if (!driveConnected) {
+      setRestoreMessage("先にGoogle Driveと連携してください");
+      return;
+    }
+    setRestoreBusy(t.key);
+    try {
+      // まず取ってきて、いつの・どれだけのデータかを見せてから確認する。
+      const { data: restored, modifiedTime } = t.file
+        ? await restoreNamedDataFromDrive(t.file, t.idKey)
+        : await restoreDataFromDrive();
+      const when = new Date(modifiedTime).toLocaleString("ja-JP");
+      const ok = await confirm(
+        `${t.label}を${when}のバックアップ（${t.count(restored)}）に戻します。\n今のデータは置き換わり、取り消せません。`,
+        { confirmLabel: "復元する", danger: true }
+      );
+      if (!ok) return;
+      // 端末内とクラウドの両方を書き換えてから読み込み直す。片方だけだと、
+      // 起動時の照合でもう片方に上書きし返されてしまう。
+      localStorage.setItem(t.storageKey, JSON.stringify(restored));
+      await saveCloud(t.cloud, restored).catch(() => {});
+      setRestoreMessage(`${t.label}を${when}の状態に戻しました。読み込み直します。`);
+      setTimeout(() => window.location.reload(), 800);
+    } catch (err) {
+      setRestoreMessage(
+        err?.message === "NO_BACKUP"
+          ? `${t.label}のバックアップが見つかりませんでした。`
+          : `${t.label}の復元に失敗しました。データは変更していません。`
+      );
+    } finally {
+      setRestoreBusy("");
+    }
+  }
 
   const [pushSubscribed, setPushSubscribed] = useState(wasPushSubscribedBefore() && notificationPermission() === "granted");
   const [pushBusy, setPushBusy] = useState(false);
@@ -336,6 +398,33 @@ export default function SettingsPage({ setTab }) {
                 </button>
               </div>
               {backupMessage && <p className="text-xs text-ink-sub mt-1">{backupMessage}</p>}
+
+              {/* 復元はアプリごとに分ける。壊れたものだけを戻せるようにするため。
+                  写真やファイルはDrive上に実体があり、JSONはそのIDだけを持って
+                  いるので、JSONを戻せば写真も一緒に戻る。 */}
+              <div className="mt-4 pt-4 border-t border-app-line">
+                <p className="text-sm text-ink-sub mb-3">
+                  Driveのバックアップから戻します。押すとバックアップの日時と件数が出るので、
+                  確かめてから決められます。アプリごとに分かれているので、
+                  おかしくなったものだけを戻せます。
+                </p>
+                <div className="space-y-2">
+                  {RESTORE_TARGETS.map((t) => (
+                    <button
+                      key={t.key}
+                      onClick={() => handleRestore(t)}
+                      disabled={!driveConnected || restoreBusy !== ""}
+                      className="w-full rounded-xl border border-app-line px-4 py-2.5 text-sm font-semibold bg-app-surface disabled:opacity-40 flex justify-between items-center"
+                    >
+                      <span>{t.label}</span>
+                      <span className="text-xs font-normal text-ink-sub">
+                        {restoreBusy === t.key ? "…" : "復元"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                {restoreMessage && <p className="text-xs text-ink-sub mt-2">{restoreMessage}</p>}
+              </div>
 
               <div className="mt-4 pt-4 border-t border-app-line">
                 <p className="text-sm text-ink-sub mb-3">

@@ -112,8 +112,14 @@ export function KikinagashiProvider({ children }) {
     setData((d) => ({ ...d, items: d.items.filter((it) => it.id !== id) }));
   }
 
+  // バックアップから丸ごと戻す。足りない項目は初期値で埋める。
+  function replaceAllData(restored) {
+    setData({ items: [], categories: [], ...(restored || {}) });
+  }
+
   const value = {
     items: data.items,
+    replaceAllData,
     addItems,
     addItem,
     updateItem,

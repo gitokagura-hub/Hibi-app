@@ -146,8 +146,14 @@ export function SukimaProvider({ children }) {
     return data.entries.find((e) => e.id === id);
   }
 
+  // バックアップから丸ごと戻す。足りない項目は初期値で埋める。
+  function replaceAllData(restored) {
+    setData((prev) => ({ ...prev, ...(restored || {}) }));
+  }
+
   const value = {
     entries: data.entries,
+    replaceAllData,
     addEntry,
     updateEntry,
     updateField,

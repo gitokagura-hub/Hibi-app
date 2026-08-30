@@ -151,8 +151,14 @@ export function TimelessProvider({ children }) {
     return data.articles.find((a) => a.id === id);
   }
 
+  // バックアップから丸ごと戻す。足りない項目は初期値で埋める。
+  function replaceAllData(restored) {
+    setData((prev) => ({ ...prev, ...(restored || {}) }));
+  }
+
   const value = {
     articles: data.articles,
+    replaceAllData,
     addArticle,
     updateArticle,
     deleteArticle,
