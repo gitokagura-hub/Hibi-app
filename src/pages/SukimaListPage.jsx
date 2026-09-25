@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { ChevronLeft, Search, Plus, X } from "lucide-react";
 import { useSukima } from "../sukimaStore";
 import { useSwipeBack } from "../useSwipeBack";
+import { MakerList } from "./MakerPages";
 
 const STATUS_LABEL = { draft: "下書き", investigating: "調査中", done: "完了" };
 const STATUS_STYLE = {
@@ -92,7 +93,22 @@ function AddSheet({ type, onClose, onCreate }) {
 export default function SukimaListPage({ onHome, onOpenEntry }) {
   useSwipeBack(onHome);
   const { entries, addEntry } = useSukima();
-  const [type, setType] = useState("person"); // "person" | "company"
+  // "maker" | "company" | "person"。詳細から戻っても同じタブに戻れるよう、開いている間だけ覚えておく
+  const [type, setTypeState] = useState(() => {
+    try {
+      return sessionStorage.getItem("sukima-tab") || "maker";
+    } catch {
+      return "maker";
+    }
+  });
+  function setType(t) {
+    setTypeState(t);
+    try {
+      sessionStorage.setItem("sukima-tab", t);
+    } catch {
+      // noop
+    }
+  }
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAdd, setShowAdd] = useState(false);
@@ -129,15 +145,15 @@ export default function SukimaListPage({ onHome, onOpenEntry }) {
       </button>
 
       <header className="px-5 pt-14 pb-3">
-        <h1 className="text-3xl font-semibold tracking-tight">Sukima</h1>
-        <p className="mt-1 text-sm text-ink-sub">人物・企業を研究し、隙間を見つける</p>
+        <h1 className="text-3xl font-semibold tracking-tight">WA NO KATA</h1>
       </header>
 
-      {/* 人物 / 企業 タブ */}
+      {/* 作り手 / 企業 / 人物 タブ */}
       <div className="px-5 flex gap-2 mb-3">
         {[
-          { id: "person", label: "人物" },
+          { id: "maker", label: "作り手" },
           { id: "company", label: "企業" },
+          { id: "person", label: "人物" },
         ].map((t) => (
           <button
             key={t.id}
@@ -151,6 +167,10 @@ export default function SukimaListPage({ onHome, onOpenEntry }) {
         ))}
       </div>
 
+      {type === "maker" ? (
+        <MakerList onOpenEntry={onOpenEntry} />
+      ) : (
+      <>
       {/* 検索 */}
       <div className="px-5 mb-3">
         <div className="flex items-center gap-2 bg-app-raised rounded-xl px-3 py-2.5">
@@ -214,6 +234,8 @@ export default function SukimaListPage({ onHome, onOpenEntry }) {
 
       {showAdd && (
         <AddSheet type={type} onClose={() => setShowAdd(false)} onCreate={handleCreate} />
+      )}
+      </>
       )}
     </div>
   );

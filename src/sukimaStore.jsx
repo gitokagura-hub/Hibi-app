@@ -43,7 +43,36 @@ function uid() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
+function todayKey() {
+  const t = new Date();
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+}
+
+// 作り手(maker)は人物・企業とは別系統。項目は空で作り、答えた問だけキーが入る。
+// キーが無い = 未回答。これで「まだ聞いていない」と「空欄と答えた」を区別する。
+function emptyMaker(name) {
+  return {
+    id: uid(),
+    type: "maker",
+    name: name || "",
+    stage: 1, // 1 MEET / 2 SEARCH / 3 CONTACT / 4 VISIT / 5 DEAL
+    stop: null, // { reason, at } 止まった印
+    metDate: todayKey(),
+    fields: {},
+    products: [],
+    tags: [],
+    status: "draft",
+    role: "",
+    relatedText: "",
+    driveFolderId: "",
+    driveFiles: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+}
+
 function emptyEntry({ type, name }) {
+  if (type === "maker") return emptyMaker(name);
   const fields = {};
   CARD_DEFS.forEach((c) => {
     fields[c.key] = c.type === "tags" ? [] : c.type === "checklist" ? [] : "";
@@ -138,6 +167,19 @@ export function SukimaProvider({ children }) {
     }));
   }
 
+  // 項目を「未回答」に戻す(キーごと消す)。作り手のカードで使う。
+  function clearField(id, fieldKey) {
+    setData((d) => ({
+      ...d,
+      entries: d.entries.map((e) => {
+        if (e.id !== id) return e;
+        const fields = { ...e.fields };
+        delete fields[fieldKey];
+        return { ...e, fields, updatedAt: Date.now() };
+      }),
+    }));
+  }
+
   function deleteEntry(id) {
     setData((d) => ({ ...d, entries: d.entries.filter((e) => e.id !== id) }));
   }
@@ -157,6 +199,7 @@ export function SukimaProvider({ children }) {
     addEntry,
     updateEntry,
     updateField,
+    clearField,
     deleteEntry,
     getEntry,
   };

@@ -4,6 +4,7 @@ import { useSukima, GROUPS, CARD_DEFS } from "../sukimaStore";
 import { handleEnterToConfirm } from "../useEnterConfirm";
 import { useSwipeBack } from "../useSwipeBack";
 import DriveGallery from "../components/DriveGallery";
+import { MakerDetail } from "./MakerPages";
 
 const STATUS_OPTIONS = [
   { id: "draft", label: "下書き" },
@@ -146,7 +147,17 @@ function CardRow({ def, value, onChange }) {
   );
 }
 
+// 作り手(maker)は画面も項目も別系統。ここで振り分ける(App.jsx は触らない)。
 export default function SukimaDetailPage({ entryId, onBack }) {
+  const { getEntry } = useSukima();
+  const entry = getEntry(entryId);
+  if (entry && entry.type === "maker") {
+    return <MakerDetail entryId={entryId} onBack={onBack} />;
+  }
+  return <ResearchDetailPage entryId={entryId} onBack={onBack} />;
+}
+
+function ResearchDetailPage({ entryId, onBack }) {
   useSwipeBack(onBack);
   const { getEntry, updateEntry, updateField, deleteEntry } = useSukima();
   const entry = getEntry(entryId);

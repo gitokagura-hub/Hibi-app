@@ -19,6 +19,14 @@ const apps = [
     accent: "black",
   },
   {
+    id: "sukima",
+    title: "WA NO KATA",
+    icon: Search,
+    description: "作り手・企業・人物",
+    status: "ACTIVE",
+    accent: "green",
+  },
+  {
     id: "reader",
     title: "English Manager",
     icon: Headphones,
@@ -49,14 +57,6 @@ const apps = [
     description: "酒類台帳・仕入/販売の記帳",
     status: "ACTIVE",
     accent: "navy",
-  },
-  {
-    id: "sukima",
-    title: "Sukima",
-    icon: Search,
-    description: "人物・企業研究、事業の「隙間」発掘",
-    status: "ACTIVE",
-    accent: "green",
   },
 ];
 
