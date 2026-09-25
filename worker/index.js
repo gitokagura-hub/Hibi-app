@@ -14,7 +14,7 @@
 import { sendWebPush } from './webpush.js';
 
 // ledger: 酒類台帳。他と同じapp_dataテーブルにキー"ledger"で保存する。
-const ALLOWED_APPS = new Set(["brains", "sukima", "timeless", "ledger"]);
+const ALLOWED_APPS = new Set(["brains", "sukima", "timeless", "ledger", "kikinagashi"]);
 
 function corsHeaders() {
   return {
