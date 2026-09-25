@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef } from "react";
-import { reconcileOnStartup, saveCloud } from "./cloudSync";
+import { fetchCloud, saveCloud } from "./cloudSync";
 import { scheduleAutoBackup } from "./driveAutoBackup";
 import { backupNamedDataToDrive } from "./googleDrive";
 
@@ -111,6 +111,53 @@ function saveData(data) {
   }
 }
 
+/* 起動時の照合。
+   共通の reconcileOnStartup は「クラウドに中身があればクラウドを丸ごと採る」ため、
+   圏外で追加した分が次の起動で古いクラウドに負けて消える。ここでは id ごとに
+   updatedAt の新しい方を残し、片方にしか無いものは両方残す。
+   ※ 圏外で削除した場合だけ、クラウド側の古い一件が戻ることがある。
+     新しく入れた分が消えるより軽いので、この形にしている。
+   共通ファイル(cloudSync.js)は他アプリも使うので触らない。 */
+function entriesOf(d) {
+  return Array.isArray(d?.entries) ? d.entries : [];
+}
+
+export function mergeEntries(baseEntries, incomingEntries) {
+  const map = new Map();
+  baseEntries.forEach((e) => { if (e && e.id) map.set(e.id, e); });
+  incomingEntries.forEach((e) => {
+    if (!e || !e.id) return;
+    const cur = map.get(e.id);
+    if (!cur || (e.updatedAt || 0) > (cur.updatedAt || 0)) map.set(e.id, e);
+  });
+  return [...map.values()];
+}
+
+async function reconcileSukima(localData) {
+  try {
+    const cloud = await fetchCloud("sukima");
+    const cloudData = cloud.found ? cloud.data : null;
+    const cloudEntries = entriesOf(cloudData);
+    const localEntries = entriesOf(localData);
+
+    if (cloudEntries.length === 0) {
+      // クラウドが空。端末に中身があるなら、空で潰さずに送って守る
+      if (localEntries.length > 0) await saveCloud("sukima", localData);
+      return localData;
+    }
+    if (localEntries.length === 0) return cloudData;
+
+    const merged = { ...cloudData, ...localData, entries: mergeEntries(cloudEntries, localEntries) };
+    if (JSON.stringify(merged.entries) !== JSON.stringify(cloudEntries)) {
+      await saveCloud("sukima", merged).catch(() => {});
+    }
+    return merged;
+  } catch {
+    // オフライン等。端末のデータのまま続ける
+    return localData;
+  }
+}
+
 const SukimaContext = createContext(null);
 
 export function SukimaProvider({ children }) {
@@ -122,7 +169,7 @@ export function SukimaProvider({ children }) {
 
   useEffect(() => {
     let cancelled = false;
-    reconcileOnStartup("sukima", data, (d) => !d || !Array.isArray(d.entries) || d.entries.length === 0).then((result) => {
+    reconcileSukima(data).then((result) => {
       if (!cancelled) {
         hydrated.current = true;
         if (JSON.stringify(result) !== JSON.stringify(data)) {
@@ -188,6 +235,28 @@ export function SukimaProvider({ children }) {
     return data.entries.find((e) => e.id === id);
   }
 
+  // ファイルから読み込んだ分を足す。今あるものは消さず、新しい方を残す。
+  // 戻り値は [増えた件数, 上書きした件数]。
+  function importEntries(incoming) {
+    const list = Array.isArray(incoming) ? incoming : entriesOf(incoming);
+    let added = 0;
+    let updated = 0;
+    setData((d) => {
+      const cur = entriesOf(d);
+      const ids = new Set(cur.map((e) => e.id));
+      list.forEach((e) => {
+        if (!e || !e.id) return;
+        if (!ids.has(e.id)) added += 1;
+        else {
+          const c = cur.find((x) => x.id === e.id);
+          if ((e.updatedAt || 0) > (c.updatedAt || 0)) updated += 1;
+        }
+      });
+      return { ...d, entries: mergeEntries(cur, list) };
+    });
+    return [added, updated];
+  }
+
   // バックアップから丸ごと戻す。足りない項目は初期値で埋める。
   function replaceAllData(restored) {
     setData((prev) => ({ ...prev, ...(restored || {}) }));
@@ -200,6 +269,7 @@ export function SukimaProvider({ children }) {
     updateEntry,
     updateField,
     clearField,
+    importEntries,
     deleteEntry,
     getEntry,
   };

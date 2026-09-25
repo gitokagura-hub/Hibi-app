@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Search, MinusCircle, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, MinusCircle, Trash2, X, Save } from "lucide-react";
 import { useSukima } from "../sukimaStore";
 import { useData } from "../dataStore";
 import { useSwipeBack } from "../useSwipeBack";
@@ -445,6 +445,9 @@ export function MakerList({ onOpenEntry }) {
         <button onClick={() => setOverlay("find")} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-app-raised text-sm text-ink-sub">
           <Search size={15} /> 商品を探す
         </button>
+        <button onClick={() => setOverlay("file")} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-app-raised text-sm text-ink-sub">
+          <Save size={15} /> 保存・復元
+        </button>
       </div>
 
       <div className="px-5 flex gap-1.5 mb-2">
@@ -534,7 +537,112 @@ export function MakerList({ onOpenEntry }) {
       </div>
 
       {overlay === "find" && <ProductFinder makers={makers} onClose={() => setOverlay(null)} onOpen={(id, pid) => { pendingOpen = { id, screen: "product", pid }; onOpenEntry(id); }} />}
+      {overlay === "file" && <FileSheet makers={makers} onClose={() => setOverlay(null)} />}
     </>
+  );
+}
+
+/* ---------- ファイルへ保存 / ファイルから復元 ----------
+   圏外で入れた分を端末の「ファイル」へ出しておくための口。
+   読み込みは今あるものを消さずに足す(同じidは新しい方を残す)。 */
+function FileSheet({ makers, onClose }) {
+  const { importEntries } = useSukima();
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+
+  function fileName() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, "0");
+    return `wa-no-kata-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.json`;
+  }
+
+  async function save() {
+    setErr("");
+    setMsg("");
+    const name = fileName();
+    const text = JSON.stringify({ app: "wa-no-kata", version: 1, savedAt: new Date().toISOString(), entries: makers }, null, 1);
+    try {
+      const file = new File([text], name, { type: "application/json" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: name });
+        setMsg(`${makers.length}件を書き出しました`);
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === "AbortError") return; // 共有シートを閉じただけ
+    }
+    try {
+      const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      setMsg(`${makers.length}件を書き出しました`);
+    } catch {
+      setErr("書き出せませんでした");
+    }
+  }
+
+  function load(e) {
+    setErr("");
+    setMsg("");
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      let parsed;
+      try {
+        parsed = JSON.parse(String(r.result));
+      } catch {
+        setErr("読めるファイルではありません");
+        return;
+      }
+      const list = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.entries) ? parsed.entries : null;
+      if (!list) {
+        setErr("作り手のファイルではありません");
+        return;
+      }
+      const makersOnly = list.filter((x) => x && x.id && x.type === "maker");
+      if (makersOnly.length === 0) {
+        setErr("作り手が入っていません");
+        return;
+      }
+      const [added, updated] = importEntries(makersOnly);
+      setMsg(`${added}件を追加、${updated}件を新しい方に差し替えました`);
+    };
+    r.onerror = () => setErr("読み込みに失敗しました");
+    r.readAsText(f);
+  }
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/30" onClick={onClose}>
+      <div className="bg-app-surface w-full max-w-md rounded-t-3xl p-5 pb-8" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-bold text-ink">保存・復元</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-app-raised flex items-center justify-center" aria-label="閉じる">
+            <X size={16} className="text-ink-sub" />
+          </button>
+        </div>
+
+        <button onClick={save} className="w-full bg-emerald-600 text-white font-semibold rounded-xl py-3 text-[15px] mb-2">
+          ファイルに書き出す
+        </button>
+        <p className="text-xs text-ink-sub mb-5">作り手 {makers.length}件。共有シートから「ファイルに保存」を選びます</p>
+
+        <label className="block w-full text-center border border-app-line bg-app-bg rounded-xl py-3 text-[15px] mb-2">
+          ファイルから読み込む
+          <input type="file" accept=".json,application/json" onChange={load} className="hidden" />
+        </label>
+        <p className="text-xs text-ink-sub">今あるものは消えません。同じ相手は新しい方が残ります</p>
+
+        {msg && <p className="text-sm text-emerald-700 mt-4">{msg}</p>}
+        {err && <p className="text-sm text-red-500 mt-4">{err}</p>}
+      </div>
+    </div>
   );
 }
 
