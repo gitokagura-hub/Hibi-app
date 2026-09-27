@@ -1,8 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Search, Trash2, Copy, Check, Volume2, Sparkles, ClipboardPaste, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, Trash2, Copy, Check, Volume2, ClipboardPaste, X } from "lucide-react";
 import { useKikinagashi } from "../kikinagashiStore";
-import { useData } from "../dataStore";
-import { lookupWord } from "../aiAssist";
 
 /* =========================================================================
    単語帳。英会話(聞き流し)の中の、フレーズとは別のリスト。
@@ -46,7 +44,6 @@ function parsePaste(text) {
 
 export default function WordsPage() {
   const { words, addWord, addWords, updateWord, deleteWord } = useKikinagashi();
-  const { data } = useData();
 
   const [query, setQuery] = useState("");
   const [tagFilter, setTagFilter] = useState(null);
@@ -121,7 +118,6 @@ export default function WordsPage() {
       <WordDetail
         word={w}
         allTags={allTags}
-        aiSettings={data.settings}
         onBack={() => setOpenId(null)}
         onChange={(patch) => updateWord(w.id, patch)}
         onDelete={() => {
@@ -265,11 +261,22 @@ export default function WordsPage() {
 }
 
 /* ---------- 全画面 ---------- */
-function WordDetail({ word, allTags, aiSettings, onBack, onChange, onDelete }) {
+function WordDetail({ word, allTags, onBack, onChange, onDelete }) {
   const [copied, setCopied] = useState(false);
   const [tagInput, setTagInput] = useState("");
-  const [ai, setAi] = useState(null); // null | "running" | エラー文
+  const [tagOpen, setTagOpen] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
+  const enRef = useRef(null);
+  const jaRef = useRef(null);
+
+  // 欄の中でスクロールさせず、中身の高さに合わせて伸ばす(全文をそのまま出す)
+  useEffect(() => {
+    [enRef.current, jaRef.current].forEach((el) => {
+      if (!el) return;
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    });
+  }, [word.en, word.ja]);
 
   async function copy() {
     try {
@@ -288,28 +295,11 @@ function WordDetail({ word, allTags, aiSettings, onBack, onChange, onDelete }) {
     setTagInput("");
   }
 
-  async function runAI() {
-    const provider = aiSettings?.claudeKey ? "claude" : aiSettings?.geminiKey ? "gemini" : null;
-    const apiKey = provider === "claude" ? aiSettings.claudeKey : provider === "gemini" ? aiSettings.geminiKey : "";
-    if (!provider) {
-      setAi("Add an API key in Settings");
-      return;
-    }
-    setAi("running");
-    try {
-      const text = await lookupWord({ provider, apiKey, word: word.en });
-      onChange({ ja: word.ja ? `${word.ja}\n\n${text.trim()}` : text.trim() });
-      setAi(null);
-    } catch (e) {
-      setAi(e?.message === "NO_API_KEY" ? "Add an API key in Settings" : "Couldn't look it up");
-    }
-  }
-
   const suggest = allTags.filter((t) => !(word.tags || []).includes(t)).slice(0, 8);
 
   return (
     <div className="fixed inset-0 z-[60] bg-app-bg overflow-y-auto">
-      <header className="px-5 pt-14 pb-3 flex items-center gap-2 sticky top-0 bg-app-bg z-10">
+      <header className="px-5 pt-14 pb-2 flex items-center gap-2 sticky top-0 bg-app-bg z-10">
         <button onClick={onBack} className="w-9 h-9 rounded-full bg-app-raised flex items-center justify-center" aria-label="Back">
           <ChevronLeft size={18} className="text-ink-sub" />
         </button>
@@ -324,66 +314,66 @@ function WordDetail({ word, allTags, aiSettings, onBack, onChange, onDelete }) {
 
       <main className="px-5 pb-24">
         <textarea
+          ref={enRef}
           value={word.en}
           onChange={(e) => onChange({ en: e.target.value })}
           rows={1}
           placeholder="Word"
-          className="w-full text-3xl font-bold text-ink bg-transparent focus:outline-none resize-none leading-tight mb-5"
-          style={{ minHeight: "2.6rem" }}
+          className="w-full text-3xl font-bold text-ink bg-transparent focus:outline-none resize-none overflow-hidden leading-tight"
         />
+
+        <div className="flex flex-wrap items-center gap-1.5 mt-2 mb-6">
+          {(word.tags || []).map((t) => (
+            <span key={t} className="text-[11px] bg-app-raised text-ink-sub px-2.5 py-1 rounded-full flex items-center gap-1">
+              {t}
+              <button onClick={() => onChange({ tags: word.tags.filter((x) => x !== t) })} className="text-ink-sub/70" aria-label={`Remove ${t}`}>
+                ×
+              </button>
+            </span>
+          ))}
+          <button
+            onClick={() => setTagOpen((o) => !o)}
+            className="text-[11px] text-ink-sub border border-dashed border-app-line px-2.5 py-1 rounded-full"
+          >
+            + tag
+          </button>
+        </div>
+
+        {tagOpen && (
+          <div className="mb-6 -mt-4">
+            <div className="flex gap-2">
+              <input
+                autoFocus
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) addTag(tagInput); }}
+                placeholder="New tag"
+                className="flex-1 border border-app-line rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-gray-400"
+              />
+              <button onClick={() => addTag(tagInput)} disabled={!tagInput.trim()} className="px-3 rounded-xl border border-app-line text-sm font-semibold disabled:opacity-40">
+                Add
+              </button>
+            </div>
+            {suggest.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {suggest.map((t) => (
+                  <button key={t} onClick={() => addTag(t)} className="text-[11px] px-2.5 py-1 rounded-full border border-app-line text-ink-sub">
+                    {t}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <textarea
+          ref={jaRef}
           value={word.ja || ""}
           onChange={(e) => onChange({ ja: e.target.value })}
-          rows={8}
+          rows={1}
           placeholder="Meaning"
-          className="w-full bg-app-surface border border-app-line rounded-2xl p-4 text-[15px] leading-relaxed focus:outline-none focus:border-gray-400 resize-none"
+          className="w-full min-h-[40vh] bg-transparent text-[17px] leading-relaxed focus:outline-none resize-none overflow-hidden"
         />
-
-        <button
-          onClick={runAI}
-          disabled={ai === "running" || !word.en.trim()}
-          className="mt-3 w-full h-12 rounded-xl border border-app-line bg-app-bg text-[15px] font-semibold flex items-center justify-center gap-2 disabled:opacity-40"
-        >
-          <Sparkles size={16} className="text-ink-sub" />
-          {ai === "running" ? "Looking up..." : "Look up with AI"}
-        </button>
-        {ai && ai !== "running" && <p className="text-sm text-red-500 mt-2">{ai}</p>}
-
-        <div className="mt-8">
-          <div className="text-xs text-ink-sub mb-2">Tags</div>
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            {(word.tags || []).map((t) => (
-              <span key={t} className="text-xs bg-app-raised text-ink px-3 py-1.5 rounded-full flex items-center gap-1.5">
-                {t}
-                <button onClick={() => onChange({ tags: word.tags.filter((x) => x !== t) })} className="text-ink-sub" aria-label={`Remove ${t}`}>
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <input
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) addTag(tagInput); }}
-              placeholder="New tag"
-              className="flex-1 border border-app-line rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-gray-400"
-            />
-            <button onClick={() => addTag(tagInput)} disabled={!tagInput.trim()} className="px-4 rounded-xl border border-app-line text-sm font-semibold disabled:opacity-40">
-              Add
-            </button>
-          </div>
-          {suggest.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-3">
-              {suggest.map((t) => (
-                <button key={t} onClick={() => addTag(t)} className="text-xs px-3 py-1.5 rounded-full border border-dashed border-app-line text-ink-sub">
-                  + {t}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
 
         <div className="mt-10">
           {confirmDel ? (

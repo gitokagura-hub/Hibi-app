@@ -423,6 +423,14 @@ export default function ReaderPage({ onHome }) {
         </div>
       </div>
 
+      <button
+        onClick={onHome}
+        className="fixed bottom-6 right-5 z-30 w-11 h-11 rounded-full bg-sky-100/90 backdrop-blur border border-sky-200 flex items-center justify-center shadow-sm"
+        aria-label="Home"
+      >
+        <ChevronLeft size={18} className="text-sky-700" />
+      </button>
+
       {tab === "words" && <WordsPage />}
 
       <div className="min-h-screen bg-app-bg relative" style={{ display: tab === "words" ? "none" : "block" }}>
@@ -524,14 +532,6 @@ export default function ReaderPage({ onHome }) {
           </div>
         </div>
       )}
-
-      <button
-        onClick={onHome}
-        className="fixed bottom-6 right-5 z-30 w-11 h-11 rounded-full bg-sky-100/90 backdrop-blur border border-sky-200 flex items-center justify-center shadow-sm"
-        aria-label="Home"
-      >
-        <ChevronLeft size={18} className="text-sky-700" />
-      </button>
 
       <header className="px-5 pb-3">
         <p className="text-sm text-ink-sub">{items.length} phrase{items.length === 1 ? "" : "s"}</p>

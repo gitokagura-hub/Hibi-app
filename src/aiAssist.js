@@ -54,31 +54,6 @@ export async function classifyPhrases({ provider, apiKey, rawText, existingCateg
     }));
 }
 
-// 単語帳から「AIに調べさせる」で使う。意味と例文を、そのまま欄に貼れる形の
-// ただの文章で返す(JSONにすると崩れたときに何も入らなくなるため)。
-export async function lookupWord({ provider, apiKey, word }) {
-  if (!apiKey) throw new Error('NO_API_KEY');
-  if (!word || !word.trim()) throw new Error('NO_WORD');
-
-  const prompt = `英単語または英語表現「${word.trim()}」について、日本語で簡潔にまとめてください。
-前置き・見出し・箇条書きの記号は書かないでください。次の形だけで出力します。
-
-1行目: 日本語の意味(短く。複数あれば読点で区切る)
-2行目: 空行
-3行目: 例文(英語)
-4行目: その訳(日本語)
-
-例:
-打たれ強い、折れない
-
-She stayed resilient under pressure.
-彼女は重圧の中でも折れなかった。`;
-
-  if (provider === 'gemini') return callGemini(apiKey, prompt);
-  if (provider === 'claude') return callClaude(apiKey, prompt);
-  throw new Error('UNSUPPORTED_PROVIDER');
-}
-
 async function callGemini(apiKey, prompt) {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
