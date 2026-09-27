@@ -9,6 +9,9 @@ import { classifyPhrases } from "../aiAssist";
 import WordsPage from "./WordsPage";
 
 const SETTINGS_KEY = "kikinagashi-settings";
+// 画面は英語で統一する。ただし保存済みデータの値(未分類)は変えない。
+const ALL = "All";
+const UNCAT = "未分類";
 
 const LANG_NAMES = {
   "en-gb": "English (UK)", "en-us": "English (US)", "en-au": "English (Australia)",
@@ -59,7 +62,7 @@ export default function ReaderPage({ onHome }) {
   const [newEn, setNewEn] = useState("");
   const [newJa, setNewJa] = useState("");
   const [newCategory, setNewCategory] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("すべて");
+  const [categoryFilter, setCategoryFilter] = useState(ALL);
   const [editingId, setEditingId] = useState(null);
   const [editEn, setEditEn] = useState("");
   // フレーズ欄は中身の高さに合わせて伸ばす。欄の中でスクロールさせず、
@@ -207,7 +210,7 @@ export default function ReaderPage({ onHome }) {
     function finish() {
       if (collected.length > 0) addItems(collected);
       if (failedCount > 0) {
-        alert(`${failedCount}件のファイルを読み込めませんでした。テキスト形式(.txt / .csv)のファイルを選んでください。`);
+        alert(`Couldn't read ${failedCount} file(s). Use .txt or .csv.`);
       }
     }
 
@@ -223,7 +226,7 @@ export default function ReaderPage({ onHome }) {
     const provider = data.settings.claudeKey ? "claude" : data.settings.geminiKey ? "gemini" : null;
     const apiKey = provider === "claude" ? data.settings.claudeKey : provider === "gemini" ? data.settings.geminiKey : "";
     if (!provider) {
-      setAnalysing("Settings画面でClaudeまたはGeminiのAPIキーを設定してください。");
+      setAnalysing("Add an API key in Settings.");
       return;
     }
     setAnalysing("running");
@@ -236,8 +239,8 @@ export default function ReaderPage({ onHome }) {
       setAnalysing(null);
     } catch (err) {
       const msg = err.message === "CLASSIFY_PARSE_FAILED" || err.message === "EMPTY_RESULT"
-        ? "AIの応答をうまく読み取れませんでした。もう一度お試しください。"
-        : "分類に失敗しました。APIキーとネット接続を確認してください。";
+        ? "Couldn't read the AI response."
+        : "Sorting failed. Check your API key and connection.";
       setAnalysing(msg);
     }
   }
@@ -257,7 +260,7 @@ export default function ReaderPage({ onHome }) {
 
   // カテゴリーフィルター(「すべて」なら全件、それ以外は絞り込み)。
   // 再生・一覧表示ともにこのfilteredItemsを使う。
-  const filteredItems = categoryFilter === "すべて" ? items : items.filter((it) => (it.category || "未分類") === categoryFilter);
+  const filteredItems = categoryFilter === ALL ? items : items.filter((it) => (it.category || UNCAT) === categoryFilter);
 
   useEffect(() => {
     itemsRef.current = filteredItems;
@@ -404,8 +407,8 @@ export default function ReaderPage({ onHome }) {
         <h1 className="text-3xl font-semibold tracking-tight mb-3">English Manager</h1>
         <div className="flex gap-2">
           {[
-            { id: "words", label: "単語帳" },
-            { id: "phrases", label: "聞き流し" },
+            { id: "words", label: "Words" },
+            { id: "phrases", label: "Listening" },
           ].map((t) => (
             <button
               key={t.id}
@@ -435,7 +438,7 @@ export default function ReaderPage({ onHome }) {
             <textarea
               value={pasteText}
               onChange={(e) => setPasteText(e.target.value)}
-              placeholder={"英文 | 訳 の形式で1行ずつ貼り付け\n\n例:\nCould you pass me the level? | 水準器を取ってもらえますか。"}
+              placeholder={"English | Japanese, one per line\n\nCould you pass me the level? | 水準器を取ってもらえますか。"}
               rows={8}
               autoFocus
               className="w-full rounded-2xl border border-app-line p-4 text-sm outline-none focus:border-gray-400 resize-none placeholder:text-ink-sub/70"
@@ -445,7 +448,7 @@ export default function ReaderPage({ onHome }) {
               disabled={!pasteText.trim() || analysing === "running"}
               className="mt-3 w-full h-12 rounded-full bg-gray-900 text-white text-sm font-medium disabled:opacity-30"
             >
-              {analysing === "running" ? "Analysing..." : "Analyse(AIで自動分類)"}
+              {analysing === "running" ? "Sorting..." : "Sort with AI"}
             </button>
             {analysing && analysing !== "running" && (
               <p className="mt-3 text-sm text-red-500">{analysing}</p>
@@ -457,11 +460,11 @@ export default function ReaderPage({ onHome }) {
       {editingId && (
         <div className="fixed inset-0 z-50 bg-app-surface flex flex-col">
           <div className="flex items-center justify-between px-5 pt-14 pb-3 border-b border-app-line">
-            <h2 className="text-lg font-semibold">フレーズを編集</h2>
+            <h2 className="text-lg font-semibold">Edit phrase</h2>
             <button
               onClick={cancelEdit}
               className="w-9 h-9 rounded-full flex items-center justify-center text-ink-sub active:bg-app-raised"
-              aria-label="閉じる"
+              aria-label="Close"
             >
               <X size={18} />
             </button>
@@ -470,33 +473,33 @@ export default function ReaderPage({ onHome }) {
               全部使う。下に空白が余ったまま4行しか見えない状態を避ける。 */}
           <div className="flex-1 min-h-0 overflow-y-auto px-5 py-6 flex flex-col gap-6">
             <div className="flex-none">
-              <label className="text-xs font-medium text-ink-sub">フレーズ</label>
+              <label className="text-xs font-medium text-ink-sub">Phrase</label>
               <textarea
                 ref={editEnRef}
                 value={editEn}
                 onChange={(e) => setEditEn(e.target.value)}
-                placeholder="フレーズ"
+                placeholder="Phrase"
                 autoFocus
                 rows={1}
                 className="w-full min-h-[8rem] text-base border-b border-app-line py-2 mt-1 outline-none focus:border-gray-400 resize-none overflow-hidden"
               />
             </div>
             <div className="flex-none">
-              <label className="text-xs font-medium text-ink-sub">訳(任意)</label>
+              <label className="text-xs font-medium text-ink-sub">Translation</label>
               <textarea
                 value={editJa}
                 onChange={(e) => setEditJa(e.target.value)}
-                placeholder="訳(任意)"
+                placeholder="Translation"
                 rows={3}
                 className="w-full text-base border-b border-app-line py-2 mt-1 outline-none focus:border-gray-400 resize-none"
               />
             </div>
             <div className="flex-none">
-              <label className="text-xs font-medium text-ink-sub">カテゴリー(任意)</label>
+              <label className="text-xs font-medium text-ink-sub">Category</label>
               <input
                 value={editCategory}
                 onChange={(e) => setEditCategory(e.target.value)}
-                placeholder="カテゴリー(任意)"
+                placeholder="Category"
                 list="kikinagashi-category-list"
                 className="w-full text-base border-b border-app-line py-2 mt-1 outline-none focus:border-gray-400"
               />
@@ -508,14 +511,14 @@ export default function ReaderPage({ onHome }) {
                 onClick={cancelEdit}
                 className="flex-1 h-12 rounded-full border border-app-line text-sm font-medium text-ink-sub"
               >
-                キャンセル
+                Cancel
               </button>
               <button
                 onClick={saveEdit}
                 disabled={!editEn.trim()}
                 className="flex-1 h-12 rounded-full bg-gray-900 text-white text-sm font-medium disabled:opacity-30"
               >
-                更新
+                Save
               </button>
             </div>
           </div>
@@ -525,35 +528,35 @@ export default function ReaderPage({ onHome }) {
       <button
         onClick={onHome}
         className="fixed bottom-6 right-5 z-30 w-11 h-11 rounded-full bg-sky-100/90 backdrop-blur border border-sky-200 flex items-center justify-center shadow-sm"
-        aria-label="Homeへ戻る"
+        aria-label="Home"
       >
         <ChevronLeft size={18} className="text-sky-700" />
       </button>
 
       <header className="px-5 pb-3">
-        <p className="text-sm text-ink-sub">{items.length}件のフレーズを保存中</p>
+        <p className="text-sm text-ink-sub">{items.length} phrase{items.length === 1 ? "" : "s"}</p>
       </header>
 
       <main className="px-5 pb-32">
         {/* --- 新しいフレーズを追加 --- */}
         <div className="rounded-2xl border border-app-line p-4">
-          <span className="text-xs font-medium text-ink-sub">新しいフレーズを追加</span>
+          <span className="text-xs font-medium text-ink-sub">New phrase</span>
           <input
             value={newEn}
             onChange={(e) => setNewEn(e.target.value)}
-            placeholder="フレーズ"
+            placeholder="Phrase"
             className="w-full text-sm border-b border-app-line py-2 mt-2 outline-none focus:border-gray-400"
           />
           <input
             value={newJa}
             onChange={(e) => setNewJa(e.target.value)}
-            placeholder="訳(任意)"
+            placeholder="Translation"
             className="w-full text-sm border-b border-app-line py-2 mt-2 outline-none focus:border-gray-400"
           />
           <input
             value={newCategory}
             onChange={(e) => setNewCategory(e.target.value)}
-            placeholder="カテゴリー(任意、自由入力)"
+            placeholder="Category"
             list="kikinagashi-category-list"
             className="w-full text-sm border-b border-app-line py-2 mt-2 outline-none focus:border-gray-400"
           />
@@ -566,7 +569,7 @@ export default function ReaderPage({ onHome }) {
             className="mt-3 w-full h-11 rounded-full bg-gray-900 text-white text-sm font-medium flex items-center justify-center gap-1.5 disabled:opacity-30 active:scale-[0.98] transition-transform"
           >
             <Plus size={15} />
-            保存
+            Save
           </button>
         </div>
 
@@ -583,7 +586,7 @@ export default function ReaderPage({ onHome }) {
             className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 px-2.5 py-1.5 rounded-full border border-indigo-100 bg-indigo-50 active:scale-95 transition-transform"
           >
             <Upload size={13} />
-            ファイルからまとめて追加
+            Import from file
           </button>
           <input
             ref={fileInputRef}
@@ -598,7 +601,7 @@ export default function ReaderPage({ onHome }) {
         {/* --- カテゴリーフィルター --- */}
         {existingCategories.length > 0 && (
           <div className="flex gap-1.5 mt-3 overflow-x-auto pb-1">
-            {["すべて", ...existingCategories].map((c) => (
+            {[ALL, ...existingCategories].map((c) => (
               <button
                 key={c}
                 onClick={() => setCategoryFilter(c)}
@@ -606,7 +609,7 @@ export default function ReaderPage({ onHome }) {
                   categoryFilter === c ? "bg-gray-900 text-white border-gray-900" : "text-ink-sub border-app-line"
                 }`}
               >
-                {c}
+                {c === UNCAT ? "Uncategorized" : c}
               </button>
             ))}
           </div>
@@ -624,20 +627,20 @@ export default function ReaderPage({ onHome }) {
                 return (
                   <div key={it.id} className="bg-red-50 border-l-4 border-red-400 px-3.5 py-3.5">
                     <div className="text-sm text-ink leading-snug break-words mb-3">
-                      「{it.en}」を削除しますか？
+                      Delete this phrase?
                     </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => setDeletingId(null)}
                         className="flex-1 h-9 rounded-full border border-app-line text-xs font-medium text-ink-sub flex items-center justify-center gap-1"
                       >
-                        <X size={13} /> キャンセル
+                        <X size={13} /> Cancel
                       </button>
                       <button
                         onClick={() => confirmDelete(it.id)}
                         className="flex-1 h-9 rounded-full bg-red-600 text-white text-xs font-medium"
                       >
-                        削除する
+                        Delete
                       </button>
                     </div>
                   </div>
@@ -657,7 +660,7 @@ export default function ReaderPage({ onHome }) {
                   <button
                     onClick={() => playFrom(i)}
                     className="w-9 h-9 rounded-full flex items-center justify-center text-ink-sub shrink-0 active:bg-app-raised"
-                    aria-label="この項目を再生"
+                    aria-label="Play"
                   >
                     <Play size={15} />
                   </button>
@@ -667,8 +670,8 @@ export default function ReaderPage({ onHome }) {
                   >
                     <div className="text-sm text-ink leading-snug break-words line-clamp-2">{it.en}</div>
                     {it.ja && <div className="text-xs text-ink-sub leading-snug break-words mt-1 line-clamp-1">{it.ja}</div>}
-                    {categoryFilter === "すべて" && it.category && (
-                      <span className="inline-block mt-1 text-[10px] text-indigo-500 bg-indigo-50 rounded px-1.5 py-0.5">{it.category}</span>
+                    {categoryFilter === ALL && it.category && (
+                      <span className="inline-block mt-1 text-[10px] text-indigo-500 bg-indigo-50 rounded px-1.5 py-0.5">{it.category === UNCAT ? "Uncategorized" : it.category}</span>
                     )}
                   </button>
                   <button onClick={() => setDeletingId(it.id)} className="w-9 h-9 rounded-full flex items-center justify-center text-ink-sub shrink-0 active:bg-app-raised">
@@ -682,7 +685,7 @@ export default function ReaderPage({ onHome }) {
 
         <div className="mt-5 rounded-2xl border border-app-line p-4">
           <div className="flex items-center gap-3 mb-3">
-            <label className="text-xs font-medium text-ink-sub w-20 shrink-0">言語</label>
+            <label className="text-xs font-medium text-ink-sub w-20 shrink-0">Language</label>
             <select
               value={settings.lang}
               onChange={(e) => update({ lang: e.target.value })}
@@ -696,7 +699,7 @@ export default function ReaderPage({ onHome }) {
             </select>
           </div>
           <div className="flex items-center gap-3">
-            <label className="text-xs font-medium text-ink-sub w-20 shrink-0">声</label>
+            <label className="text-xs font-medium text-ink-sub w-20 shrink-0">Voice</label>
             <select
               value={settings.voiceName}
               onChange={(e) => update({ voiceName: e.target.value })}
@@ -713,7 +716,7 @@ export default function ReaderPage({ onHome }) {
 
         <div className="mt-3 rounded-2xl border border-app-line p-4 space-y-3">
           <div className="flex items-center gap-3">
-            <label className="text-xs font-medium text-ink-sub w-24 shrink-0">繰り返し回数</label>
+            <label className="text-xs font-medium text-ink-sub w-24 shrink-0">Repeat</label>
             <input
               type="range" min="1" max="5" step="1"
               value={settings.repeat}
@@ -723,7 +726,7 @@ export default function ReaderPage({ onHome }) {
             <span className="text-xs text-ink-sub w-6 text-right">{settings.repeat}</span>
           </div>
           <div className="flex items-center gap-3">
-            <label className="text-xs font-medium text-ink-sub w-24 shrink-0">速度</label>
+            <label className="text-xs font-medium text-ink-sub w-24 shrink-0">Speed</label>
             <input
               type="range" min="0.5" max="1.3" step="0.05"
               value={settings.rate}
@@ -733,7 +736,7 @@ export default function ReaderPage({ onHome }) {
             <span className="text-xs text-ink-sub w-9 text-right">{settings.rate}</span>
           </div>
           <div className="flex items-center gap-3">
-            <label className="text-xs font-medium text-ink-sub w-24 shrink-0">間隔(秒)</label>
+            <label className="text-xs font-medium text-ink-sub w-24 shrink-0">Gap (sec)</label>
             <input
               type="range" min="0.5" max="4" step="0.5"
               value={settings.pause}
@@ -744,15 +747,15 @@ export default function ReaderPage({ onHome }) {
           </div>
           <label className="flex items-center gap-3 pt-1">
             <input type="checkbox" checked={settings.readJa} onChange={(e) => update({ readJa: e.target.checked })} />
-            <span className="text-xs text-ink-sub">日本語訳も読み上げる</span>
+            <span className="text-xs text-ink-sub">Read translation</span>
           </label>
           <label className="flex items-center gap-3">
             <input type="checkbox" checked={settings.shuffle} onChange={(e) => update({ shuffle: e.target.checked })} />
-            <span className="text-xs text-ink-sub flex items-center gap-1"><Shuffle size={12} /> シャッフル</span>
+            <span className="text-xs text-ink-sub flex items-center gap-1"><Shuffle size={12} /> Shuffle</span>
           </label>
           <label className="flex items-center gap-3">
             <input type="checkbox" checked={settings.loopAll} onChange={(e) => update({ loopAll: e.target.checked })} />
-            <span className="text-xs text-ink-sub flex items-center gap-1"><Repeat size={12} /> 最後まで行ったら最初に戻る</span>
+            <span className="text-xs text-ink-sub flex items-center gap-1"><Repeat size={12} /> Loop</span>
           </label>
         </div>
 
@@ -764,7 +767,7 @@ export default function ReaderPage({ onHome }) {
               {current.ja && <div className="text-sm text-ink-sub mt-1.5 italic">{current.ja}</div>}
             </>
           ) : (
-            <div className="text-sm text-ink-sub">フレーズを保存して再生してください</div>
+            <div className="text-sm text-ink-sub">Add a phrase to start</div>
           )}
         </div>
 
@@ -781,7 +784,7 @@ export default function ReaderPage({ onHome }) {
             className="flex-1 h-12 rounded-full bg-gray-900 text-white flex items-center justify-center gap-2 disabled:opacity-30 active:scale-[0.98] transition-transform"
           >
             {playing ? <Square size={16} /> : <Play size={16} />}
-            <span className="text-sm font-medium">{playing ? "停止" : "再生"}</span>
+            <span className="text-sm font-medium">{playing ? "Stop" : "Play"}</span>
           </button>
           <button
             onClick={() => handleSkip(1)}
@@ -791,9 +794,6 @@ export default function ReaderPage({ onHome }) {
           </button>
         </div>
 
-        <p className="mt-6 text-xs leading-relaxed text-ink-sub border-t border-app-line pt-4">
-          端末の音声合成機能(Web Speech API)を使用。APIキー不要・無料。画面を閉じる/ロックすると再生は止まる場合があります。
-        </p>
       </main>
       </div>
     </>
