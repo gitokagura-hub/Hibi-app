@@ -6,6 +6,7 @@ import { useSwipeBack } from "../useSwipeBack";
 import { useKikinagashi } from "../kikinagashiStore";
 import { useData } from "../dataStore";
 import { classifyPhrases } from "../aiAssist";
+import WordsPage from "./WordsPage";
 
 const SETTINGS_KEY = "kikinagashi-settings";
 
@@ -47,6 +48,10 @@ function shuffleArr(arr) {
 
 export default function ReaderPage({ onHome }) {
   useSwipeBack(onHome);
+
+  // 英会話を開いたら単語帳が最初に出る。フレーズ(聞き流し)は同じ画面のタブで切り替える。
+  // フレーズ側は display で隠すだけにして、再生中の状態やスクロール位置を保つ。
+  const [tab, setTab] = useState("words");
 
   const { items, addItem, addItems, updateItem, deleteItem } = useKikinagashi();
   const { data } = useData();
@@ -394,7 +399,30 @@ export default function ReaderPage({ onHome }) {
   }
 
   return (
-    <div className="min-h-screen bg-app-bg relative">
+    <>
+      <div className="sticky top-0 z-40 bg-app-bg px-5 pt-14 pb-3">
+        <h1 className="text-3xl font-semibold tracking-tight mb-3">English Manager</h1>
+        <div className="flex gap-2">
+          {[
+            { id: "words", label: "単語帳" },
+            { id: "phrases", label: "聞き流し" },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                tab === t.id ? "bg-gray-900 text-white" : "bg-app-raised text-ink-sub"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {tab === "words" && <WordsPage />}
+
+      <div className="min-h-screen bg-app-bg relative" style={{ display: tab === "words" ? "none" : "block" }}>
       {pasteOpen && (
         <div className="fixed inset-0 z-[55] flex items-end bg-black/30" onClick={() => { setPasteOpen(false); setAnalysing(null); }}>
           <div onClick={(e) => e.stopPropagation()} className="w-full bg-app-surface rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto">
@@ -502,9 +530,8 @@ export default function ReaderPage({ onHome }) {
         <ChevronLeft size={18} className="text-sky-700" />
       </button>
 
-      <header className="px-5 pt-14 pb-3">
-        <h1 className="text-3xl font-semibold tracking-tight">English Manager</h1>
-        <p className="mt-1 text-sm text-ink-sub">{items.length}件のフレーズを保存中</p>
+      <header className="px-5 pb-3">
+        <p className="text-sm text-ink-sub">{items.length}件のフレーズを保存中</p>
       </header>
 
       <main className="px-5 pb-32">
@@ -768,6 +795,7 @@ export default function ReaderPage({ onHome }) {
           端末の音声合成機能(Web Speech API)を使用。APIキー不要・無料。画面を閉じる/ロックすると再生は止まる場合があります。
         </p>
       </main>
-    </div>
+      </div>
+    </>
   );
 }

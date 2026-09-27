@@ -34,7 +34,10 @@ function loadData() {
       // 旧フォーマットは配列そのもの、新フォーマットは {items: [...]}
       const items = Array.isArray(parsed) ? parsed : parsed.items || [];
       // カテゴリー未設定の既存データは「未分類」として扱う(表示の後方互換)
-      return { items: items.map((it) => ({ ...it, category: it.category || "未分類" })) };
+      return {
+        items: items.map((it) => ({ ...it, category: it.category || "未分類" })),
+        words: Array.isArray(parsed.words) ? parsed.words : [],
+      };
     }
   } catch {
     // noop
@@ -44,12 +47,12 @@ function loadData() {
     if (legacy && legacy.trim()) {
       const items = legacy.split("\n").map((l) => l.trim()).filter(Boolean).map(splitLine)
         .map((it) => ({ id: makeId(), category: "未分類", ...it }));
-      return { items };
+      return { items, words: [] };
     }
   } catch {
     // noop
   }
-  return { items: [] };
+  return { items: [], words: [] };
 }
 
 function saveData(data) {
@@ -70,7 +73,11 @@ export function KikinagashiProvider({ children }) {
 
   useEffect(() => {
     let cancelled = false;
-    reconcileOnStartup("kikinagashi", data, (d) => !d || !Array.isArray(d.items) || d.items.length === 0).then((result) => {
+    const isEmpty = (d) =>
+      !d ||
+      ((!Array.isArray(d.items) || d.items.length === 0) &&
+        (!Array.isArray(d.words) || d.words.length === 0));
+    reconcileOnStartup("kikinagashi", data, isEmpty).then((result) => {
       if (!cancelled) {
         hydrated.current = true;
         if (JSON.stringify(result) !== JSON.stringify(data)) {
@@ -112,18 +119,64 @@ export function KikinagashiProvider({ children }) {
     setData((d) => ({ ...d, items: d.items.filter((it) => it.id !== id) }));
   }
 
+  /* ---- 単語帳。フレーズ(items)とは別のリスト ---- */
+
+  function addWord(en, ja, tags) {
+    const word = {
+      id: makeId(),
+      en: (en || "").trim(),
+      ja: (ja || "").trim(),
+      tags: Array.isArray(tags) ? tags : [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    setData((d) => ({ ...d, words: [word, ...(d.words || [])] }));
+    return word;
+  }
+
+  // 貼り付け取り込み。同じ単語があっても別件として足す。
+  function addWords(list) {
+    const now = Date.now();
+    const made = list.map((w, i) => ({
+      id: makeId() + i.toString(36),
+      en: (w.en || "").trim(),
+      ja: (w.ja || "").trim(),
+      tags: [],
+      createdAt: now - i, // 貼った順が保たれるように少しずらす
+      updatedAt: now - i,
+    }));
+    setData((d) => ({ ...d, words: [...made, ...(d.words || [])] }));
+    return made;
+  }
+
+  function updateWord(id, patch) {
+    setData((d) => ({
+      ...d,
+      words: (d.words || []).map((w) => (w.id === id ? { ...w, ...patch, updatedAt: Date.now() } : w)),
+    }));
+  }
+
+  function deleteWord(id) {
+    setData((d) => ({ ...d, words: (d.words || []).filter((w) => w.id !== id) }));
+  }
+
   // バックアップから丸ごと戻す。足りない項目は初期値で埋める。
   function replaceAllData(restored) {
-    setData({ items: [], categories: [], ...(restored || {}) });
+    setData({ items: [], words: [], categories: [], ...(restored || {}) });
   }
 
   const value = {
     items: data.items,
+    words: data.words || [],
     replaceAllData,
     addItems,
     addItem,
     updateItem,
     deleteItem,
+    addWord,
+    addWords,
+    updateWord,
+    deleteWord,
   };
 
   return <KikinagashiContext.Provider value={value}>{children}</KikinagashiContext.Provider>;
