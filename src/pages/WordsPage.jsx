@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Search, Trash2, Copy, Check, Volume2, ClipboardPaste, X } from "lucide-react";
+import { ChevronLeft, Search, Trash2, Copy, Check, Volume2, ClipboardPaste, X } from "lucide-react";
 import { useKikinagashi } from "../kikinagashiStore";
 
 /* =========================================================================
@@ -171,31 +171,14 @@ export default function WordsPage() {
             {words.length === 0 ? "No words yet" : "No matches"}
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-2">
             {shown.map((w) => (
               <button
                 key={w.id}
                 onClick={() => open(w.id)}
-                className="w-full text-left bg-app-surface rounded-2xl border border-app-line px-4 py-3.5 flex items-center gap-3 active:scale-[0.98] transition-transform"
+                className="bg-app-surface rounded-xl border border-app-line px-4 py-2.5 text-[16px] font-medium text-ink active:scale-[0.97] transition-transform"
               >
-                <div className="flex-1 min-w-0">
-                  <div className="text-[16px] font-bold text-ink truncate">{w.en}</div>
-                  {w.ja ? (
-                    <div className="text-xs text-ink-sub mt-0.5 truncate">{w.ja.split("\n")[0]}</div>
-                  ) : (
-                    <div className="text-xs text-ink-sub/70 mt-0.5">No meaning</div>
-                  )}
-                  {(w.tags || []).length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {w.tags.map((t) => (
-                        <span key={t} className="text-[10px] text-ink-sub bg-app-raised px-2 py-0.5 rounded-full">
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <ChevronRight size={16} className="text-ink-sub/70 flex-shrink-0" />
+                {w.en}
               </button>
             ))}
           </div>
@@ -203,7 +186,7 @@ export default function WordsPage() {
       </main>
 
       <div className="fixed bottom-0 inset-x-0 z-20 bg-app-bg border-t border-app-line px-5 pt-3 pb-8">
-        <div className="flex gap-2 max-w-md mx-auto pr-12">
+        <div className="flex gap-2 max-w-md mx-auto">
           <button
             onClick={() => { setPasteOpen(true); setPasteMsg(""); }}
             className="w-12 flex-shrink-0 rounded-xl border border-app-line flex items-center justify-center"

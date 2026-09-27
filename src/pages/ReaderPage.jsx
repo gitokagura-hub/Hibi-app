@@ -425,7 +425,7 @@ export default function ReaderPage({ onHome }) {
 
       <button
         onClick={onHome}
-        className="fixed bottom-6 right-5 z-30 w-11 h-11 rounded-full bg-sky-100/90 backdrop-blur border border-sky-200 flex items-center justify-center shadow-sm"
+        className="fixed bottom-28 right-5 z-30 w-11 h-11 rounded-full bg-sky-100/90 backdrop-blur border border-sky-200 flex items-center justify-center shadow-sm"
         aria-label="Home"
       >
         <ChevronLeft size={18} className="text-sky-700" />
