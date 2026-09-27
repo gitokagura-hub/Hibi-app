@@ -95,12 +95,49 @@ function byLine(lines, out, r) {
   });
 }
 
+// 「savour」のように単語だけの行があって、そのあと説明が続く形かどうかの判定。
+// 英字だけの短い行(記号や日本語を含まない)を単語の頭とみなす。
+function isToken(l) {
+  return /^[A-Za-z][A-Za-z '\u2019-]*$/.test(l) && l.length <= 32 && l.split(/\s+/).length <= 4;
+}
+
+// 区切りが1つも無い貼り付け。単語だけの行を頭にして、次の頭まで説明としてまとめる。
+function parseProse(text, all, out) {
+  if (all.every(isToken)) {
+    all.forEach((l) => out.push({ en: l, ja: "" }));
+    return;
+  }
+  const blocks = text.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
+  let cur = null;
+  blocks.forEach((block) => {
+    const lines = block.split("\n").map(cleanLine).filter(Boolean);
+    if (!lines.length) return;
+    if (lines.length === 1 && isToken(lines[0])) {
+      cur = { en: lines[0], ja: "" };
+      out.push(cur);
+      return;
+    }
+    const body = lines.join("\n");
+    if (cur) cur.ja = [cur.ja, body].filter(Boolean).join("\n\n");
+    else {
+      cur = { en: lines[0], ja: lines.slice(1).join("\n") };
+      out.push(cur);
+    }
+  });
+}
+
 function parsePaste(text) {
   const all = text.split("\n").map(cleanLine).filter(Boolean);
   if (all.length === 0) return [];
   const r = makeReader(all);
   const out = [];
   const blocks = text.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
+
+  // 「単語 | 意味」の行が1つも無いときは、説明が続く形として読む
+  if (!all.some((l) => r.headAt(l) !== -1)) {
+    parseProse(text, all, out);
+    return out.filter((w) => w.en).map((w) => ({ en: w.en, ja: (w.ja || "").trim() }));
+  }
 
   if (blocks.length > 1) {
     blocks.forEach((block) => {
@@ -302,7 +339,7 @@ export default function WordsPage() {
             <textarea
               value={pasteText}
               onChange={(e) => { setPasteText(e.target.value); setPasteMsg(""); }}
-              placeholder={"resilient | 打たれ強い\nShe stayed resilient under pressure.\n彼女は重圧の中でも折れなかった。\n\nprocurement | 調達\nWe handle procurement in-house."}
+              placeholder={"savour\n\n意味：味わう、じっくり楽しむ\n\nSavour every drop.\n一滴一滴を味わう。"}
               rows={8}
               autoFocus
               className="w-full rounded-2xl border border-app-line p-4 text-sm outline-none focus:border-gray-400 resize-none placeholder:text-ink-sub/70"
