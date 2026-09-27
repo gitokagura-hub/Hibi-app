@@ -26,20 +26,99 @@ function speak(text) {
   }
 }
 
-// 貼り付け取り込み。1行1件。区切りは | ： : , タブ のどれでも読む。
+/* 貼り付け取り込み。ChatGPTの出力は形がまちまちなので、次の順で読む。
+   - 単語の行は「英字で始まり、区切りがある行」。例文や「例文:」の行は意味に足す
+   - 区切りは、貼り付け全体で | タブ — – ： が使われていればそれだけを見る。
+     無ければ : , も見る(その場合は左側が2語以内のときだけ単語とみなす)
+   - 空行で区切られた塊は1件ずつ。塊の中に単語行が2つ以上あれば行ごとに分ける
+   行頭の - * ・ 1. や ** は落とす。 */
+const STRONG_SEPS = ["|", "\t", "—", "–", "："];
+const WEAK_SEPS = [":", ","];
+
+function cleanLine(l) {
+  return l
+    .replace(/^\s*[-*・•>]\s+/, "")
+    .replace(/^\s*\d+[.)、]\s*/, "")
+    .replace(/\*\*/g, "")
+    .replace(/^#+\s*/, "")
+    .trim();
+}
+
+function firstSep(l, seps) {
+  let idx = -1;
+  seps.forEach((sp) => {
+    const i = l.indexOf(sp);
+    if (i > 0 && (idx === -1 || i < idx)) idx = i;
+  });
+  return idx;
+}
+
+function makeReader(lines) {
+  const strong = lines.some((l) => firstSep(l, STRONG_SEPS) !== -1);
+  const seps = strong ? STRONG_SEPS : WEAK_SEPS;
+  const anySep = lines.some((l) => firstSep(l, seps) !== -1);
+
+  // 単語の行なら区切りの位置、そうでなければ -1
+  function headAt(l) {
+    if (!/^[A-Za-z]/.test(l)) return -1;
+    const i = firstSep(l, seps);
+    if (i === -1) return -1;
+    if (!strong) {
+      const left = l.slice(0, i).trim();
+      if (left.length > 24 || left.split(/\s+/).length > 2) return -1;
+    }
+    return i;
+  }
+
+  function split(l) {
+    const i = headAt(l);
+    if (i === -1) return { en: l.trim(), ja: "" };
+    return { en: l.slice(0, i).trim(), ja: l.slice(i + 1).trim() };
+  }
+
+  return { anySep, headAt, split };
+}
+
+function byLine(lines, out, r) {
+  lines.forEach((l) => {
+    if (!r.anySep) {
+      out.push({ en: l, ja: "" });
+      return;
+    }
+    if (r.headAt(l) !== -1) {
+      out.push(r.split(l));
+    } else if (out.length) {
+      out[out.length - 1].ja = [out[out.length - 1].ja, l].filter(Boolean).join("\n");
+    } else {
+      out.push({ en: l, ja: "" });
+    }
+  });
+}
+
 function parsePaste(text) {
-  return text
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((l) => {
-      const seps = ["|", "\t", "：", ":", ","];
-      const sep = seps.find((x) => l.includes(x));
-      if (!sep) return { en: l, ja: "" };
-      const i = l.indexOf(sep);
-      return { en: l.slice(0, i).trim(), ja: l.slice(i + 1).trim() };
-    })
-    .filter((w) => w.en);
+  const all = text.split("\n").map(cleanLine).filter(Boolean);
+  if (all.length === 0) return [];
+  const r = makeReader(all);
+  const out = [];
+  const blocks = text.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
+
+  if (blocks.length > 1) {
+    blocks.forEach((block) => {
+      const lines = block.split("\n").map(cleanLine).filter(Boolean);
+      if (!lines.length) return;
+      if (lines.filter((l) => r.headAt(l) !== -1).length >= 2) {
+        byLine(lines, out, r);
+        return;
+      }
+      const head = r.split(lines[0]);
+      const rest = lines.slice(1).join("\n").trim();
+      if (head.en) out.push({ en: head.en, ja: [head.ja, rest].filter(Boolean).join("\n").trim() });
+    });
+  } else {
+    byLine(all, out, r);
+  }
+
+  return out.filter((w) => w.en).map((w) => ({ en: w.en, ja: (w.ja || "").trim() }));
 }
 
 export default function WordsPage() {
@@ -223,7 +302,7 @@ export default function WordsPage() {
             <textarea
               value={pasteText}
               onChange={(e) => { setPasteText(e.target.value); setPasteMsg(""); }}
-              placeholder={"Word | meaning, one per line\n\nresilient | 打たれ強い\nprocurement | 調達\nlead time | 納期"}
+              placeholder={"resilient | 打たれ強い\nShe stayed resilient under pressure.\n彼女は重圧の中でも折れなかった。\n\nprocurement | 調達\nWe handle procurement in-house."}
               rows={8}
               autoFocus
               className="w-full rounded-2xl border border-app-line p-4 text-sm outline-none focus:border-gray-400 resize-none placeholder:text-ink-sub/70"
