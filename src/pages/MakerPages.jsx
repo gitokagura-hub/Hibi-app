@@ -146,6 +146,52 @@ function display(q, v) {
   if (Array.isArray(v)) return v.length ? v.join("・") : "（なし）";
   return v === "" ? "（空欄）" : v;
 }
+/* ---------- 文字の中のURL・メール・電話・インスタIDを押せるようにする ----------
+   行そのものは押すと編集に入るので、リンクを押したときは編集に入らない。 */
+const LINK_RE = /(https?:\/\/[^\s　、。）)」]+|www\.[^\s　、。）)」]+)|([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})|((?:\+|0)\d[\d\-‐ー−()（） ]{7,}\d)|(^|[\s　（(])@([A-Za-z0-9._]{1,30})/g;
+
+function hrefOf(m) {
+  // FAX番号は電話をかけても仕方ないので、文字のままにする
+  if (m[3] && /fax[\s:：　]*$/i.test(m.input.slice(Math.max(0, m.index - 8), m.index))) return null;
+  if (m[1]) return { href: m[1].startsWith("www.") ? `https://${m[1]}` : m[1], text: m[1], web: true };
+  if (m[2]) return { href: `mailto:${m[2]}`, text: m[2] };
+  if (m[3]) {
+    const digits = m[3].replace(/[^\d+]/g, "");
+    if (digits.replace("+", "").length < 10) return null;
+    return { href: `tel:${digits}`, text: m[3], tel: true };
+  }
+  if (m[5]) return { href: `https://www.instagram.com/${m[5]}/`, text: `@${m[5]}`, web: true, lead: m[4] };
+  return null;
+}
+
+function LinkText({ text }) {
+  if (typeof text !== "string" || !text) return text ?? null;
+  const out = [];
+  let last = 0;
+  let k = 0;
+  for (const m of text.matchAll(LINK_RE)) {
+    const h = hrefOf(m);
+    if (!h) continue;
+    const start = m.index + (h.lead ? h.lead.length : 0);
+    if (start > last) out.push(text.slice(last, start));
+    out.push(
+      <a
+        key={k++}
+        href={h.href}
+        target={h.web ? "_blank" : undefined}
+        rel={h.web ? "noopener noreferrer" : undefined}
+        onClick={(e) => e.stopPropagation()}
+        className={`text-emerald-700 underline underline-offset-2 ${h.tel ? "whitespace-nowrap" : "break-all"}`}
+      >
+        {h.text}
+      </a>
+    );
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out.length ? out : text;
+}
+
 function groupsOf(list) {
   const gs = [];
   list.forEach((q) => { if (!gs.includes(q.g)) gs.push(q.g); });
@@ -549,6 +595,16 @@ function FileSheet({ makers, onClose }) {
   const { importEntries } = useSukima();
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
+  const [pasted, setPasted] = useState("");
+  const pasteRef = useRef(null);
+
+  // 貼り付け欄は中で巻き取らず、中身の高さまで伸ばす
+  useEffect(() => {
+    const el = pasteRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [pasted]);
 
   function fileName() {
     const d = new Date();
@@ -586,6 +642,49 @@ function FileSheet({ makers, onClose }) {
     }
   }
 
+  // 書き出したファイルの中身・作り手の並び・作り手1件のどれでも受け取る。
+  // 貼り付けで id や日時が無いものは、新しい作り手として足す。
+  function takeIn(text, from) {
+    let parsed;
+    try {
+      parsed = JSON.parse(String(text).trim());
+    } catch {
+      setErr(from === "file" ? "読めるファイルではありません" : "JSONとして読めません");
+      return false;
+    }
+    const list = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.entries) ? parsed.entries : parsed && typeof parsed === "object" ? [parsed] : null;
+    if (!list) {
+      setErr("作り手が入っていません");
+      return false;
+    }
+    const now = Date.now();
+    const makersOnly = list
+      .filter((x) => x && typeof x === "object" && (x.type === undefined || x.type === "maker"))
+      .filter((x) => x.id || from === "paste")
+      .map((x) => ({
+        stage: 1,
+        stop: null,
+        fields: {},
+        products: [],
+        tags: [],
+        driveFolderId: "",
+        driveFiles: [],
+        createdAt: now,
+        ...x,
+        id: x.id || uid(),
+        type: "maker",
+        name: x.name || "",
+        updatedAt: x.updatedAt || now,
+      }));
+    if (makersOnly.length === 0) {
+      setErr("作り手が入っていません");
+      return false;
+    }
+    const [added, updated] = importEntries(makersOnly);
+    setMsg(`${added}件を追加、${updated}件を新しい方に差し替えました`);
+    return true;
+  }
+
   function load(e) {
     setErr("");
     setMsg("");
@@ -593,34 +692,21 @@ function FileSheet({ makers, onClose }) {
     e.target.value = "";
     if (!f) return;
     const r = new FileReader();
-    r.onload = () => {
-      let parsed;
-      try {
-        parsed = JSON.parse(String(r.result));
-      } catch {
-        setErr("読めるファイルではありません");
-        return;
-      }
-      const list = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.entries) ? parsed.entries : null;
-      if (!list) {
-        setErr("作り手のファイルではありません");
-        return;
-      }
-      const makersOnly = list.filter((x) => x && x.id && x.type === "maker");
-      if (makersOnly.length === 0) {
-        setErr("作り手が入っていません");
-        return;
-      }
-      const [added, updated] = importEntries(makersOnly);
-      setMsg(`${added}件を追加、${updated}件を新しい方に差し替えました`);
-    };
+    r.onload = () => takeIn(r.result, "file");
     r.onerror = () => setErr("読み込みに失敗しました");
     r.readAsText(f);
   }
 
+  function paste() {
+    setErr("");
+    setMsg("");
+    if (!pasted.trim()) return;
+    if (takeIn(pasted, "paste")) setPasted("");
+  }
+
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/30" onClick={onClose}>
-      <div className="bg-app-surface w-full max-w-md rounded-t-3xl p-5 pb-8" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-app-surface w-full max-w-md rounded-t-3xl p-5 pb-8 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold text-ink">保存・復元</h2>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-app-raised flex items-center justify-center" aria-label="閉じる">
@@ -637,7 +723,19 @@ function FileSheet({ makers, onClose }) {
           ファイルから読み込む
           <input type="file" accept=".json,application/json" onChange={load} className="hidden" />
         </label>
-        <p className="text-xs text-ink-sub">今あるものは消えません。同じ相手は新しい方が残ります</p>
+        <p className="text-xs text-ink-sub mb-5">今あるものは消えません。同じ相手は新しい方が残ります</p>
+
+        <textarea
+          ref={pasteRef}
+          rows={3}
+          value={pasted}
+          onChange={(e) => setPasted(e.target.value)}
+          placeholder="JSONを貼り付け"
+          className="w-full border border-app-line rounded-xl px-4 py-3 text-[13px] font-mono bg-app-bg focus:outline-none focus:border-emerald-500 resize-none overflow-hidden mb-2"
+        />
+        <button onClick={paste} disabled={!pasted.trim()} className="w-full border border-app-line bg-app-bg rounded-xl py-3 text-[15px] disabled:opacity-40">
+          貼り付けた分を足す
+        </button>
 
         {msg && <p className="text-sm text-emerald-700 mt-4">{msg}</p>}
         {err && <p className="text-sm text-red-500 mt-4">{err}</p>}
@@ -901,11 +999,11 @@ export function MakerDetail({ entryId, onBack }) {
               const v = p[f.id];
               const empty = v === undefined || v === "";
               return (
-                <button key={f.id} onClick={() => setSheet({ pid: p.id, fid: f.id })} className={`w-full flex items-center gap-2 px-3 py-3 rounded-xl text-left ${empty ? "bg-app-raised/60" : ""}`}>
+                <div key={f.id} role="button" tabIndex={0} onClick={() => setSheet({ pid: p.id, fid: f.id })} className={`w-full flex items-center gap-2 px-3 py-3 rounded-xl text-left cursor-pointer ${empty ? "bg-app-raised/60" : ""}`}>
                   <span className="text-[13px] text-ink-sub w-[42%] flex-shrink-0">{f.t}</span>
-                  <span className={`flex-1 text-right text-sm break-words ${empty ? "text-ink-sub" : "text-ink"}`}>{empty ? "未記入" : v}</span>
+                  <span className={`flex-1 text-right text-sm break-words whitespace-pre-line ${empty ? "text-ink-sub" : "text-ink"}`}>{empty ? "未記入" : <LinkText text={v} />}</span>
                   <ChevronRight size={15} className="text-ink-sub/60 flex-shrink-0" />
-                </button>
+                </div>
               );
             })}
           </div>
@@ -1041,11 +1139,11 @@ export function MakerDetail({ entryId, onBack }) {
                   const v = valueOf(entry, q);
                   const un = v === undefined;
                   return (
-                    <button key={q.id} onClick={() => setView({ s: "one", qid: q.id })} className={`w-full flex items-center gap-2 px-3 py-3 rounded-xl text-left ${un ? "bg-app-raised/60" : ""}`}>
+                    <div key={q.id} role="button" tabIndex={0} onClick={() => setView({ s: "one", qid: q.id })} className={`w-full flex items-center gap-2 px-3 py-3 rounded-xl text-left cursor-pointer ${un ? "bg-app-raised/60" : ""}`}>
                       <span className="text-[13px] text-ink-sub w-[42%] flex-shrink-0">{q.t}</span>
-                      <span className={`flex-1 text-right text-sm break-words ${un ? (q.warn ? "text-red-500" : "text-ink-sub") : "text-ink"}`}>{display(q, v)}</span>
+                      <span className={`flex-1 text-right text-sm break-words whitespace-pre-line ${un ? (q.warn ? "text-red-500" : "text-ink-sub") : "text-ink"}`}>{un ? display(q, v) : <LinkText text={display(q, v)} />}</span>
                       <ChevronRight size={15} className="text-ink-sub/60 flex-shrink-0" />
-                    </button>
+                    </div>
                   );
                 })}
                 {g === "SEARCH" && (
