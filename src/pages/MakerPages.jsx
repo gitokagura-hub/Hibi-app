@@ -522,7 +522,7 @@ export function MakerList({ onOpenEntry }) {
         )}
       </div>
 
-      <main className="px-5 pb-40">
+      <main className="px-5 pb-48">
         {shown.length === 0 ? (
           <div className="mt-12 text-center text-sm text-ink-sub">
             まだいません
@@ -563,8 +563,9 @@ export function MakerList({ onOpenEntry }) {
         )}
       </main>
 
-      <div className="fixed bottom-0 inset-x-0 z-20 bg-app-bg border-t border-app-line px-5 pt-3 pb-8">
-        <div className="flex gap-2 max-w-md mx-auto pr-12">
+      {/* 下のタブ(高さ80px)のすぐ上に置く */}
+      <div className="fixed bottom-20 inset-x-0 z-20 bg-app-bg border-t border-app-line px-5 py-3">
+        <div className="flex gap-2 max-w-md mx-auto">
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -575,7 +576,7 @@ export function MakerList({ onOpenEntry }) {
           <button
             onClick={create}
             disabled={!name.trim()}
-            className="bg-emerald-600 disabled:bg-app-raised disabled:text-ink-sub text-white font-semibold rounded-xl px-4 text-[15px]"
+            className="bg-emerald-600 disabled:bg-app-raised disabled:text-ink-sub text-white font-semibold rounded-xl px-4 text-[15px] whitespace-nowrap"
           >
             追加
           </button>
@@ -705,7 +706,7 @@ function FileSheet({ makers, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/30" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30" onClick={onClose}>
       <div className="bg-app-surface w-full max-w-md rounded-t-3xl p-5 pb-8 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold text-ink">保存・復元</h2>
@@ -756,7 +757,7 @@ function ProductFinder({ makers, onClose, onOpen }) {
     })
   );
   return (
-    <div className="fixed inset-0 z-40 bg-app-bg overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-app-bg overflow-y-auto">
       <div className="px-5 pt-14 pb-10 max-w-md mx-auto">
         <div className="flex items-center gap-2 mb-4">
           <button onClick={onClose} className="w-9 h-9 rounded-full bg-app-raised flex items-center justify-center" aria-label="閉じる">

@@ -3,6 +3,7 @@ import { ChevronLeft, Search, Plus, X } from "lucide-react";
 import { useSukima } from "../sukimaStore";
 import { useSwipeBack } from "../useSwipeBack";
 import { MakerList } from "./MakerPages";
+import WaNoKataBottomNav from "../components/WaNoKataBottomNav";
 
 const STATUS_LABEL = { draft: "下書き", investigating: "調査中", done: "完了" };
 const STATUS_STYLE = {
@@ -58,7 +59,7 @@ function EntryCard({ entry, onClick }) {
 function AddSheet({ type, onClose, onCreate }) {
   const [name, setName] = useState("");
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/30" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30" onClick={onClose}>
       <div
         className="bg-app-surface w-full max-w-md rounded-t-3xl p-5 pb-8"
         onClick={(e) => e.stopPropagation()}
@@ -93,7 +94,8 @@ function AddSheet({ type, onClose, onCreate }) {
 export default function SukimaListPage({ onHome, onOpenEntry }) {
   useSwipeBack(onHome);
   const { entries, addEntry } = useSukima();
-  // "maker" | "company" | "person"。詳細から戻っても同じタブに戻れるよう、開いている間だけ覚えておく
+  // "maker" | "company" | "person"。詳細から戻っても同じ画面に戻れるよう、開いている間だけ覚えておく。
+  // 下のタブは maker なら WA NO KATA、company / person なら Sukima。
   const [type, setTypeState] = useState(() => {
     try {
       return sessionStorage.getItem("sukima-tab") || "maker";
@@ -105,9 +107,21 @@ export default function SukimaListPage({ onHome, onOpenEntry }) {
     setTypeState(t);
     try {
       sessionStorage.setItem("sukima-tab", t);
+      if (t !== "maker") sessionStorage.setItem("sukima-research", t);
     } catch {
       // noop
     }
+  }
+  const tab = type === "maker" ? "wanokata" : "sukima";
+  function setTab(t) {
+    if (t === "wanokata") return setType("maker");
+    let last = "company";
+    try {
+      last = sessionStorage.getItem("sukima-research") || "company";
+    } catch {
+      // noop
+    }
+    setType(last);
   }
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -138,20 +152,21 @@ export default function SukimaListPage({ onHome, onOpenEntry }) {
     <div className="min-h-screen bg-app-bg relative">
       <button
         onClick={onHome}
-        className="fixed bottom-6 right-5 z-30 w-11 h-11 rounded-full bg-sky-100/90 backdrop-blur border border-sky-200 flex items-center justify-center shadow-sm"
+        // 作り手の一覧では、下のタブの上に追加欄があるので、その上に浮かせる
+        className={`fixed ${tab === "wanokata" ? "bottom-[168px]" : "bottom-24"} right-5 z-30 w-11 h-11 rounded-full bg-sky-100/90 backdrop-blur border border-sky-200 flex items-center justify-center shadow-sm`}
         aria-label="Homeへ戻る"
       >
         <ChevronLeft size={18} className="text-sky-700" />
       </button>
 
       <header className="px-5 pt-14 pb-3">
-        <h1 className="text-3xl font-semibold tracking-tight">WA NO KATA</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">{tab === "wanokata" ? "WA NO KATA" : "Sukima"}</h1>
       </header>
 
-      {/* 作り手 / 企業 / 人物 タブ */}
+      {/* Sukima の中だけ 企業 / 人物 を切り替える */}
+      {tab === "sukima" && (
       <div className="px-5 flex gap-2 mb-3">
         {[
-          { id: "maker", label: "作り手" },
           { id: "company", label: "企業" },
           { id: "person", label: "人物" },
         ].map((t) => (
@@ -166,6 +181,7 @@ export default function SukimaListPage({ onHome, onOpenEntry }) {
           </button>
         ))}
       </div>
+      )}
 
       {type === "maker" ? (
         <MakerList onOpenEntry={onOpenEntry} />
@@ -237,6 +253,8 @@ export default function SukimaListPage({ onHome, onOpenEntry }) {
       )}
       </>
       )}
+
+      <WaNoKataBottomNav current={tab} setTab={setTab} />
     </div>
   );
 }
