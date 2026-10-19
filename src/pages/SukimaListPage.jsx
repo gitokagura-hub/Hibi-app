@@ -152,8 +152,7 @@ export default function SukimaListPage({ onHome, onOpenEntry }) {
     <div className="min-h-screen bg-app-bg relative">
       <button
         onClick={onHome}
-        // 作り手の一覧では、下のタブの上に追加欄があるので、その上に浮かせる
-        className={`fixed ${tab === "wanokata" ? "bottom-[168px]" : "bottom-24"} right-5 z-30 w-11 h-11 rounded-full bg-sky-100/90 backdrop-blur border border-sky-200 flex items-center justify-center shadow-sm`}
+        className="fixed bottom-24 right-5 z-30 w-11 h-11 rounded-full bg-sky-100/90 backdrop-blur border border-sky-200 flex items-center justify-center shadow-sm"
         aria-label="Homeへ戻る"
       >
         <ChevronLeft size={18} className="text-sky-700" />

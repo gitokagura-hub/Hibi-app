@@ -488,6 +488,23 @@ export function MakerList({ onOpenEntry }) {
   return (
     <>
       <div className="px-5 flex gap-2 mb-3">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) create(); }}
+          placeholder="名前を入れて保存"
+          className="flex-1 min-w-0 border border-app-line rounded-xl px-4 py-2.5 text-[15px] bg-app-surface focus:outline-none focus:border-emerald-500"
+        />
+        <button
+          onClick={create}
+          disabled={!name.trim()}
+          className="bg-emerald-600 disabled:bg-app-raised disabled:text-ink-sub text-white font-semibold rounded-xl px-4 text-[15px] whitespace-nowrap"
+        >
+          追加
+        </button>
+      </div>
+
+      <div className="px-5 flex gap-2 mb-3">
         <button onClick={() => setOverlay("find")} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-app-raised text-sm text-ink-sub">
           <Search size={15} /> 商品を探す
         </button>
@@ -522,7 +539,7 @@ export function MakerList({ onOpenEntry }) {
         )}
       </div>
 
-      <main className="px-5 pb-48">
+      <main className="px-5 pb-28">
         {shown.length === 0 ? (
           <div className="mt-12 text-center text-sm text-ink-sub">
             まだいません
@@ -562,26 +579,6 @@ export function MakerList({ onOpenEntry }) {
           </div>
         )}
       </main>
-
-      {/* 下のタブ(高さ80px)のすぐ上に置く */}
-      <div className="fixed bottom-20 inset-x-0 z-20 bg-app-bg border-t border-app-line px-5 py-3">
-        <div className="flex gap-2 max-w-md mx-auto">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) create(); }}
-            placeholder="名前を入れて保存"
-            className="flex-1 border border-app-line rounded-xl px-4 py-3 text-[15px] focus:outline-none focus:border-emerald-500"
-          />
-          <button
-            onClick={create}
-            disabled={!name.trim()}
-            className="bg-emerald-600 disabled:bg-app-raised disabled:text-ink-sub text-white font-semibold rounded-xl px-4 text-[15px] whitespace-nowrap"
-          >
-            追加
-          </button>
-        </div>
-      </div>
 
       {overlay === "find" && <ProductFinder makers={makers} onClose={() => setOverlay(null)} onOpen={(id, pid) => { pendingOpen = { id, screen: "product", pid }; onOpenEntry(id); }} />}
       {overlay === "file" && <FileSheet makers={makers} onClose={() => setOverlay(null)} />}
