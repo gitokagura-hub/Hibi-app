@@ -1,7 +1,8 @@
 import { Hammer, BookOpen } from "lucide-react";
 
 /**
- * WA NO KATA の下部ナビゲーション。見た目と動きは TimelessBottomNav と揃えている。
+ * WA NO KATA の下部ナビゲーション。見た目と1つ分の幅は Daily Brains の BottomNavigation と揃えている
+ * (タブが2つでも、1つ分は5つ並びのときと同じ大きさ)。
  *   WA NO KATA … 作り手(仕事の相手)の一覧
  *   Sukima     … 企業・人物の研究
  */
@@ -24,10 +25,10 @@ export default function WaNoKataBottomNav({ current, setTab }) {
           <button
             key={item.id}
             onClick={() => setTab(item.id)}
-            className="flex flex-col items-center gap-1 px-3 py-1"
+            className="w-1/5 flex flex-col items-center justify-center gap-1"
           >
-            <Icon size={22} className={active ? "text-ink" : "text-ink-sub"} strokeWidth={active ? 2.2 : 1.8} />
-            <span className={`text-[11px] ${active ? "text-ink font-semibold" : "text-ink-sub"}`}>
+            <Icon size={22} className={active ? "text-ink" : "text-ink-sub"} />
+            <span className={`text-xs whitespace-nowrap ${active ? "font-semibold text-ink" : "text-ink-sub"}`}>
               {item.label}
             </span>
           </button>
