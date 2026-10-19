@@ -149,7 +149,9 @@ export default function SukimaListPage({ onHome, onOpenEntry }) {
   }
 
   return (
-    <div className="min-h-screen bg-app-bg relative">
+    // Daily Brains(Layout)と同じ組み方: 画面の高さで固定し、中だけスクロールさせる
+    <div className="h-[100dvh] overflow-hidden bg-app-bg text-ink flex flex-col relative">
+      <div data-scroll-root className="flex-1 overflow-y-auto">
       <button
         onClick={onHome}
         className="fixed bottom-24 right-5 z-30 w-11 h-11 rounded-full bg-sky-100/90 backdrop-blur border border-sky-200 flex items-center justify-center shadow-sm"
@@ -252,6 +254,8 @@ export default function SukimaListPage({ onHome, onOpenEntry }) {
       )}
       </>
       )}
+
+      </div>
 
       <WaNoKataBottomNav current={tab} setTab={setTab} />
     </div>

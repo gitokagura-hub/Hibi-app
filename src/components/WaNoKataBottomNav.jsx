@@ -1,39 +1,16 @@
 import { Hammer, BookOpen } from "lucide-react";
+import BottomNavigation from "./BottomNavigation";
 
 /**
- * WA NO KATA の下部ナビゲーション。見た目と1つ分の幅は Daily Brains の BottomNavigation と揃えている
- * (タブが2つでも、1つ分は5つ並びのときと同じ大きさ)。
+ * WA NO KATA の下部ナビゲーション。Daily Brains の BottomNavigation をそのまま使い、中身だけ差し替える。
  *   WA NO KATA … 作り手(仕事の相手)の一覧
  *   Sukima     … 企業・人物の研究
  */
-export default function WaNoKataBottomNav({ current, setTab }) {
-  const items = [
-    { id: "wanokata", label: "WA NO KATA", icon: Hammer },
-    { id: "sukima", label: "Sukima", icon: BookOpen },
-  ];
+const ITEMS = [
+  { id: "wanokata", label: "WA NO KATA", icon: Hammer },
+  { id: "sukima", label: "Sukima", icon: BookOpen },
+];
 
-  return (
-    <nav
-      // z-40: シートやモーダル(z-50以上)より下に来るように明示する。
-      className="fixed bottom-0 left-0 right-0 z-40 bg-app-bg/90 backdrop-blur-xl border-t border-app-line h-20 flex items-center justify-around"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-    >
-      {items.map((item) => {
-        const Icon = item.icon;
-        const active = current === item.id;
-        return (
-          <button
-            key={item.id}
-            onClick={() => setTab(item.id)}
-            className="w-1/5 flex flex-col items-center justify-center gap-1"
-          >
-            <Icon size={22} className={active ? "text-ink" : "text-ink-sub"} />
-            <span className={`text-xs whitespace-nowrap ${active ? "font-semibold text-ink" : "text-ink-sub"}`}>
-              {item.label}
-            </span>
-          </button>
-        );
-      })}
-    </nav>
-  );
+export default function WaNoKataBottomNav({ current, setTab }) {
+  return <BottomNavigation current={current} setTab={setTab} items={ITEMS} />;
 }

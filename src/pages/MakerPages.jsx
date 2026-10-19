@@ -461,10 +461,12 @@ export function MakerList({ onOpenEntry }) {
   useEffect(() => {
     let y = 0;
     try { y = Number(sessionStorage.getItem("maker-list-scroll") || 0); } catch { /* noop */ }
-    if (y) requestAnimationFrame(() => window.scrollTo(0, y));
+    const root = () => document.querySelector("[data-scroll-root]");
+    if (y) requestAnimationFrame(() => { const el = root(); if (el) el.scrollTop = y; });
   }, []);
   const open = (id) => {
-    try { sessionStorage.setItem("maker-list-scroll", String(window.scrollY)); } catch { /* noop */ }
+    const el = document.querySelector("[data-scroll-root]");
+    try { sessionStorage.setItem("maker-list-scroll", String(el ? el.scrollTop : 0)); } catch { /* noop */ }
     onOpenEntry(id);
   };
 

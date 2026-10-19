@@ -6,14 +6,16 @@ import {
   Settings as SettingsIcon,
 } from "lucide-react";
 
-export default function BottomNavigation({ current, setTab }) {
-  const items = [
+// items を渡すと、同じ見た目・同じ大きさのまま中身だけ差し替えられる(WA NO KATA で使用)
+const DEFAULT_ITEMS = [
     { id: "calendar", label: "Calendar", icon: CalendarDays },
     { id: "notes", label: "Notes", icon: NotebookPen },
     { id: "projects", label: "Projects", icon: FolderKanban },
     { id: "search", label: "Files", icon: Folder },
     { id: "settings", label: "Settings", icon: SettingsIcon },
-  ];
+];
+
+export default function BottomNavigation({ current, setTab, items = DEFAULT_ITEMS }) {
 
   return (
     <nav
