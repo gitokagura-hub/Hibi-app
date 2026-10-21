@@ -201,6 +201,7 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
   const [photoFront, setPhotoFront] = useState(product?.photoFront || null);
   const [photoBack, setPhotoBack] = useState(product?.photoBack || null);
   const [docInput, setDocInput] = useState("");
+  const [soldOut, setSoldOut] = useState(Boolean(product?.soldOut));
 
   // 卸価格を打つと販売価格が決まる。取り分は売値の3割と契約で決まっているため、
   // 卸 ÷ 0.7 が販売価格になる(1円未満は切り捨て)。卸を打ち直せば必ず入れ直す。
@@ -317,6 +318,14 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
             onChange={(e) => { setPairingNote(e.target.value); autoGrow(e.target); }}
             ref={autoGrow} placeholder="Pairing" rows={2}
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface resize-none overflow-hidden" />
+          {/* 売り切れの張り紙。在庫数とは別に、自分で貼り外しする。 */}
+          <button type="button" onClick={() => setSoldOut((v) => !v)}
+            className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface flex items-center justify-between">
+            <span>Sold out</span>
+            <span className={`w-11 h-6 rounded-full p-0.5 transition-colors ${soldOut ? "bg-[#c0392b]" : "bg-app-line"}`}>
+              <span className={`block w-5 h-5 rounded-full bg-white transition-transform ${soldOut ? "translate-x-5" : ""}`} />
+            </span>
+          </button>
         </div>
 
         {/* 規格書。小林醸造から受け取った書類の名前を控えておく場所。 */}
@@ -373,6 +382,7 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
                 smv: smv === "" ? "" : Number(smv),
                 acidity: acidity === "" ? "" : Number(acidity),
                 pairingNote,
+                soldOut,
                 retailPrice: Number(retailPrice) || 0,
                 wholesalePrice: Number(wholesalePrice) || 0,
                 docs,
@@ -432,14 +442,25 @@ function NowOnSale() {
 
       {data.products.map((p) => (
         <article key={p.id} className="bg-app-surface border border-app-line mx-5 my-4 p-4 rounded-none">
-          {p.photoFront ? (
-            // 高さを固定せず写真の比率のまま出す。ラベルが主役の画面なので幅いっぱいに見せる。
-            <img src={p.photoFront} alt={p.name} className="w-[calc(100%+32px)] h-auto -mx-4 -mt-4 mb-4 block border-b border-app-line" />
-          ) : (
-            <div className="h-64 -mx-4 -mt-4 mb-4 bg-app-raised border-b border-app-line flex items-center justify-center text-[10px] tracking-[0.2em] text-ink-sub/60">
-              PRODUCT PHOTO
-            </div>
-          )}
+          {/* 売り切れの帯は写真の上に重ねる。写真が無いときも同じ位置に出す。 */}
+          <div className="relative -mx-4 -mt-4 mb-4 overflow-hidden">
+            {p.photoFront ? (
+              // 高さを固定せず写真の比率のまま出す。ラベルが主役の画面なので幅いっぱいに見せる。
+              <img src={p.photoFront} alt={p.name} className="w-full h-auto block border-b border-app-line" />
+            ) : (
+              <div className="h-64 bg-app-raised border-b border-app-line flex items-center justify-center text-[10px] tracking-[0.2em] text-ink-sub/60">
+                PRODUCT PHOTO
+              </div>
+            )}
+            {p.soldOut && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-[160%] -rotate-[14deg] bg-[#c0392b]/90 text-white text-center py-2.5
+                                font-semibold tracking-[0.3em] text-sm">
+                  SOLD OUT
+                </div>
+              </div>
+            )}
+          </div>
           <button onClick={() => setEditing(p)} className="w-full text-left">
             <p className="text-lg font-semibold underline decoration-app-line underline-offset-4">{p.name}</p>
           </button>

@@ -44,9 +44,17 @@ function specRows(p) {
 
 // 1商品ぶんのカード。画面のカードと同じ並びで組む。
 function cardHtml(p) {
-  const photo = p.photoFront
+  const inner = p.photoFront
     ? `<img src="${p.photoFront}" style="width:100%;display:block;border-bottom:1px solid #e5e3de">`
+    : `<div style="height:200px;background:#f1efea;border-bottom:1px solid #e5e3de"></div>`;
+  // 売り切れの帯は、画面と同じく写真の上に斜めに重ねる。
+  const band = p.soldOut
+    ? `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+         <div style="width:160%;transform:rotate(-14deg);background:rgba(192,57,43,.9);color:#fff;
+                     text-align:center;padding:10px 0;font-weight:600;letter-spacing:.3em;font-size:14px">SOLD OUT</div>
+       </div>`
     : "";
+  const photo = `<div style="position:relative;overflow:hidden">${inner}${band}</div>`;
   const specs = specRows(p)
     .map(([k, v]) => `<div style="color:#8c8880">${esc(k)}</div><div style="text-align:right">${esc(v)}</div>`)
     .join("");
@@ -61,7 +69,7 @@ function cardHtml(p) {
     : "";
   return `
   <article style="background:#fff;border:1px solid #e5e3de;margin:0 0 20px;padding:16px">
-    ${photo ? `<div style="margin:-16px -16px 16px">${photo}</div>` : ""}
+    <div style="margin:-16px -16px 16px">${photo}</div>
     <p style="font-size:17px;font-weight:600;margin:0">${esc(p.name)}</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 8px;margin-top:12px;font-size:11px;font-family:ui-monospace,monospace">${specs}</div>
     ${brewery}
