@@ -17,6 +17,9 @@ import TimelessBottomNav from "./TimelessBottomNav";
  * 商品マスタでのみ編集し、仕入・販売の個々の行では変更させない。
  */
 
+// 販売価格は卸価格から決まる。取り分が売値の3割になるよう、卸 ÷ 0.7 で求める。
+const MARGIN_DIVISOR = 0.7;
+
 // ペアリングは以前 pairing(配列) で持っていたため、古いデータも読めるようにする。
 // 新しく打った内容は pairingNote(文字列)に入る。
 function pairingTextOf(p) {
@@ -191,6 +194,14 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
   const [photoBack, setPhotoBack] = useState(product?.photoBack || null);
   const [docInput, setDocInput] = useState("");
 
+  // 卸価格を打つと販売価格が決まる。取り分は売値の3割と契約で決まっているため、
+  // 卸 ÷ 0.7 が販売価格になる(1円未満は切り捨て)。卸を打ち直せば必ず入れ直す。
+  function onWholesaleChange(v) {
+    setWholesalePrice(v);
+    const w = Number(v);
+    setRetailPrice(w > 0 ? String(Math.floor(w / MARGIN_DIVISOR)) : "");
+  }
+
   return (
     <div className="fixed inset-0 z-[60] bg-black/40 flex items-end" onClick={onCancel}>
       <div className="w-full bg-app-bg rounded-t-2xl p-5 pb-8 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -289,9 +300,9 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
               intMax={3}
             />
           )}
-          <input value={retailPrice} onChange={(e) => setRetailPrice(e.target.value)} inputMode="numeric" placeholder="Retail price (¥)"
+          <input value={wholesalePrice} onChange={(e) => onWholesaleChange(e.target.value)} inputMode="numeric" placeholder="Wholesale price (¥)"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
-          <input value={wholesalePrice} onChange={(e) => setWholesalePrice(e.target.value)} inputMode="numeric" placeholder="Wholesale price (¥)"
+          <input value={retailPrice} onChange={(e) => setRetailPrice(e.target.value)} inputMode="numeric" placeholder="Retail price (¥)"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
         </div>
 
@@ -636,7 +647,7 @@ function Sale() {
 // ===== 4. Total =====
 function Total() {
   const { data, setStockCount } = useLedger();
-  const mo = useMonthCursor();
+  // ここは全期間の累計。月で区切ると前月からの在庫が消えるため、月送りは置かない。
   const [editingCount, setEditingCount] = useState(null);
   const [countInput, setCountInput] = useState("");
 
@@ -681,13 +692,7 @@ function Total() {
 
   return (
     <div>
-      <div className="flex items-center justify-center gap-6 pt-6">
-        <button onClick={mo.prev} className="text-ink-sub text-lg px-3">‹</button>
-        <span className="font-mono text-[13px] tracking-[0.2em]">{mo.label}</span>
-        <button onClick={mo.next} className="text-ink-sub text-lg px-3">›</button>
-      </div>
-
-      <div className="px-5 pt-4 pb-2">
+      <div className="px-5 pt-8 pb-2">
         <h2 className="font-serif text-sm tracking-[0.18em] uppercase text-ink-sub">By product</h2>
       </div>
       <div className="h-px bg-app-line mx-5" />
