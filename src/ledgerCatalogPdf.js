@@ -51,11 +51,17 @@ function cardHtml(p) {
   const inner = p.photoFront
     ? `<img src="${p.photoFront}" style="width:100%;display:block;border-bottom:1px solid #e5e3de">`
     : `<div style="height:200px;background:#f1efea;border-bottom:1px solid #e5e3de"></div>`;
-  // 売り切れの帯は、画面と同じく写真の上に斜めに重ねる。
-  const band = p.soldOut
-    ? `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
-         <div style="width:160%;transform:rotate(-14deg);background:rgba(192,57,43,.9);color:#fff;
-                     text-align:center;padding:10px 0;font-weight:600;letter-spacing:.3em;font-size:14px">SOLD OUT</div>
+  // 張り紙は、画面と同じく写真の中央に文字だけを重ねる。
+  const st = p.status === "sold" || p.status === "soon" ? p.status : (p.soldOut ? "sold" : "");
+  const band = st
+    ? `<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 16px">
+         <span style="color:#fff;text-align:center;line-height:1.2;letter-spacing:.22em;
+                      text-shadow:0 1px 10px rgba(0,0,0,.35);
+                      font-size:${st === "sold" ? 23 : 21}px;
+                      font-family:${st === "sold" ? '"Playfair Display",serif' : '"Cormorant Garamond",serif'}">
+           ${st === "sold" ? "SOLD OUT" : "COMING SOON!"}
+         </span>
+         <span style="display:block;width:28px;height:1px;background:rgba(255,255,255,.8);margin-top:10px"></span>
        </div>`
     : "";
   const photo = `<div style="position:relative;overflow:hidden">${inner}${band}</div>`;

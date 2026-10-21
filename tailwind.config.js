@@ -9,6 +9,9 @@ export default {
           '"Segoe UI"', 'system-ui', 'sans-serif',
         ],
         mincho: ['"Zen Old Mincho"', '"Hiragino Mincho ProN"', 'serif'],
+        // 商品カードの SOLD OUT / COMING SOON! に使う
+        playfair: ['"Playfair Display"', 'serif'],
+        cormorant: ['"Cormorant Garamond"', 'serif'],
       },
       fontSize: {
         base: ['16.5px', { lineHeight: '1.5' }],

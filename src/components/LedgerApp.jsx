@@ -17,6 +17,28 @@ import TimelessBottomNav from "./TimelessBottomNav";
  * 商品マスタでのみ編集し、仕入・販売の個々の行では変更させない。
  */
 
+// 商品の状態。写真の上に重ねて出す。soldOut は以前のデータの形なので読めるようにする。
+function statusOf(p) {
+  if (p.status === "sold" || p.status === "soon") return p.status;
+  return p.soldOut ? "sold" : "";
+}
+
+// 写真の中央に文字だけを白で置き、下に短い線を引く。
+function StatusOverlay({ status }) {
+  const sold = status === "sold";
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-4">
+      <span
+        className={`text-white text-center leading-tight ${sold ? "font-playfair" : "font-cormorant"}`}
+        style={{ fontSize: sold ? 23 : 21, letterSpacing: "0.22em", textShadow: "0 1px 10px rgba(0,0,0,.35)" }}
+      >
+        {sold ? "SOLD OUT" : "COMING SOON!"}
+      </span>
+      <span className="block w-7 h-px bg-white/80 mt-2.5" />
+    </div>
+  );
+}
+
 // 複数行の入力欄は、中でスクロールさせず中身の高さに合わせて伸ばす。
 function autoGrow(el) {
   if (!el) return;
@@ -207,7 +229,7 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
   const [photoFront, setPhotoFront] = useState(product?.photoFront || null);
   const [photoBack, setPhotoBack] = useState(product?.photoBack || null);
   const [docInput, setDocInput] = useState("");
-  const [soldOut, setSoldOut] = useState(Boolean(product?.soldOut));
+  const [status, setStatus] = useState(product ? statusOf(product) : "");
 
   // 卸価格を打つと販売価格が決まる。取り分は売値の3割と契約で決まっているため、
   // 卸 ÷ 0.7 が販売価格になる(1円未満は切り捨て)。卸を打ち直せば必ず入れ直す。
@@ -324,14 +346,15 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
             onChange={(e) => { setPairingNote(e.target.value); autoGrow(e.target); }}
             ref={autoGrow} placeholder="Pairing" rows={2}
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface resize-none overflow-hidden" />
-          {/* 売り切れの張り紙。在庫数とは別に、自分で貼り外しする。 */}
-          <button type="button" onClick={() => setSoldOut((v) => !v)}
-            className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface flex items-center justify-between">
-            <span>Sold out</span>
-            <span className={`w-11 h-6 rounded-full p-0.5 transition-colors ${soldOut ? "bg-[#c0392b]" : "bg-app-line"}`}>
-              <span className={`block w-5 h-5 rounded-full bg-white transition-transform ${soldOut ? "translate-x-5" : ""}`} />
-            </span>
-          </button>
+          {/* 写真に重ねる張り紙。在庫数とは別に、自分で貼り外しする。 */}
+          <div className="w-full rounded-xl border border-app-line p-1 bg-app-surface grid grid-cols-3 gap-1">
+            {[["", "なし"], ["sold", "Sold out"], ["soon", "Coming soon"]].map(([v, label]) => (
+              <button key={v || "none"} type="button" onClick={() => setStatus(v)}
+                className={`rounded-lg py-2 text-[12.5px] ${status === v ? "bg-ink text-app-bg" : "text-ink-sub"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* 規格書。小林醸造から受け取った書類の名前を控えておく場所。 */}
@@ -388,7 +411,8 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
                 smv: smv === "" ? "" : Number(smv),
                 acidity: acidity === "" ? "" : Number(acidity),
                 pairingNote,
-                soldOut,
+                status,
+                soldOut: status === "sold", // 古い形で読む所のために残す
                 retailPrice: Number(retailPrice) || 0,
                 wholesalePrice: Number(wholesalePrice) || 0,
                 docs,
@@ -458,14 +482,7 @@ function NowOnSale() {
                 PRODUCT PHOTO
               </div>
             )}
-            {p.soldOut && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-[160%] -rotate-[14deg] bg-[#c0392b]/90 text-white text-center py-2.5
-                                font-semibold tracking-[0.3em] text-sm">
-                  SOLD OUT
-                </div>
-              </div>
-            )}
+            {statusOf(p) && <StatusOverlay status={statusOf(p)} />}
           </div>
           <button onClick={() => setEditing(p)} className="w-full text-left">
             <p className="text-lg font-semibold underline decoration-app-line underline-offset-4">{p.name}</p>
