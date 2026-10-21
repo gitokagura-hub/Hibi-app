@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import AcidityWheel from "./AcidityWheel";
 import { compressPhoto } from "../ledgerStore";
-import { ChevronLeft, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, Plus, Share, Trash2 } from "lucide-react";
 import { useLedger, monthKey, sumQty, sumAmount, toLiters } from "../ledgerStore";
 import TimelessBottomNav from "./TimelessBottomNav";
 
@@ -16,6 +16,13 @@ import TimelessBottomNav from "./TimelessBottomNav";
  * 定価(retail)と卸価格(wholesale)は小林醸造との取り決めで固定のため、
  * 商品マスタでのみ編集し、仕入・販売の個々の行では変更させない。
  */
+
+// 複数行の入力欄は、中でスクロールさせず中身の高さに合わせて伸ばす。
+function autoGrow(el) {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+}
 
 // 販売価格は卸価格から決まる。取り分が売値の3割になるよう、卸 ÷ 0.7 で求める。
 const MARGIN_DIVISOR = 0.7;
@@ -189,6 +196,7 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
   const [acidityWheelOpen, setAcidityWheelOpen] = useState(false);
   const [retailPrice, setRetailPrice] = useState(String(product?.retailPrice ?? ""));
   const [wholesalePrice, setWholesalePrice] = useState(String(product?.wholesalePrice ?? ""));
+  const [pairingNote, setPairingNote] = useState(product ? pairingTextOf(product) : "");
   const [docs, setDocs] = useState(product?.docs || []);
   const [photoFront, setPhotoFront] = useState(product?.photoFront || null);
   const [photoBack, setPhotoBack] = useState(product?.photoBack || null);
@@ -304,6 +312,11 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
           <input value={retailPrice} onChange={(e) => setRetailPrice(e.target.value)} inputMode="numeric" placeholder="Retail price (¥)"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
+          {/* 改行して自由に書ける。欄は中身の高さに合わせて伸ばし、中でスクロールさせない。 */}
+          <textarea value={pairingNote}
+            onChange={(e) => { setPairingNote(e.target.value); autoGrow(e.target); }}
+            ref={autoGrow} placeholder="Pairing" rows={2}
+            className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface resize-none overflow-hidden" />
         </div>
 
         {/* 規格書。小林醸造から受け取った書類の名前を控えておく場所。 */}
@@ -359,6 +372,7 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
                 polish: polish === "" ? "" : Number(polish),
                 smv: smv === "" ? "" : Number(smv),
                 acidity: acidity === "" ? "" : Number(acidity),
+                pairingNote,
                 retailPrice: Number(retailPrice) || 0,
                 wholesalePrice: Number(wholesalePrice) || 0,
                 docs,
@@ -379,12 +393,36 @@ function NowOnSale() {
   const { data, addProduct, updateProduct, deleteProduct } = useLedger();
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null); // 編集中の商品(nullなら閉じている)
+  const [sharing, setSharing] = useState(false);
+
+  // 取扱商品の一覧を、この画面と同じ見た目のPDFにして共有シートへ渡す。
+  async function onShare() {
+    if (sharing || data.products.length === 0) return;
+    setSharing(true);
+    try {
+      const { shareCatalogPdf } = await import("../ledgerCatalogPdf");
+      await shareCatalogPdf(data.products);
+    } catch {
+      /* 共有を閉じた場合など。画面は元に戻すだけでよい。 */
+    } finally {
+      setSharing(false);
+    }
+  }
 
   return (
     <div>
       <div className="flex items-baseline justify-between px-5 pt-6 pb-2">
         <h2 className="font-serif text-sm tracking-[0.18em] uppercase text-ink-sub">Now on sale</h2>
-        <button onClick={() => setAdding(true)} className="text-ink text-xl leading-none px-1">＋</button>
+        <div className="flex items-center gap-1">
+          {data.products.length > 0 && (
+            <button onClick={onShare} disabled={sharing}
+              className="w-9 h-9 flex items-center justify-center text-ink-sub disabled:opacity-40"
+              aria-label="Share catalogue">
+              <Share size={17} />
+            </button>
+          )}
+          <button onClick={() => setAdding(true)} className="text-ink text-xl leading-none px-1">＋</button>
+        </div>
       </div>
       <div className="h-px bg-app-line mx-5" />
 
@@ -423,18 +461,13 @@ function NowOnSale() {
             <div className="flex justify-between text-xs"><span className="text-ink-sub">Retail</span><span className="font-mono">{fmtYen(p.retailPrice)}</span></div>
           </div>
 
-          {/* ペアリングは1行ずつ足す形をやめ、メモのように自由に改行して
-              書ける欄にする。打った内容はそのまま保存される。 */}
-          <div className="mt-3 pt-3 border-t border-app-line">
-            <p className="text-[10px] tracking-[0.2em] uppercase text-ink-sub">Pairing</p>
-            <textarea
-              value={pairingTextOf(p)}
-              onChange={(e) => updateProduct(p.id, { pairingNote: e.target.value })}
-              placeholder="合う料理や飲み方を自由に書く"
-              rows={3}
-              className="w-full mt-2 bg-transparent text-sm outline-none resize-none placeholder:text-ink-sub/40"
-            />
-          </div>
+          {/* 人に見せるカタログなので、書いてあるときだけ出す。書き入れは編集画面で行う。 */}
+          {pairingTextOf(p).trim() && (
+            <div className="mt-3 pt-3 border-t border-app-line">
+              <p className="text-[10px] tracking-[0.2em] uppercase text-ink-sub">Pairing</p>
+              <p className="mt-2 text-sm whitespace-pre-wrap">{pairingTextOf(p).trim()}</p>
+            </div>
+          )}
 
           {(p.docs || []).length > 0 && (
             <div className="mt-3 pt-3 border-t border-app-line">
