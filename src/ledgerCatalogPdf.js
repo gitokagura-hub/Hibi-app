@@ -6,9 +6,13 @@
  * 端末の文字で描かれるので化けず、見た目も画面と揃う。
  */
 
-const PAGE_W = 595.28; // A4(pt)
-const PAGE_H = 841.89;
-const MARGIN = 28;
+// 紙に刷るものではなく、相手の画面で見てもらうもの。A4に収めると
+// アプリの見た目が縮んで文字が読みづらくなるため、iPhoneの画面に近い
+// 細長いページにして、画面と同じ大きさのまま出す。
+const CARD_W_PX = 390;  // iPhoneの横幅(CSSピクセル)
+const PT_PER_PX = 0.75; // 1px = 0.75pt。画面の見た目をそのままptに移す
+const PAGE_W = CARD_W_PX * PT_PER_PX;
+const MARGIN = 12;
 
 function fmtYen(n) {
   return `¥${Math.round(n || 0).toLocaleString("ja-JP")}`;
@@ -68,7 +72,7 @@ function cardHtml(p) {
        </div>`
     : "";
   return `
-  <article style="background:#fff;border:1px solid #e5e3de;margin:0 0 20px;padding:16px">
+  <article style="background:#fff;border:1px solid #e5e3de;margin:0;padding:16px">
     <div style="margin:-16px -16px 16px">${photo}</div>
     <p style="font-size:17px;font-weight:600;margin:0">${esc(p.name)}</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 8px;margin-top:12px;font-size:11px;font-family:ui-monospace,monospace">${specs}</div>
@@ -81,8 +85,8 @@ function cardHtml(p) {
   </article>`;
 }
 
-// 画面外に実物の大きさで組んでから画像にする。印刷用に作り直すのではなく
-// 同じ見た目を保つため、カード1枚ずつ測って、ページ跨ぎで切れないようにする。
+// 画面外に、アプリと同じ幅で組んでから画像にする。印刷用に作り直さないので
+// 文字の大きさも写真の比率も画面のまま残る。
 function buildStage(products, widthPx) {
   const stage = document.createElement("div");
   stage.style.cssText = `position:fixed;left:-10000px;top:0;width:${widthPx}px;background:#faf9f7;padding:0;` +
@@ -100,9 +104,9 @@ export async function shareCatalogPdf(products) {
   const { jsPDF } = await import("jspdf");
 
   const contentW = PAGE_W - MARGIN * 2;
-  const scale = 2;              // 文字と写真が粗くならない倍率
-  const widthPx = Math.round(contentW * 2); // 組み立て時の実寸(px)
-  const stage = buildStage(list, widthPx);
+  const scale = 2; // 文字と写真が粗くならない倍率
+  // アプリの画面と同じ幅で組む。縮めないので、文字も写真も画面のままの大きさになる。
+  const stage = buildStage(list, Math.round(contentW / PT_PER_PX));
 
   try {
     // 写真(dataURL)の読み込み待ち。待たずに描くと写真が抜ける。
@@ -112,21 +116,16 @@ export async function shareCatalogPdf(products) {
       )
     );
 
-    const pdf = new jsPDF({ unit: "pt", format: "a4" });
-    let y = MARGIN;
-    let first = true;
-
+    // カードごとに1ページ。ページの高さはそのカードの高さに合わせるので、
+    // 写真が縦長の商品でも切れず、余白も出ない。
+    let pdf = null;
     for (const card of Array.from(stage.children)) {
-      const canvas = await html2canvas(card, { scale, backgroundColor: null, useCORS: true, logging: false });
-      const h = (canvas.width ? (canvas.height / canvas.width) * contentW : 0);
-      // 1枚がページに収まらないときは、そのカードだけページいっぱいに縮める。
-      const fitH = Math.min(h, PAGE_H - MARGIN * 2);
-      const fitW = h > 0 ? (contentW * fitH) / h : contentW;
-
-      if (!first && y + fitH > PAGE_H - MARGIN) { pdf.addPage(); y = MARGIN; }
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.9), "JPEG", MARGIN, y, fitW, fitH);
-      y += fitH + 14;
-      first = false;
+      const canvas = await html2canvas(card, { scale, backgroundColor: "#faf9f7", useCORS: true, logging: false });
+      const h = canvas.width ? (canvas.height / canvas.width) * contentW : 0;
+      const pageH = h + MARGIN * 2;
+      if (!pdf) pdf = new jsPDF({ unit: "pt", format: [PAGE_W, pageH] });
+      else pdf.addPage([PAGE_W, pageH]);
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", MARGIN, MARGIN, contentW, h);
     }
 
     const blob = pdf.output("blob");
