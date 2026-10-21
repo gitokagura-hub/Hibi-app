@@ -69,14 +69,13 @@ function useMonthCursor() {
 // ===== 入力シート(仕入・販売の1行を追加する) =====
 // 単価は商品マスタで固定しているため、ここでは打たない。金額は 本数×単価 で
 // 自動的に出す。端数値引きなどで額が変わるときだけ、手で上書きできる。
-function EntrySheet({ title, onCancel, onSave, showCustomer, allowSample, unitPrice, unitLabel }) {
+// sample=true のときは試飲サンプルの記録。無償で渡した分なので金額は扱わず、
+// 日付と本数だけを打つ(酒税法では売った分と分けて記帳するため)。
+function EntrySheet({ title, onCancel, onSave, showCustomer, sample, unitPrice, unitLabel }) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [qty, setQty] = useState("");
   const [amount, setAmount] = useState("");
   const [overriding, setOverriding] = useState(false);
-  // 試飲サンプルは無償で渡した分。酒税法では売った分と分けて記帳するため、
-  // 金額は持たず本数だけを記録する。
-  const [sample, setSample] = useState(false);
   const unit = Number(unitPrice) || 0;
   const q = Number(qty) || 0;
   const auto = unit * q;
@@ -105,15 +104,6 @@ function EntrySheet({ title, onCancel, onSave, showCustomer, allowSample, unitPr
             placeholder="Bottles"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface"
           />
-          {allowSample && (
-            <button type="button" onClick={() => setSample((v) => !v)}
-              className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface flex items-center justify-between">
-              <span>Tasting sample</span>
-              <span className={`w-11 h-6 rounded-full p-0.5 transition-colors ${sample ? "bg-ink" : "bg-app-line"}`}>
-                <span className={`block w-5 h-5 rounded-full bg-white transition-transform ${sample ? "translate-x-5" : ""}`} />
-              </span>
-            </button>
-          )}
           {/* 単価 × 本数 = 金額。保存前にここで確かめられるようにする。
               サンプルは無償のため、この欄は出さない。 */}
           {!sample && (
@@ -544,7 +534,7 @@ function LedgerCard({ product, entries, month, kind, onAdd, onDelete, priceLabel
   const qty = sold.reduce((s, e) => s + (e.qty || 0), 0);
   const amt = sold.reduce((s, e) => s + (e.amount || 0), 0);
   const sampleQty = samples.reduce((s, e) => s + (e.qty || 0), 0);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(null); // "sale" | "sample" | null
 
   return (
     <article className="bg-app-surface border border-app-line mx-5 my-4 p-4">
@@ -576,14 +566,15 @@ function LedgerCard({ product, entries, month, kind, onAdd, onDelete, priceLabel
         ))}
       </div>
 
-      <button onClick={() => setAdding(true)} className="block w-full text-left text-ink text-[12.5px] py-3">＋ Add entry</button>
+      <button onClick={() => setAdding("sale")} className="block w-full text-left text-ink text-[12.5px] py-3">＋ Add entry</button>
 
       <div className="flex justify-between items-baseline pt-3 border-t border-app-line">
         <span className="text-[15px] font-semibold">{qty} bottles</span>
         <span className="text-[15px] font-semibold font-mono">{fmtYen(amt)}</span>
       </div>
 
-      {samples.length > 0 && (
+      {/* 試飲サンプルは売った分と入口から分ける。押せば日付と本数だけを打つ。 */}
+      {kind === "sale" && (
         <div className="mt-4 pt-3 border-t border-app-line">
           <p className="text-[10px] tracking-[0.2em] uppercase text-ink-sub">Tasting samples</p>
           <div className="mt-1">
@@ -601,21 +592,24 @@ function LedgerCard({ product, entries, month, kind, onAdd, onDelete, priceLabel
               </div>
             ))}
           </div>
-          <div className="flex justify-between items-baseline pt-3">
-            <span className="text-[13px] text-ink-sub">{sampleQty} bottles</span>
-          </div>
+          <button onClick={() => setAdding("sample")} className="block w-full text-left text-ink text-[12.5px] py-3">＋ Sample</button>
+          {samples.length > 0 && (
+            <div className="flex justify-between items-baseline pt-3 border-t border-app-line">
+              <span className="text-[13px] text-ink-sub">{sampleQty} bottles</span>
+            </div>
+          )}
         </div>
       )}
 
       {adding && (
         <EntrySheet
-          title={`${kind === "purchase" ? "Add purchase" : "Add sale"} — ${product.name}`}
+          title={`${adding === "sample" ? "Add sample" : kind === "purchase" ? "Add purchase" : "Add sale"} — ${product.name}`}
           showCustomer={kind === "sale"}
-          allowSample={kind === "sale"}
+          sample={adding === "sample"}
           unitPrice={priceValue}
           unitLabel={priceLabel}
-          onCancel={() => setAdding(false)}
-          onSave={(v) => { onAdd(product.id, v); setAdding(false); }}
+          onCancel={() => setAdding(null)}
+          onSave={(v) => { onAdd(product.id, v); setAdding(null); }}
         />
       )}
     </article>
