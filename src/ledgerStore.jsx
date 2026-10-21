@@ -187,6 +187,17 @@ export function sumQty(entries, productId, month) {
     .reduce((s, e) => s + (e.qty || 0), 0);
 }
 
+// 試飲サンプル(無償で渡した分)だけ、または売った分だけを数える。
+// 酒税法では無償譲渡を売上と分けて記帳するため、集計も分けられるようにする。
+export function sumQtyWhere(entries, productId, pick, month) {
+  return entries
+    .filter((e) => e.productId === productId && pick(e) && (!month || monthKey(e.date) === month))
+    .reduce((s, e) => s + (e.qty || 0), 0);
+}
+
+export const isSample = (e) => Boolean(e.sample);
+export const notSample = (e) => !e.sample;
+
 export function sumAmount(entries, productId, month) {
   return entries
     .filter((e) => e.productId === productId && (!month || monthKey(e.date) === month))

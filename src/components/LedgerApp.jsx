@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import AcidityWheel from "./AcidityWheel";
 import { compressPhoto } from "../ledgerStore";
 import { ChevronLeft, Plus, Share, Trash2 } from "lucide-react";
-import { useLedger, monthKey, sumQty, sumAmount, toLiters } from "../ledgerStore";
+import { useLedger, monthKey, sumQty, sumQtyWhere, isSample, notSample, sumAmount, toLiters } from "../ledgerStore";
 import TimelessBottomNav from "./TimelessBottomNav";
 
 /**
@@ -69,16 +69,19 @@ function useMonthCursor() {
 // ===== 入力シート(仕入・販売の1行を追加する) =====
 // 単価は商品マスタで固定しているため、ここでは打たない。金額は 本数×単価 で
 // 自動的に出す。端数値引きなどで額が変わるときだけ、手で上書きできる。
-function EntrySheet({ title, onCancel, onSave, showCustomer, unitPrice, unitLabel }) {
+function EntrySheet({ title, onCancel, onSave, showCustomer, allowSample, unitPrice, unitLabel }) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [qty, setQty] = useState("");
   const [amount, setAmount] = useState("");
   const [overriding, setOverriding] = useState(false);
+  // 試飲サンプルは無償で渡した分。酒税法では売った分と分けて記帳するため、
+  // 金額は持たず本数だけを記録する。
+  const [sample, setSample] = useState(false);
   const unit = Number(unitPrice) || 0;
   const q = Number(qty) || 0;
   const auto = unit * q;
   // 上書き中は打った額を、それ以外は自動計算の額を使う
-  const effective = overriding ? Number(amount) || 0 : auto;
+  const effective = sample ? 0 : (overriding ? Number(amount) || 0 : auto);
   // 販売先。小売は住所・氏名を省略できるが、卸は記帳が要る。切替は設けず、
   // 常に欄を出して任意入力にする(小売のときは空のままでよい)。
   const [customer, setCustomer] = useState("");
@@ -102,7 +105,18 @@ function EntrySheet({ title, onCancel, onSave, showCustomer, unitPrice, unitLabe
             placeholder="Bottles"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface"
           />
-          {/* 単価 × 本数 = 金額。保存前にここで確かめられるようにする。 */}
+          {allowSample && (
+            <button type="button" onClick={() => setSample((v) => !v)}
+              className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface flex items-center justify-between">
+              <span>Tasting sample</span>
+              <span className={`w-11 h-6 rounded-full p-0.5 transition-colors ${sample ? "bg-ink" : "bg-app-line"}`}>
+                <span className={`block w-5 h-5 rounded-full bg-white transition-transform ${sample ? "translate-x-5" : ""}`} />
+              </span>
+            </button>
+          )}
+          {/* 単価 × 本数 = 金額。保存前にここで確かめられるようにする。
+              サンプルは無償のため、この欄は出さない。 */}
+          {!sample && (
           <div className="rounded-xl border border-app-line px-3 py-2.5 bg-app-surface">
             <div className="flex justify-between items-baseline">
               <span className="text-[11px] tracking-[0.12em] uppercase text-ink-sub">{unitLabel}</span>
@@ -134,6 +148,7 @@ function EntrySheet({ title, onCancel, onSave, showCustomer, unitPrice, unitLabe
               </button>
             )}
           </div>
+          )}
           {showCustomer && (
             <>
               <input
@@ -159,7 +174,8 @@ function EntrySheet({ title, onCancel, onSave, showCustomer, unitPrice, unitLabe
             onClick={() => {
               if (!date || !q) return;
               onSave({
-                date, qty: q, amount: effective, unitPrice: unit,
+                date, qty: q, amount: effective, unitPrice: sample ? 0 : unit,
+                ...(sample ? { sample: true } : {}),
                 ...(showCustomer ? { customer: customer.trim(), address: address.trim() } : {}),
               });
             }}
@@ -522,8 +538,12 @@ function NowOnSale() {
 // ===== 商品ブロック(仕入・販売で共通の骨格) =====
 function LedgerCard({ product, entries, month, kind, onAdd, onDelete, priceLabel, priceValue }) {
   const list = entries.filter((e) => e.productId === product.id && monthKey(e.date) === month);
-  const qty = sumQty(entries, product.id, month);
-  const amt = sumAmount(entries, product.id, month);
+  // 売った分と試飲サンプルは分けて見せる。合計の金額には売った分だけが入る。
+  const sold = list.filter((e) => !e.sample);
+  const samples = list.filter((e) => e.sample);
+  const qty = sold.reduce((s, e) => s + (e.qty || 0), 0);
+  const amt = sold.reduce((s, e) => s + (e.amount || 0), 0);
+  const sampleQty = samples.reduce((s, e) => s + (e.qty || 0), 0);
   const [adding, setAdding] = useState(false);
 
   return (
@@ -541,7 +561,7 @@ function LedgerCard({ product, entries, month, kind, onAdd, onDelete, priceLabel
       )}
 
       <div className="mt-4 border-t border-app-line">
-        {list.map((e) => (
+        {sold.map((e) => (
           <div key={e.id} className="grid grid-cols-[56px_1fr_auto_28px] items-baseline gap-2 py-2.5 border-b border-app-line font-mono text-[12.5px]">
             <span className="text-ink-sub">{fmtDate(e.date)}</span>
             <span>
@@ -563,10 +583,35 @@ function LedgerCard({ product, entries, month, kind, onAdd, onDelete, priceLabel
         <span className="text-[15px] font-semibold font-mono">{fmtYen(amt)}</span>
       </div>
 
+      {samples.length > 0 && (
+        <div className="mt-4 pt-3 border-t border-app-line">
+          <p className="text-[10px] tracking-[0.2em] uppercase text-ink-sub">Tasting samples</p>
+          <div className="mt-1">
+            {samples.map((e) => (
+              <div key={e.id} className="grid grid-cols-[56px_1fr_auto_28px] items-baseline gap-2 py-2.5 border-b border-app-line font-mono text-[12.5px]">
+                <span className="text-ink-sub">{fmtDate(e.date)}</span>
+                <span>
+                  {e.qty} btl
+                  {e.customer && (
+                    <span className="block text-[11px] text-ink-sub truncate">{e.customer}</span>
+                  )}
+                </span>
+                <span className="text-right text-ink-sub">—</span>
+                <button onClick={() => onDelete(e.id)} className="text-ink-sub/60"><Trash2 size={13} /></button>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between items-baseline pt-3">
+            <span className="text-[13px] text-ink-sub">{sampleQty} bottles</span>
+          </div>
+        </div>
+      )}
+
       {adding && (
         <EntrySheet
           title={`${kind === "purchase" ? "Add purchase" : "Add sale"} — ${product.name}`}
           showCustomer={kind === "sale"}
+          allowSample={kind === "sale"}
           unitPrice={priceValue}
           unitLabel={priceLabel}
           onCancel={() => setAdding(false)}
@@ -636,8 +681,9 @@ function Purchasing() {
           <div className="h-px bg-app-line mx-5" />
           {data.products.map((p) => {
             const purchased = sumQty(data.purchases, p.id);
-            const sold = sumQty(data.sales, p.id);
-            const inStock = purchased - sold;
+            const sold = sumQtyWhere(data.sales, p.id, notSample);
+            const sampled = sumQtyWhere(data.sales, p.id, isSample);
+            const inStock = purchased - sold - sampled;
             return (
               <article key={p.id} className="bg-app-surface border border-app-line mx-5 my-4 p-4">
                 <p className="text-lg font-semibold">{p.name}</p>
@@ -650,6 +696,7 @@ function Purchasing() {
                 </div>
                 <div className="flex gap-5 pt-3 pb-1 font-mono text-[11px] text-ink-sub">
                   <span>Purchased {purchased}</span><span>Sold {sold}</span>
+                  {sampled > 0 && <span>Sample {sampled}</span>}
                 </div>
               </article>
             );
@@ -706,22 +753,24 @@ function Total() {
   const [countInput, setCountInput] = useState("");
 
   const grand = useMemo(() => {
-    let pQty = 0, pAmt = 0, pL = 0, sQty = 0, sAmt = 0, sL = 0, stockQty = 0, stockL = 0, counted = 0, hasCounted = false;
+    let pQty = 0, pAmt = 0, pL = 0, sQty = 0, sAmt = 0, sL = 0, smpQty = 0, stockQty = 0, stockL = 0, counted = 0, hasCounted = false;
     data.products.forEach((p) => {
       const purchased = sumQty(data.purchases, p.id);
-      const sold = sumQty(data.sales, p.id);
-      pQty += purchased; sQty += sold;
+      // 売った分と試飲サンプルは分けて数える。在庫は両方とも減る。
+      const sold = sumQtyWhere(data.sales, p.id, notSample);
+      const sampled = sumQtyWhere(data.sales, p.id, isSample);
+      pQty += purchased; sQty += sold; smpQty += sampled;
       pAmt += sumAmount(data.purchases, p.id);
       sAmt += sumAmount(data.sales, p.id);
       pL += toLiters(p.volumeMl, purchased);
       sL += toLiters(p.volumeMl, sold);
-      const inStock = purchased - sold;
+      const inStock = purchased - sold - sampled;
       stockQty += inStock;
       stockL += toLiters(p.volumeMl, inStock);
       const c = data.stockCounts[p.id];
       if (c && c.count !== "" && c.count != null) { counted += Number(c.count); hasCounted = true; }
     });
-    return { pQty, pAmt, pL, sQty, sAmt, sL, stockQty, stockL, counted, hasCounted };
+    return { pQty, pAmt, pL, sQty, sAmt, sL, smpQty, stockQty, stockL, counted, hasCounted };
   }, [data]);
 
   // 同じ銘柄名の商品(720ml/1.8L等)をひとつのブロックにまとめる。
@@ -737,6 +786,7 @@ function Total() {
       }
       const g = groups[index.get(key)];
       g.items.push(p);
+      // サンプルで出した分も手元からは減るので、在庫からは引く。
       const inStock = sumQty(data.purchases, p.id) - sumQty(data.sales, p.id);
       g.inStock += inStock;
       g.stockL += toLiters(p.volumeMl, inStock);
@@ -761,8 +811,9 @@ function Total() {
 
             {g.items.map((p, idx) => {
               const purchased = sumQty(data.purchases, p.id);
-              const sold = sumQty(data.sales, p.id);
-              const inStock = purchased - sold;
+              const sold = sumQtyWhere(data.sales, p.id, notSample);
+              const sampled = sumQtyWhere(data.sales, p.id, isSample);
+              const inStock = purchased - sold - sampled;
               const count = data.stockCounts[p.id]?.count;
               return (
                 <div key={p.id} className={idx > 0 ? "mt-5 pt-4 border-t border-app-line" : "mt-3"}>
@@ -782,6 +833,13 @@ function Total() {
                       <span>{sold} btl<span className="text-ink-sub"> @ {fmtYen(p.retailPrice)}</span></span>
                       <span className="text-right">{fmtYen(sumAmount(data.sales, p.id))}</span>
                     </div>
+                    {sampled > 0 && (
+                      <div className="grid grid-cols-[80px_1fr_auto] gap-2 py-2 border-b border-app-line font-mono text-[12.5px]">
+                        <span className="text-ink-sub">Sample</span>
+                        <span>{sampled} btl</span>
+                        <span className="text-right text-ink-sub">—</span>
+                      </div>
+                    )}
                     <div className="grid grid-cols-[80px_1fr_auto] gap-2 py-2 border-b border-app-line font-mono text-[12.5px]">
                       <span className="text-ink-sub">In stock</span><span>{inStock} btl</span><span className="text-right">{toLiters(p.volumeMl, inStock).toFixed(2)} L</span>
                     </div>
@@ -844,6 +902,13 @@ function Total() {
         <Row k="Volume" v={`${grand.sL.toFixed(2)} L`} />
         <Row k="Amount" v={fmtYen(grand.sAmt)} big />
       </div>
+
+      {grand.smpQty > 0 && (
+        <div className="mx-5 mt-6 pt-4 border-t-2 border-ink">
+          <p className="text-[10px] tracking-[0.2em] uppercase text-ink-sub mb-2">Tasting samples</p>
+          <Row k="Bottles" v={grand.smpQty} />
+        </div>
+      )}
 
       <div className="mx-5 mt-6 mb-8 pt-4 border-t-2 border-ink">
         <p className="text-[10px] tracking-[0.2em] uppercase text-ink-sub mb-2">In stock</p>
