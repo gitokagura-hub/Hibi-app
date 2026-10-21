@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AcidityWheel from "./AcidityWheel";
 import { compressPhoto } from "../ledgerStore";
-import { ChevronLeft, Plus, Share, Trash2 } from "lucide-react";
+import { ChevronLeft, CloudUpload, Plus, Share, Trash2 } from "lucide-react";
 import { useLedger, monthKey, sumQty, sumQtyWhere, isSample, notSample, sumAmount, toLiters } from "../ledgerStore";
 import TimelessBottomNav from "./TimelessBottomNav";
 
@@ -745,6 +745,29 @@ function Total() {
   // ここは全期間の累計。月で区切ると前月からの在庫が消えるため、月送りは置かない。
   const [editingCount, setEditingCount] = useState(null);
   const [countInput, setCountInput] = useState("");
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [backupMessage, setBackupMessage] = useState("");
+
+  // 台帳だけのバックアップ。Driveの ledger-backup.json を今すぐ書き換える。
+  // 自動保存は「変更から1分操作が止まったら」なので、確実に残したいときに押す。
+  async function handleBackup() {
+    if (backupBusy) return;
+    setBackupMessage("");
+    setBackupBusy(true);
+    try {
+      const { ensureDriveReady, backupNamedDataToDrive } = await import("../googleDrive");
+      if (!(await ensureDriveReady())) {
+        setBackupMessage("先にGoogle Driveと連携してください");
+        return;
+      }
+      await backupNamedDataToDrive("ledger-backup.json", "hibi-drive-ledger-file-id", data);
+      setBackupMessage(`バックアップ完了（${new Date().toLocaleString("ja-JP")}）`);
+    } catch {
+      setBackupMessage("バックアップに失敗しました。もう一度お試しください。");
+    } finally {
+      setBackupBusy(false);
+    }
+  }
 
   const grand = useMemo(() => {
     let pQty = 0, pAmt = 0, pL = 0, sQty = 0, sAmt = 0, sL = 0, smpQty = 0, stockQty = 0, stockL = 0, counted = 0, hasCounted = false;
@@ -790,9 +813,15 @@ function Total() {
 
   return (
     <div>
-      <div className="px-5 pt-8 pb-2">
+      <div className="flex items-baseline justify-between px-5 pt-8 pb-2">
         <h2 className="font-serif text-sm tracking-[0.18em] uppercase text-ink-sub">By product</h2>
+        <button onClick={handleBackup} disabled={backupBusy}
+          className="w-9 h-9 -mb-2 flex items-center justify-center text-ink-sub disabled:opacity-40"
+          aria-label="バックアップする">
+          <CloudUpload size={17} />
+        </button>
       </div>
+      {backupMessage && <p className="px-5 pb-2 text-[11px] text-ink-sub">{backupMessage}</p>}
       <div className="h-px bg-app-line mx-5" />
 
       {byBrand.map((g) => {
