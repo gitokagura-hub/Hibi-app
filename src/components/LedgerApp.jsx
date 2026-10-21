@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AcidityWheel from "./AcidityWheel";
 import { compressPhoto } from "../ledgerStore";
 import { ChevronLeft, Plus, Share, Trash2 } from "lucide-react";
@@ -931,6 +931,12 @@ function Row({ k, v, big }) {
 // ===== 全体 =====
 export default function LedgerApp({ onHome }) {
   const [tab, setTab] = useState("now");
+
+  // 開いたときと、下のタブを切り替えたときは必ず先頭から見せる。
+  // 前の画面のスクロール位置が残ると、途中から開いたように見えるため。
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [tab]);
 
   return (
     <div className="min-h-screen bg-app-bg relative pb-28">
