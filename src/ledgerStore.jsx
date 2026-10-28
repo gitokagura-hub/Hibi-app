@@ -55,14 +55,13 @@ function loadData() {
   return {
     products: [],   // { id, name, volumeMl, abv, polish, rice, brewery, origin,
                      //   retailPrice, wholesalePrice, pairing: [], photo: null, docs: [] }
-    purchases: [],  // { id, productId, date, qty, amount, charges: [] }
-    sales: [],      // { id, productId, date, qty, amount, charges: [] }
-                     // charges: [{ id, type: "shipping"|"parking"|"other", amount, note }]
-                     //   送料・駐車場代など酒以外の費用(税込)。仕入は自分が払った分、
-                     //   販売はお客さんから受け取った分。酒の金額(amount)とは混ぜない。
+    purchases: [],  // { id, productId, date, qty, amount }
+    sales: [],      // { id, productId, date, qty, amount }
     stockCounts: {}, // { [productId]: { count, note } } — 直近の実地棚卸
     costs: [],       // { id, date, type: "shipping"|"parking"|"other", amount, note }
                      //   仕入にかかった送料・駐車場代など(税込)。商品ごとではなく日ごとに持つ。
+    saleCosts: [],   // { id, date, type, amount, note, customer }
+                     //   お客さんからもらった送料・駐車場代など(税込)。
   };
 }
 
@@ -85,18 +84,27 @@ function withProductNos(d) {
 
 // 以前は仕入の記録ごとに送料などを持っていた(charges)。仕入側は日ごとの
 // costs に移したので、残っていれば同じ日付で costs へ移し、記録からは外す。
-function withCostsMoved(d) {
-  if (!d || !Array.isArray(d.purchases)) return d;
-  const costs = Array.isArray(d.costs) ? d.costs : [];
+// 販売側も同じく、記録ごとの charges を日ごとの saleCosts へ(お客さんの名前も持っていく)。
+function moveCharges(entries, existing) {
   const moved = [];
-  const purchases = d.purchases.map((x) => {
-    if (!Array.isArray(x.charges) || x.charges.length === 0) return x;
-    x.charges.forEach((c) => moved.push({ id: c.id || uid(), date: x.date, type: c.type, amount: Number(c.amount) || 0, ...(c.note ? { note: c.note } : {}) }));
+  const list = (entries || []).map((x) => {
+    if (!Array.isArray(x.charges)) return x;
+    x.charges.forEach((c) => moved.push({
+      id: c.id || uid(), date: x.date, type: c.type, amount: Number(c.amount) || 0,
+      ...(c.note ? { note: c.note } : {}),
+      ...(x.customer ? { customer: x.customer } : {}),
+    }));
     const { charges, ...rest } = x;
     return rest;
   });
-  if (moved.length === 0 && Array.isArray(d.costs)) return d;
-  return { ...d, purchases, costs: [...costs, ...moved] };
+  return { list, costs: [...(Array.isArray(existing) ? existing : []), ...moved], changed: list.some((x, i) => x !== entries[i]) };
+}
+function withCostsMoved(d) {
+  if (!d || !Array.isArray(d.purchases)) return d;
+  const p = moveCharges(d.purchases, d.costs);
+  const s = moveCharges(d.sales, d.saleCosts);
+  if (!p.changed && !s.changed && Array.isArray(d.costs) && Array.isArray(d.saleCosts)) return d;
+  return { ...d, purchases: p.list, sales: s.list, costs: p.costs, saleCosts: s.costs };
 }
 function normalize(d) {
   return withCostsMoved(withProductNos(d));
@@ -141,7 +149,7 @@ export function LedgerProvider({ children }) {
   // バックアップから丸ごと戻す。足りない項目は初期値で埋める。
   function replaceAllData(restored) {
     setData(normalize({
-      products: [], purchases: [], sales: [], stockCounts: {}, costs: [],
+      products: [], purchases: [], sales: [], stockCounts: {}, costs: [], saleCosts: [],
       ...(restored || {}),
     }));
   }
@@ -207,14 +215,15 @@ export function LedgerProvider({ children }) {
   }
 
   // ---- 仕入の送料・駐車場代など ----
-  function addCost(c) {
-    setData((prev) => ({ ...prev, costs: [...(prev.costs || []), { id: uid(), ...c }] }));
+  // key は "costs"(仕入で払った分) か "saleCosts"(お客さんからもらった分)。
+  function addCost(key, c) {
+    setData((prev) => ({ ...prev, [key]: [...(prev[key] || []), { id: uid(), ...c }] }));
   }
-  function updateCost(id, patch) {
-    setData((prev) => ({ ...prev, costs: (prev.costs || []).map((x) => (x.id === id ? { ...x, ...patch } : x)) }));
+  function updateCost(key, id, patch) {
+    setData((prev) => ({ ...prev, [key]: (prev[key] || []).map((x) => (x.id === id ? { ...x, ...patch } : x)) }));
   }
-  function deleteCost(id) {
-    setData((prev) => ({ ...prev, costs: (prev.costs || []).filter((x) => x.id !== id) }));
+  function deleteCost(key, id) {
+    setData((prev) => ({ ...prev, [key]: (prev[key] || []).filter((x) => x.id !== id) }));
   }
 
   // ---- 実地棚卸 ----
