@@ -174,26 +174,61 @@ function ChargesEditor({ charges, setCharges }) {
   );
 }
 
-// 記録済みの行をタップしたときに開く。送料などをあとから足す・消す。
-function ChargesSheet({ entry, productName, onCancel, onSave }) {
+// 記録済みの行をタップしたときに開く。金額を直す、送料などをあとから足す・消す。
+// 記録の金額は入れた時点の単価で固定されるため、商品の価格をあとで直したときは
+// 「今の単価 × 本数」を押して計算し直す。
+function EntryEditSheet({ entry, productName, unitPrice, unitLabel, onCancel, onSave }) {
   const [charges, setCharges] = useState(() =>
     chargesOf(entry).map((c) => ({ ...c, amount: String(c.amount), note: c.note || "" }))
   );
+  const [amount, setAmount] = useState(String(entry.amount ?? ""));
+  const unit = Number(unitPrice) || 0;
+  const qty = Number(entry.qty) || 0;
+  const recalculated = unit * qty;
   return (
     <div className="fixed inset-0 z-[60] bg-black/40 flex items-end" onClick={onCancel}>
       <div className="w-full max-h-[90vh] overflow-y-auto bg-app-bg rounded-t-2xl p-5 pb-8" onClick={(e) => e.stopPropagation()}>
         <p className="text-sm font-semibold">{productName}</p>
         <p className="text-[12px] font-mono text-ink-sub mt-1 mb-3">
-          {fmtDate(entry.date)} · {entry.qty} btl · {fmtYen(entry.amount)}
+          {fmtDate(entry.date)} · {entry.qty} btl
           {entry.customer ? ` · ${entry.customer}` : ""}
         </p>
+        <div className="rounded-xl border border-app-line px-3 py-2.5 bg-app-surface mb-2.5">
+          <div className="flex justify-between items-baseline">
+            <span className="text-[11px] tracking-[0.12em] uppercase text-ink-sub">Amount</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-36 text-right rounded-lg border border-app-line px-2.5 py-1.5 text-sm font-mono bg-app-bg"
+            />
+          </div>
+          {Number(amount) !== recalculated && (
+            <button
+              type="button"
+              onClick={() => setAmount(String(recalculated))}
+              className="flex justify-between items-baseline w-full mt-2 pt-2 border-t border-app-line text-left"
+            >
+              <span className="text-[11px] tracking-[0.12em] uppercase text-ink-sub">{unitLabel}</span>
+              <span className="font-mono text-[12.5px]">{fmtYen(unit)} × {qty} = {fmtYen(recalculated)}</span>
+            </button>
+          )}
+        </div>
         <ChargesEditor charges={charges} setCharges={setCharges} />
         <div className="flex gap-2 mt-4">
           <button onClick={onCancel} className="flex-1 rounded-xl border border-app-line py-2.5 text-sm font-semibold">
             Cancel
           </button>
           <button
-            onClick={() => onSave(cleanCharges(charges))}
+            onClick={() => {
+              const a = Number(amount) || 0;
+              onSave({
+                amount: a,
+                unitPrice: qty ? Math.round(a / qty) : entry.unitPrice,
+                charges: cleanCharges(charges),
+              });
+            }}
             className="flex-1 rounded-xl bg-ink text-app-bg py-2.5 text-sm font-semibold"
           >
             Save
@@ -761,11 +796,13 @@ function LedgerCard({ product, entries, month, kind, onAdd, onUpdate, onDelete, 
         />
       )}
       {editing && (
-        <ChargesSheet
+        <EntryEditSheet
           entry={editing}
           productName={product.name}
+          unitPrice={priceValue}
+          unitLabel={priceLabel}
           onCancel={() => setEditing(null)}
-          onSave={(charges) => { onUpdate(editing.id, { charges }); setEditing(null); }}
+          onSave={(patch) => { onUpdate(editing.id, patch); setEditing(null); }}
         />
       )}
     </article>
