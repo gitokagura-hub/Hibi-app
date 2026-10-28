@@ -30,5 +30,7 @@ export function resetZoom() {
 export function useResetZoomOnOpen() {
   useEffect(() => {
     resetZoom();
+    // 閉じて元の画面に戻ったときも、拡大が残らないよう等倍に戻す
+    return () => resetZoom();
   }, []);
 }

@@ -41,6 +41,13 @@ body {
 input, textarea, button {
   font-family: inherit;
 }
+/* iPhoneのSafariは、文字が16pxより小さい入力欄を押すと画面を勝手に拡大し、
+   閉じても拡大したまま残る。指で触る端末では入力欄の文字を16pxにして防ぐ。 */
+@media (pointer: coarse) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
 
 /* Files画面: 隅切り(Cut Corner)ユーティリティ。建築図面・製図の
    角の処理を意識した、直線的でわずかに削られたコーナー。 */
