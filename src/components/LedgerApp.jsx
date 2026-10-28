@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import AcidityWheel from "./AcidityWheel";
 import { compressPhoto } from "../ledgerStore";
 import { ChevronLeft, CloudUpload, Plus, Share, Trash2 } from "lucide-react";
-import { useLedger, productNo, sumQty, sumQtyWhere, isSample, notSample, sumAmount, toLiters, CHARGE_TYPES, chargeLabel, chargesOf, sumCharges } from "../ledgerStore";
+import { useLedger, productNo, sumCosts, sumQty, sumQtyWhere, isSample, notSample, sumAmount, toLiters, CHARGE_TYPES, chargeLabel, chargesOf, sumCharges } from "../ledgerStore";
 import TimelessBottomNav from "./TimelessBottomNav";
 
 /**
@@ -179,7 +179,7 @@ function ChargesEditor({ charges, setCharges }) {
 // 記録済みの行をタップしたときに開く。金額を直す、送料などをあとから足す・消す。
 // 記録の金額は入れた時点の単価で固定されるため、商品の価格をあとで直したときは
 // 「今の単価 × 本数」を押して計算し直す。
-function EntryEditSheet({ entry, productName, unitPrice, unitLabel, onCancel, onSave }) {
+function EntryEditSheet({ entry, productName, unitPrice, unitLabel, showCharges, onCancel, onSave }) {
   const [charges, setCharges] = useState(() =>
     chargesOf(entry).map((c) => ({ ...c, amount: String(c.amount), note: c.note || "" }))
   );
@@ -217,7 +217,7 @@ function EntryEditSheet({ entry, productName, unitPrice, unitLabel, onCancel, on
             </button>
           )}
         </div>
-        <ChargesEditor charges={charges} setCharges={setCharges} />
+        {showCharges && <ChargesEditor charges={charges} setCharges={setCharges} />}
         <div className="flex gap-2 mt-4">
           <button onClick={onCancel} className="flex-1 rounded-xl border border-app-line py-2.5 text-sm font-semibold">
             Cancel
@@ -228,7 +228,7 @@ function EntryEditSheet({ entry, productName, unitPrice, unitLabel, onCancel, on
               onSave({
                 amount: a,
                 unitPrice: qty ? Math.round(a / qty) : entry.unitPrice,
-                charges: cleanCharges(charges),
+                ...(showCharges ? { charges: cleanCharges(charges) } : {}),
               });
             }}
             className="flex-1 rounded-xl bg-ink text-app-bg py-2.5 text-sm font-semibold"
@@ -326,7 +326,7 @@ function EntrySheet({ title, onCancel, onSave, showCustomer, sample, unitPrice, 
               />
             </>
           )}
-          {!sample && <ChargesEditor charges={charges} setCharges={setCharges} />}
+          {showCustomer && !sample && <ChargesEditor charges={charges} setCharges={setCharges} />}
           {/* 販売のときは、お客さんからもらう額(酒は税込、送料などは打った税込のまま)を出す */}
           {showCustomer && !sample && (
             <div className="flex justify-between items-baseline rounded-xl bg-ink text-app-bg px-3 py-3">
@@ -346,7 +346,7 @@ function EntrySheet({ title, onCancel, onSave, showCustomer, sample, unitPrice, 
               if (!date || !q) return;
               onSave({
                 date, qty: q, amount: effective, unitPrice: sample ? 0 : unit,
-                ...(sample ? { sample: true } : { charges: cleanCharges(charges) }),
+                ...(sample ? { sample: true } : showCustomer ? { charges: cleanCharges(charges) } : {}),
                 ...(showCustomer ? { customer: customer.trim(), address: address.trim() } : {}),
               });
             }}
@@ -841,8 +841,153 @@ function LedgerCard({ product, entries, year, kind, onAdd, onUpdate, onDelete, p
           productName={`${productNo(product)} ${product.name}`}
           unitPrice={priceValue}
           unitLabel={priceLabel}
+          showCharges={kind === "sale"}
           onCancel={() => setEditing(null)}
           onSave={(patch) => { onUpdate(editing.id, patch); setEditing(null); }}
+        />
+      )}
+    </article>
+  );
+}
+
+// ===== 仕入の送料・駐車場代など =====
+// 商品ごとではなく、払った日ごとに1行。金額は税込。
+function CostSheet({ cost, onCancel, onSave }) {
+  const [date, setDate] = useState(() => cost?.date || new Date().toISOString().slice(0, 10));
+  const [type, setType] = useState(cost?.type || "shipping");
+  const [amount, setAmount] = useState(cost ? String(cost.amount) : "");
+  const [note, setNote] = useState(cost?.note || "");
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/40 flex items-end" onClick={onCancel}>
+      <div className="w-full max-h-[90vh] overflow-y-auto bg-app-bg rounded-t-2xl p-5 pb-8" onClick={(e) => e.stopPropagation()}>
+        <p className="text-sm font-semibold mb-3">{cost ? "Edit" : "Add"} — Shipping & Parking</p>
+        <div className="space-y-2.5">
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface"
+          />
+          <div className="flex gap-1.5">
+            {CHARGE_TYPES.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setType(t.id)}
+                className={`flex-1 py-2 text-[11px] tracking-[0.1em] uppercase border ${
+                  type === t.id ? "bg-ink text-app-bg border-ink" : "border-app-line text-ink-sub"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {type === "other" && (
+            <textarea
+              ref={autoGrow}
+              rows={1}
+              value={note}
+              onChange={(e) => { setNote(e.target.value); autoGrow(e.target); }}
+              placeholder="Note"
+              className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface resize-none overflow-hidden"
+            />
+          )}
+          <input
+            type="number"
+            inputMode="numeric"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="¥ (tax incl.)"
+            className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface"
+          />
+        </div>
+        <div className="flex gap-2 mt-4">
+          <button onClick={onCancel} className="flex-1 rounded-xl border border-app-line py-2.5 text-sm font-semibold">
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              const a = Number(amount) || 0;
+              if (!date || a <= 0) return;
+              onSave({ date, type, amount: a, ...(type === "other" && note.trim() ? { note: note.trim() } : { note: undefined }) });
+            }}
+            className="flex-1 rounded-xl bg-ink text-app-bg py-2.5 text-sm font-semibold"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CostsCard({ year }) {
+  const { data, addCost, updateCost, deleteCost } = useLedger();
+  const [open, setOpen] = useState(false);
+  const [sheet, setSheet] = useState(null); // null | "new" | cost
+  const list = (data.costs || [])
+    .filter((c) => (c.date || "").slice(0, 4) === year)
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const totals = CHARGE_TYPES
+    .map((t) => ({ ...t, amount: sumCosts(list, t.id) }))
+    .filter((t) => t.amount > 0);
+  const total = sumCosts(list);
+
+  return (
+    <article className="bg-app-surface border border-app-line mx-5 my-4 p-4">
+      <button onClick={() => setOpen((o) => !o)} className="w-full text-left">
+        <div className="flex items-baseline gap-2">
+          <span className="text-ink-sub text-xs w-3 shrink-0">{open ? "▾" : "▸"}</span>
+          <span className="text-lg font-semibold flex-1">Shipping & Parking</span>
+        </div>
+        {!open && (
+          <div className="flex justify-between items-baseline mt-1 pl-5 font-mono text-[12.5px]">
+            <span className="text-[11px] text-ink-sub">
+              {totals.map((t) => `${t.label} ${fmtYen(t.amount)}`).join(" · ")}
+            </span>
+            <span>{fmtYen(total)}</span>
+          </div>
+        )}
+      </button>
+
+      {open && (
+        <>
+          <div className="mt-4 border-t border-app-line">
+            {list.map((c) => (
+              <div
+                key={c.id}
+                onClick={() => setSheet(c)}
+                className="grid grid-cols-[56px_1fr_auto_28px] items-baseline gap-2 py-2.5 border-b border-app-line font-mono text-[12.5px] cursor-pointer"
+              >
+                <span className="text-ink-sub">{fmtDate(c.date)}</span>
+                <span className="break-words">{c.type === "other" && c.note ? c.note : chargeLabel(c.type)}</span>
+                <span className="text-right">{fmtYen(c.amount)}</span>
+                <button onClick={(ev) => { ev.stopPropagation(); deleteCost(c.id); }} className="text-ink-sub/60"><Trash2 size={13} /></button>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => setSheet("new")} className="block w-full text-left text-ink text-[12.5px] py-3">＋ Add</button>
+          {totals.map((t) => (
+            <div key={t.id} className="flex justify-between items-baseline pt-1.5 font-mono text-[12.5px] text-ink-sub">
+              <span>{t.label}</span>
+              <span>{fmtYen(t.amount)}</span>
+            </div>
+          ))}
+          <div className="flex justify-between items-baseline pt-3 mt-1.5 border-t border-app-line">
+            <span className="text-[15px] font-semibold">Total</span>
+            <span className="text-[15px] font-semibold font-mono">{fmtYen(total)}</span>
+          </div>
+        </>
+      )}
+
+      {sheet && (
+        <CostSheet
+          cost={sheet === "new" ? null : sheet}
+          onCancel={() => setSheet(null)}
+          onSave={(v) => {
+            if (sheet === "new") addCost(v); else updateCost(sheet.id, v);
+            setSheet(null);
+          }}
         />
       )}
     </article>
@@ -900,6 +1045,7 @@ function Purchasing() {
               priceValue={p.wholesalePrice}
             />
           ))}
+          <CostsCard year={mo.year} />
         </>
       ) : (
         <>
@@ -1023,7 +1169,7 @@ function Total() {
       if (c && c.count !== "" && c.count != null) { counted += Number(c.count); hasCounted = true; }
     });
     // 送料などは商品ごとではなく記録ごとに持つので、全記録から種類別に足す。
-    const pCharges = CHARGE_TYPES.map((t) => ({ ...t, amount: sumCharges(data.purchases, t.id) })).filter((t) => t.amount > 0);
+    const pCharges = CHARGE_TYPES.map((t) => ({ ...t, amount: sumCosts(data.costs, t.id) })).filter((t) => t.amount > 0);
     const sCharges = CHARGE_TYPES.map((t) => ({ ...t, amount: sumCharges(data.sales, t.id) })).filter((t) => t.amount > 0);
     return { pQty, pAmt, pL, sQty, sAmt, sL, smpQty, stockQty, stockL, counted, hasCounted, pCharges, sCharges };
   }, [data]);

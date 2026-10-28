@@ -61,6 +61,8 @@ function loadData() {
                      //   送料・駐車場代など酒以外の費用(税込)。仕入は自分が払った分、
                      //   販売はお客さんから受け取った分。酒の金額(amount)とは混ぜない。
     stockCounts: {}, // { [productId]: { count, note } } — 直近の実地棚卸
+    costs: [],       // { id, date, type: "shipping"|"parking"|"other", amount, note }
+                     //   仕入にかかった送料・駐車場代など(税込)。商品ごとではなく日ごとに持つ。
   };
 }
 
@@ -81,6 +83,25 @@ function withProductNos(d) {
   return { ...d, products, nextProductNo: next };
 }
 
+// 以前は仕入の記録ごとに送料などを持っていた(charges)。仕入側は日ごとの
+// costs に移したので、残っていれば同じ日付で costs へ移し、記録からは外す。
+function withCostsMoved(d) {
+  if (!d || !Array.isArray(d.purchases)) return d;
+  const costs = Array.isArray(d.costs) ? d.costs : [];
+  const moved = [];
+  const purchases = d.purchases.map((x) => {
+    if (!Array.isArray(x.charges) || x.charges.length === 0) return x;
+    x.charges.forEach((c) => moved.push({ id: c.id || uid(), date: x.date, type: c.type, amount: Number(c.amount) || 0, ...(c.note ? { note: c.note } : {}) }));
+    const { charges, ...rest } = x;
+    return rest;
+  });
+  if (moved.length === 0 && Array.isArray(d.costs)) return d;
+  return { ...d, purchases, costs: [...costs, ...moved] };
+}
+function normalize(d) {
+  return withCostsMoved(withProductNos(d));
+}
+
 const LedgerContext = createContext(null);
 
 // クラウドが空かどうかの判定。商品が1件も無ければ「空」とみなす
@@ -90,7 +111,7 @@ function isEmpty(d) {
 }
 
 export function LedgerProvider({ children }) {
-  const [data, setData] = useState(() => withProductNos(loadData()));
+  const [data, setData] = useState(() => normalize(loadData()));
   const hydrated = useRef(false); // 起動時のクラウド照合が終わるまで、上書き保存を待つ
 
   // 起動時、クラウドと端末内のデータを照合する。他の端末で更新していれば
@@ -98,7 +119,7 @@ export function LedgerProvider({ children }) {
   // アップロードして守る(Daily Brains/Sukimaと同じ仕組み)。
   useEffect(() => {
     reconcileOnStartup("ledger", loadData(), isEmpty).then((resolved) => {
-      setData(withProductNos(resolved));
+      setData(normalize(resolved));
       hydrated.current = true;
     });
   }, []);
@@ -119,8 +140,8 @@ export function LedgerProvider({ children }) {
 
   // バックアップから丸ごと戻す。足りない項目は初期値で埋める。
   function replaceAllData(restored) {
-    setData(withProductNos({
-      products: [], purchases: [], sales: [], stockCounts: {},
+    setData(normalize({
+      products: [], purchases: [], sales: [], stockCounts: {}, costs: [],
       ...(restored || {}),
     }));
   }
@@ -185,6 +206,17 @@ export function LedgerProvider({ children }) {
     setData((prev) => ({ ...prev, sales: prev.sales.filter((x) => x.id !== id) }));
   }
 
+  // ---- 仕入の送料・駐車場代など ----
+  function addCost(c) {
+    setData((prev) => ({ ...prev, costs: [...(prev.costs || []), { id: uid(), ...c }] }));
+  }
+  function updateCost(id, patch) {
+    setData((prev) => ({ ...prev, costs: (prev.costs || []).map((x) => (x.id === id ? { ...x, ...patch } : x)) }));
+  }
+  function deleteCost(id) {
+    setData((prev) => ({ ...prev, costs: (prev.costs || []).filter((x) => x.id !== id) }));
+  }
+
   // ---- 実地棚卸 ----
   function setStockCount(productId, count, note) {
     setData((prev) => ({
@@ -199,6 +231,7 @@ export function LedgerProvider({ children }) {
     addPurchase, updatePurchase, deletePurchase,
     addSale, updateSale, deleteSale,
     setStockCount,
+    addCost, updateCost, deleteCost,
     replaceAllData,
   };
 
@@ -271,4 +304,11 @@ export function sumCharges(entries, type, month) {
 // 画面に出す商品番号。2桁にそろえる(01, 02 …)。
 export function productNo(p) {
   return Number(p?.no) > 0 ? String(p.no).padStart(2, "0") : "";
+}
+
+// 仕入の送料など。type を渡せばその種類だけ、year を渡せばその年だけ。
+export function sumCosts(costs, type, year) {
+  return (costs || [])
+    .filter((c) => (!type || c.type === type) && (!year || (c.date || "").slice(0, 4) === year))
+    .reduce((s, c) => s + (Number(c.amount) || 0), 0);
 }
