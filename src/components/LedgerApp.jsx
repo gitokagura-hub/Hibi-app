@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import AcidityWheel from "./AcidityWheel";
 import { compressPhoto } from "../ledgerStore";
 import { ChevronLeft, CloudUpload, Plus, Share, Trash2 } from "lucide-react";
-import { useLedger, monthKey, sumQty, sumQtyWhere, isSample, notSample, sumAmount, toLiters, CHARGE_TYPES, chargeLabel, chargesOf, sumCharges } from "../ledgerStore";
+import { useLedger, sumQty, sumQtyWhere, isSample, notSample, sumAmount, toLiters, CHARGE_TYPES, chargeLabel, chargesOf, sumCharges } from "../ledgerStore";
 import TimelessBottomNav from "./TimelessBottomNav";
 
 /**
@@ -73,19 +73,21 @@ function fmtDate(d) {
   return `${day} ${MONTHS[Number(m) - 1]}`;
 }
 
-function useMonthCursor() {
-  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
-  const shift = (delta) => {
-    const [y, m] = month.split("-").map(Number);
-    const d = new Date(y, m - 1 + delta, 1);
-    setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+// 酒は消費税10%(軽減税率の対象外)。1円未満は切り捨て。
+const TAX_RATE = 0.1;
+function withTax(n) {
+  return Math.floor(((Number(n) || 0) * (100 + TAX_RATE * 100)) / 100 + 1e-9);
+}
+
+// 仕入・販売は1年(1〜12月)ごとに見る。確定申告が暦年のため。
+function useYearCursor() {
+  const [year, setYear] = useState(() => String(new Date().getFullYear()));
+  return {
+    year,
+    label: year,
+    prev: () => setYear((y) => String(Number(y) - 1)),
+    next: () => setYear((y) => String(Number(y) + 1)),
   };
-  const label = (() => {
-    const [y, m] = month.split("-").map(Number);
-    const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-    return `${y} · ${MONTHS[m - 1]}`;
-  })();
-  return { month, label, prev: () => shift(-1), next: () => shift(1) };
 }
 
 // ===== 入力シート(仕入・販売の1行を追加する) =====
@@ -325,6 +327,15 @@ function EntrySheet({ title, onCancel, onSave, showCustomer, sample, unitPrice, 
             </>
           )}
           {!sample && <ChargesEditor charges={charges} setCharges={setCharges} />}
+          {/* 販売のときは、お客さんからもらう額(酒は税込、送料などは打った税込のまま)を出す */}
+          {showCustomer && !sample && (
+            <div className="flex justify-between items-baseline rounded-xl bg-ink text-app-bg px-3 py-3">
+              <span className="text-[11px] tracking-[0.12em] uppercase">Total (tax incl.)</span>
+              <span className="font-mono text-lg font-semibold">
+                {fmtYen(withTax(effective) + charges.reduce((t, c) => t + (Number(c.amount) || 0), 0))}
+              </span>
+            </div>
+          )}
         </div>
         <div className="flex gap-2 mt-4">
           <button onClick={onCancel} className="flex-1 rounded-xl border border-app-line py-2.5 text-sm font-semibold">
@@ -656,7 +667,7 @@ function NowOnSale() {
 
           {/* 営業用カタログなので、出すのは販売価格(定価)だけ。仕入価格は見せない。 */}
           <div className="mt-3 pt-3 border-t border-app-line">
-            <div className="flex justify-between text-xs"><span className="text-ink-sub">Retail</span><span className="font-mono">{fmtYen(p.retailPrice)}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-ink-sub">Price (tax incl.)</span><span className="font-mono">{fmtYen(withTax(p.retailPrice))}</span></div>
           </div>
 
           {/* 人に見せるカタログなので、書いてあるときだけ出す。書き入れは編集画面で行う。 */}
@@ -697,8 +708,12 @@ function NowOnSale() {
 }
 
 // ===== 商品ブロック(仕入・販売で共通の骨格) =====
-function LedgerCard({ product, entries, month, kind, onAdd, onUpdate, onDelete, priceLabel, priceValue }) {
-  const list = entries.filter((e) => e.productId === product.id && monthKey(e.date) === month);
+function LedgerCard({ product, entries, year, kind, onAdd, onUpdate, onDelete, priceLabel, priceValue }) {
+  const list = entries
+    .filter((e) => e.productId === product.id && (e.date || "").slice(0, 4) === year)
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  // 普段は閉じておき、商品名を押すと記録が開く。1年分並ぶと長くなるため。
+  const [open, setOpen] = useState(false);
   // 売った分と試飲サンプルは分けて見せる。合計の金額には売った分だけが入る。
   const sold = list.filter((e) => !e.sample);
   const samples = list.filter((e) => e.sample);
@@ -707,18 +722,36 @@ function LedgerCard({ product, entries, month, kind, onAdd, onUpdate, onDelete, 
   const sampleQty = samples.reduce((s, e) => s + (e.qty || 0), 0);
   const [adding, setAdding] = useState(null); // "sale" | "sample" | null
   const [editing, setEditing] = useState(null); // 送料などを足す記録
-  // この商品・この月の送料など。種類ごとに合計する。
+  // この商品・この年の送料など。種類ごとに合計する。
   const chargeTotals = CHARGE_TYPES
     .map((t) => ({ ...t, amount: sumCharges(sold, t.id) }))
     .filter((t) => t.amount > 0);
 
   return (
     <article className="bg-app-surface border border-app-line mx-5 my-4 p-4">
-      <p className="text-lg font-semibold">{product.name}</p>
-      <p className="text-[11px] font-mono text-ink-sub mt-1">
-        {product.volumeMl}ml · {(product.volumeMl / 1000).toFixed(2)}L
-      </p>
+      <button onClick={() => setOpen((o) => !o)} className="w-full text-left">
+        <div className="flex items-baseline gap-2">
+          <span className="text-ink-sub text-xs w-3 shrink-0">{open ? "▾" : "▸"}</span>
+          <span className="text-lg font-semibold flex-1">{product.name}</span>
+        </div>
+        <div className="flex justify-between items-baseline mt-1 pl-5">
+          <span className="text-[11px] font-mono text-ink-sub">
+            {product.volumeMl}ml · {(product.volumeMl / 1000).toFixed(2)}L
+          </span>
+          {!open && (
+            <span className="font-mono text-[12.5px]">
+              {qty} btl · {fmtYen(amt)}
+            </span>
+          )}
+        </div>
+        {!open && chargeTotals.length > 0 && (
+          <p className="text-right font-mono text-[11px] text-ink-sub mt-1">
+            {chargeTotals.map((t) => `${t.label} ${fmtYen(t.amount)}`).join(" · ")}
+          </p>
+        )}
+      </button>
 
+      {open && (<>
       {priceLabel && (
         <div className="flex justify-between items-baseline mt-3 pt-3 border-t border-app-line">
           <span className="text-[11px] tracking-[0.12em] uppercase text-ink-sub">{priceLabel}</span>
@@ -789,6 +822,7 @@ function LedgerCard({ product, entries, month, kind, onAdd, onUpdate, onDelete, 
           )}
         </div>
       )}
+      </>)}
 
       {adding && (
         <EntrySheet
@@ -820,7 +854,7 @@ function Purchasing() {
   const { data, addProduct, addPurchase, updatePurchase, deletePurchase } = useLedger();
   const [seg, setSeg] = useState("pur");
   const [addingProduct, setAddingProduct] = useState(false);
-  const mo = useMonthCursor();
+  const mo = useYearCursor();
 
   return (
     <div>
@@ -857,7 +891,7 @@ function Purchasing() {
               key={p.id}
               product={p}
               entries={data.purchases}
-              month={mo.month}
+              year={mo.year}
               kind="purchase"
               onAdd={addPurchase}
               onUpdate={updatePurchase}
@@ -908,7 +942,7 @@ function Purchasing() {
 // ===== 3. Sale =====
 function Sale() {
   const { data, addSale, updateSale, deleteSale } = useLedger();
-  const mo = useMonthCursor();
+  const mo = useYearCursor();
   return (
     <div>
       <div className="flex items-center justify-center gap-6 pt-6">
@@ -927,7 +961,7 @@ function Sale() {
           key={p.id}
           product={p}
           entries={data.sales}
-          month={mo.month}
+          year={mo.year}
           kind="sale"
           onAdd={addSale}
           onUpdate={updateSale}
