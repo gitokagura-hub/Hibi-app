@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import AcidityWheel from "./AcidityWheel";
 import { compressPhoto } from "../ledgerStore";
 import { ChevronLeft, CloudUpload, Plus, Share, Trash2 } from "lucide-react";
-import { useLedger, monthKey, sumQty, sumQtyWhere, isSample, notSample, sumAmount, toLiters } from "../ledgerStore";
+import { useLedger, monthKey, sumQty, sumQtyWhere, isSample, notSample, sumAmount, toLiters, CHARGE_TYPES, chargeLabel, chargesOf, sumCharges } from "../ledgerStore";
 import TimelessBottomNav from "./TimelessBottomNav";
 
 /**
@@ -93,6 +93,117 @@ function useMonthCursor() {
 // 自動的に出す。端数値引きなどで額が変わるときだけ、手で上書きできる。
 // sample=true のときは試飲サンプルの記録。無償で渡した分なので金額は扱わず、
 // 日付と本数だけを打つ(酒税法では売った分と分けて記帳するため)。
+// ===== 送料・駐車場代など(酒以外の費用) =====
+// 種類を選んで金額(税込)を打つ。1つの記録に何件でも足せる。
+// 金額が空・0の行は保存しない。
+function newChargeId() {
+  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+function cleanCharges(list) {
+  return list
+    .filter((c) => Number(c.amount) > 0)
+    .map((c) => ({
+      id: c.id, type: c.type, amount: Number(c.amount),
+      ...(c.type === "other" && (c.note || "").trim() ? { note: c.note.trim() } : {}),
+    }));
+}
+function chargesText(e) {
+  return chargesOf(e)
+    .map((c) => `${c.type === "other" && c.note ? c.note : chargeLabel(c.type)} ${fmtYen(c.amount)}`)
+    .join(" · ");
+}
+
+function ChargesEditor({ charges, setCharges }) {
+  function update(id, patch) {
+    setCharges((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  }
+  return (
+    <div className="space-y-2.5">
+      {charges.map((c) => (
+        <div key={c.id} className="rounded-xl border border-app-line px-3 py-2.5 bg-app-surface">
+          <div className="flex items-center gap-1.5">
+            {CHARGE_TYPES.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => update(c.id, { type: t.id })}
+                className={`px-2.5 py-1.5 text-[11px] tracking-[0.1em] uppercase border ${
+                  c.type === t.id ? "bg-ink text-app-bg border-ink" : "border-app-line text-ink-sub"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setCharges((prev) => prev.filter((x) => x.id !== c.id))}
+              className="ml-auto w-8 h-8 flex items-center justify-center text-ink-sub/60"
+              aria-label="Remove"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+          <input
+            type="number"
+            inputMode="numeric"
+            value={c.amount}
+            onChange={(e) => update(c.id, { amount: e.target.value })}
+            placeholder="¥ (tax incl.)"
+            className="w-full mt-2 rounded-lg border border-app-line px-2.5 py-1.5 text-sm bg-app-bg"
+          />
+          {c.type === "other" && (
+            <textarea
+              ref={autoGrow}
+              rows={1}
+              value={c.note || ""}
+              onChange={(e) => { update(c.id, { note: e.target.value }); autoGrow(e.target); }}
+              placeholder="Note"
+              className="w-full mt-2 rounded-lg border border-app-line px-2.5 py-1.5 text-sm bg-app-bg resize-none overflow-hidden"
+            />
+          )}
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => setCharges((prev) => [...prev, { id: newChargeId(), type: "shipping", amount: "", note: "" }])}
+        className="block w-full text-left text-ink text-[12.5px] py-1"
+      >
+        ＋ Add charge
+      </button>
+    </div>
+  );
+}
+
+// 記録済みの行をタップしたときに開く。送料などをあとから足す・消す。
+function ChargesSheet({ entry, productName, onCancel, onSave }) {
+  const [charges, setCharges] = useState(() =>
+    chargesOf(entry).map((c) => ({ ...c, amount: String(c.amount), note: c.note || "" }))
+  );
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/40 flex items-end" onClick={onCancel}>
+      <div className="w-full max-h-[90vh] overflow-y-auto bg-app-bg rounded-t-2xl p-5 pb-8" onClick={(e) => e.stopPropagation()}>
+        <p className="text-sm font-semibold">{productName}</p>
+        <p className="text-[12px] font-mono text-ink-sub mt-1 mb-3">
+          {fmtDate(entry.date)} · {entry.qty} btl · {fmtYen(entry.amount)}
+          {entry.customer ? ` · ${entry.customer}` : ""}
+        </p>
+        <ChargesEditor charges={charges} setCharges={setCharges} />
+        <div className="flex gap-2 mt-4">
+          <button onClick={onCancel} className="flex-1 rounded-xl border border-app-line py-2.5 text-sm font-semibold">
+            Cancel
+          </button>
+          <button
+            onClick={() => onSave(cleanCharges(charges))}
+            className="flex-1 rounded-xl bg-ink text-app-bg py-2.5 text-sm font-semibold"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EntrySheet({ title, onCancel, onSave, showCustomer, sample, unitPrice, unitLabel }) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [qty, setQty] = useState("");
@@ -107,9 +218,10 @@ function EntrySheet({ title, onCancel, onSave, showCustomer, sample, unitPrice, 
   // 常に欄を出して任意入力にする(小売のときは空のままでよい)。
   const [customer, setCustomer] = useState("");
   const [address, setAddress] = useState("");
+  const [charges, setCharges] = useState([]);
   return (
     <div className="fixed inset-0 z-[60] bg-black/40 flex items-end" onClick={onCancel}>
-      <div className="w-full bg-app-bg rounded-t-2xl p-5 pb-8" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-h-[90vh] overflow-y-auto bg-app-bg rounded-t-2xl p-5 pb-8" onClick={(e) => e.stopPropagation()}>
         <p className="text-sm font-semibold mb-3">{title}</p>
         <div className="space-y-2.5">
           <input
@@ -177,6 +289,7 @@ function EntrySheet({ title, onCancel, onSave, showCustomer, sample, unitPrice, 
               />
             </>
           )}
+          {!sample && <ChargesEditor charges={charges} setCharges={setCharges} />}
         </div>
         <div className="flex gap-2 mt-4">
           <button onClick={onCancel} className="flex-1 rounded-xl border border-app-line py-2.5 text-sm font-semibold">
@@ -187,7 +300,7 @@ function EntrySheet({ title, onCancel, onSave, showCustomer, sample, unitPrice, 
               if (!date || !q) return;
               onSave({
                 date, qty: q, amount: effective, unitPrice: sample ? 0 : unit,
-                ...(sample ? { sample: true } : {}),
+                ...(sample ? { sample: true } : { charges: cleanCharges(charges) }),
                 ...(showCustomer ? { customer: customer.trim(), address: address.trim() } : {}),
               });
             }}
@@ -543,7 +656,7 @@ function NowOnSale() {
 }
 
 // ===== 商品ブロック(仕入・販売で共通の骨格) =====
-function LedgerCard({ product, entries, month, kind, onAdd, onDelete, priceLabel, priceValue }) {
+function LedgerCard({ product, entries, month, kind, onAdd, onUpdate, onDelete, priceLabel, priceValue }) {
   const list = entries.filter((e) => e.productId === product.id && monthKey(e.date) === month);
   // 売った分と試飲サンプルは分けて見せる。合計の金額には売った分だけが入る。
   const sold = list.filter((e) => !e.sample);
@@ -552,6 +665,11 @@ function LedgerCard({ product, entries, month, kind, onAdd, onDelete, priceLabel
   const amt = sold.reduce((s, e) => s + (e.amount || 0), 0);
   const sampleQty = samples.reduce((s, e) => s + (e.qty || 0), 0);
   const [adding, setAdding] = useState(null); // "sale" | "sample" | null
+  const [editing, setEditing] = useState(null); // 送料などを足す記録
+  // この商品・この月の送料など。種類ごとに合計する。
+  const chargeTotals = CHARGE_TYPES
+    .map((t) => ({ ...t, amount: sumCharges(sold, t.id) }))
+    .filter((t) => t.amount > 0);
 
   return (
     <article className="bg-app-surface border border-app-line mx-5 my-4 p-4">
@@ -569,7 +687,11 @@ function LedgerCard({ product, entries, month, kind, onAdd, onDelete, priceLabel
 
       <div className="mt-4 border-t border-app-line">
         {sold.map((e) => (
-          <div key={e.id} className="grid grid-cols-[56px_1fr_auto_28px] items-baseline gap-2 py-2.5 border-b border-app-line font-mono text-[12.5px]">
+          <div
+            key={e.id}
+            onClick={() => setEditing(e)}
+            className="grid grid-cols-[56px_1fr_auto_28px] items-baseline gap-2 py-2.5 border-b border-app-line font-mono text-[12.5px] cursor-pointer"
+          >
             <span className="text-ink-sub">{fmtDate(e.date)}</span>
             <span>
               {e.qty} btl
@@ -578,7 +700,10 @@ function LedgerCard({ product, entries, month, kind, onAdd, onDelete, priceLabel
               )}
             </span>
             <span className="text-right">{fmtYen(e.amount)}</span>
-            <button onClick={() => onDelete(e.id)} className="text-ink-sub/60"><Trash2 size={13} /></button>
+            <button onClick={(ev) => { ev.stopPropagation(); onDelete(e.id); }} className="text-ink-sub/60"><Trash2 size={13} /></button>
+            {chargesOf(e).length > 0 && (
+              <span className="col-start-2 col-span-2 text-[11px] text-ink-sub">{chargesText(e)}</span>
+            )}
           </div>
         ))}
       </div>
@@ -589,6 +714,12 @@ function LedgerCard({ product, entries, month, kind, onAdd, onDelete, priceLabel
         <span className="text-[15px] font-semibold">{qty} bottles</span>
         <span className="text-[15px] font-semibold font-mono">{fmtYen(amt)}</span>
       </div>
+      {chargeTotals.map((t) => (
+        <div key={t.id} className="flex justify-between items-baseline pt-1.5 font-mono text-[12.5px] text-ink-sub">
+          <span>{t.label}</span>
+          <span>{fmtYen(t.amount)}</span>
+        </div>
+      ))}
 
       {/* 試飲サンプルは売った分と入口から分ける。押せば日付と本数だけを打つ。 */}
       {kind === "sale" && (
@@ -629,13 +760,21 @@ function LedgerCard({ product, entries, month, kind, onAdd, onDelete, priceLabel
           onSave={(v) => { onAdd(product.id, v); setAdding(null); }}
         />
       )}
+      {editing && (
+        <ChargesSheet
+          entry={editing}
+          productName={product.name}
+          onCancel={() => setEditing(null)}
+          onSave={(charges) => { onUpdate(editing.id, { charges }); setEditing(null); }}
+        />
+      )}
     </article>
   );
 }
 
 // ===== 2. Purchasing / Stock =====
 function Purchasing() {
-  const { data, addProduct, addPurchase, deletePurchase } = useLedger();
+  const { data, addProduct, addPurchase, updatePurchase, deletePurchase } = useLedger();
   const [seg, setSeg] = useState("pur");
   const [addingProduct, setAddingProduct] = useState(false);
   const mo = useMonthCursor();
@@ -678,6 +817,7 @@ function Purchasing() {
               month={mo.month}
               kind="purchase"
               onAdd={addPurchase}
+              onUpdate={updatePurchase}
               onDelete={deletePurchase}
               priceLabel="Wholesale price"
               priceValue={p.wholesalePrice}
@@ -724,7 +864,7 @@ function Purchasing() {
 
 // ===== 3. Sale =====
 function Sale() {
-  const { data, addSale, deleteSale } = useLedger();
+  const { data, addSale, updateSale, deleteSale } = useLedger();
   const mo = useMonthCursor();
   return (
     <div>
@@ -747,6 +887,7 @@ function Sale() {
           month={mo.month}
           kind="sale"
           onAdd={addSale}
+          onUpdate={updateSale}
           onDelete={deleteSale}
           priceLabel="Retail price"
           priceValue={p.retailPrice}
@@ -804,7 +945,10 @@ function Total() {
       const c = data.stockCounts[p.id];
       if (c && c.count !== "" && c.count != null) { counted += Number(c.count); hasCounted = true; }
     });
-    return { pQty, pAmt, pL, sQty, sAmt, sL, smpQty, stockQty, stockL, counted, hasCounted };
+    // 送料などは商品ごとではなく記録ごとに持つので、全記録から種類別に足す。
+    const pCharges = CHARGE_TYPES.map((t) => ({ ...t, amount: sumCharges(data.purchases, t.id) })).filter((t) => t.amount > 0);
+    const sCharges = CHARGE_TYPES.map((t) => ({ ...t, amount: sumCharges(data.sales, t.id) })).filter((t) => t.amount > 0);
+    return { pQty, pAmt, pL, sQty, sAmt, sL, smpQty, stockQty, stockL, counted, hasCounted, pCharges, sCharges };
   }, [data]);
 
   // 同じ銘柄名の商品(720ml/1.8L等)をひとつのブロックにまとめる。
@@ -934,6 +1078,7 @@ function Total() {
         <Row k="Bottles" v={grand.pQty} />
         <Row k="Volume" v={`${grand.pL.toFixed(2)} L`} />
         <Row k="Amount" v={fmtYen(grand.pAmt)} big />
+        {grand.pCharges.map((t) => <Row key={t.id} k={t.label} v={fmtYen(t.amount)} />)}
       </div>
 
       <div className="mx-5 mt-6 pt-4 border-t-2 border-ink">
@@ -941,6 +1086,7 @@ function Total() {
         <Row k="Bottles" v={grand.sQty} />
         <Row k="Volume" v={`${grand.sL.toFixed(2)} L`} />
         <Row k="Amount" v={fmtYen(grand.sAmt)} big />
+        {grand.sCharges.map((t) => <Row key={t.id} k={t.label} v={fmtYen(t.amount)} />)}
       </div>
 
       {grand.smpQty > 0 && (

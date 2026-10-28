@@ -55,8 +55,11 @@ function loadData() {
   return {
     products: [],   // { id, name, volumeMl, abv, polish, rice, brewery, origin,
                      //   retailPrice, wholesalePrice, pairing: [], photo: null, docs: [] }
-    purchases: [],  // { id, productId, date, qty, amount }
-    sales: [],      // { id, productId, date, qty, amount }
+    purchases: [],  // { id, productId, date, qty, amount, charges: [] }
+    sales: [],      // { id, productId, date, qty, amount, charges: [] }
+                     // charges: [{ id, type: "shipping"|"parking"|"other", amount, note }]
+                     //   送料・駐車場代など酒以外の費用(税込)。仕入は自分が払った分、
+                     //   販売はお客さんから受け取った分。酒の金額(amount)とは混ぜない。
     stockCounts: {}, // { [productId]: { count, note } } — 直近の実地棚卸
   };
 }
@@ -134,6 +137,12 @@ export function LedgerProvider({ children }) {
       purchases: [...prev.purchases, { id: uid(), productId, ...entry }],
     }));
   }
+  function updatePurchase(id, patch) {
+    setData((prev) => ({
+      ...prev,
+      purchases: prev.purchases.map((x) => (x.id === id ? { ...x, ...patch } : x)),
+    }));
+  }
   function deletePurchase(id) {
     setData((prev) => ({ ...prev, purchases: prev.purchases.filter((x) => x.id !== id) }));
   }
@@ -143,6 +152,12 @@ export function LedgerProvider({ children }) {
     setData((prev) => ({
       ...prev,
       sales: [...prev.sales, { id: uid(), productId, ...entry }],
+    }));
+  }
+  function updateSale(id, patch) {
+    setData((prev) => ({
+      ...prev,
+      sales: prev.sales.map((x) => (x.id === id ? { ...x, ...patch } : x)),
     }));
   }
   function deleteSale(id) {
@@ -160,8 +175,8 @@ export function LedgerProvider({ children }) {
   const value = {
     data,
     addProduct, updateProduct, deleteProduct,
-    addPurchase, deletePurchase,
-    addSale, deleteSale,
+    addPurchase, updatePurchase, deletePurchase,
+    addSale, updateSale, deleteSale,
     setStockCount,
     replaceAllData,
   };
@@ -208,4 +223,26 @@ export function sumAmount(entries, productId, month) {
 export function toLiters(volumeMl, qty) {
   const ml = Number(volumeMl) || 0;
   return (ml * (qty || 0)) / 1000;
+}
+
+// ---- 送料・駐車場代など(酒以外の費用) ----
+// 今までの記録には charges が無いので、無ければ空として読む。
+export const CHARGE_TYPES = [
+  { id: "shipping", label: "Shipping" },
+  { id: "parking", label: "Parking" },
+  { id: "other", label: "Other" },
+];
+export function chargeLabel(type) {
+  return CHARGE_TYPES.find((t) => t.id === type)?.label || "Other";
+}
+export function chargesOf(e) {
+  return Array.isArray(e?.charges) ? e.charges : [];
+}
+// 種類ごとの合計。month を渡せばその月だけ。
+export function sumCharges(entries, type, month) {
+  return entries
+    .filter((e) => !month || monthKey(e.date) === month)
+    .reduce((s, e) => s + chargesOf(e)
+      .filter((c) => !type || c.type === type)
+      .reduce((t, c) => t + (Number(c.amount) || 0), 0), 0);
 }
