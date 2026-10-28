@@ -64,6 +64,23 @@ function loadData() {
   };
 }
 
+// 商品番号。登録順の連番で、一度付けた番号は変えず、消しても詰めない。
+// nextProductNo に次に使う番号を持つ。番号の無い商品(以前のデータ)は、
+// 並び順(=登録順)のまま、今ある最大の番号の続きから付ける。
+function withProductNos(d) {
+  if (!d || !Array.isArray(d.products)) return d;
+  let max = d.products.reduce((m, p) => Math.max(m, Number(p.no) || 0), 0);
+  let next = Math.max(Number(d.nextProductNo) || 0, max + 1);
+  let changed = false;
+  const products = d.products.map((p) => {
+    if (Number(p.no) > 0) return p;
+    changed = true;
+    return { ...p, no: next++ };
+  });
+  if (!changed && Number(d.nextProductNo) === next) return d;
+  return { ...d, products, nextProductNo: next };
+}
+
 const LedgerContext = createContext(null);
 
 // クラウドが空かどうかの判定。商品が1件も無ければ「空」とみなす
@@ -73,7 +90,7 @@ function isEmpty(d) {
 }
 
 export function LedgerProvider({ children }) {
-  const [data, setData] = useState(loadData);
+  const [data, setData] = useState(() => withProductNos(loadData()));
   const hydrated = useRef(false); // 起動時のクラウド照合が終わるまで、上書き保存を待つ
 
   // 起動時、クラウドと端末内のデータを照合する。他の端末で更新していれば
@@ -81,7 +98,7 @@ export function LedgerProvider({ children }) {
   // アップロードして守る(Daily Brains/Sukimaと同じ仕組み)。
   useEffect(() => {
     reconcileOnStartup("ledger", loadData(), isEmpty).then((resolved) => {
-      setData(resolved);
+      setData(withProductNos(resolved));
       hydrated.current = true;
     });
   }, []);
@@ -102,18 +119,22 @@ export function LedgerProvider({ children }) {
 
   // バックアップから丸ごと戻す。足りない項目は初期値で埋める。
   function replaceAllData(restored) {
-    setData({
+    setData(withProductNos({
       products: [], purchases: [], sales: [], stockCounts: {},
       ...(restored || {}),
-    });
+    }));
   }
 
   // ---- 商品マスタ ----
   function addProduct(p) {
     // photoFront/photoBack: ラベルの表・裏。photoは古い形の名残で使っていない。
-    const product = { id: uid(), pairing: [], docs: [], photoFront: null, photoBack: null, ...p };
-    setData((prev) => ({ ...prev, products: [...prev.products, product] }));
-    return product.id;
+    const id = uid();
+    setData((prev) => {
+      const no = Number(prev.nextProductNo) || 1;
+      const product = { id, pairing: [], docs: [], photoFront: null, photoBack: null, ...p, no };
+      return { ...prev, products: [...prev.products, product], nextProductNo: no + 1 };
+    });
+    return id;
   }
   function updateProduct(id, patch) {
     setData((prev) => ({
@@ -245,4 +266,9 @@ export function sumCharges(entries, type, month) {
     .reduce((s, e) => s + chargesOf(e)
       .filter((c) => !type || c.type === type)
       .reduce((t, c) => t + (Number(c.amount) || 0), 0), 0);
+}
+
+// 画面に出す商品番号。2桁にそろえる(01, 02 …)。
+export function productNo(p) {
+  return Number(p?.no) > 0 ? String(p.no).padStart(2, "0") : "";
 }

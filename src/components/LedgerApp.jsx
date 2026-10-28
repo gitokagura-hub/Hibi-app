@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import AcidityWheel from "./AcidityWheel";
 import { compressPhoto } from "../ledgerStore";
 import { ChevronLeft, CloudUpload, Plus, Share, Trash2 } from "lucide-react";
-import { useLedger, sumQty, sumQtyWhere, isSample, notSample, sumAmount, toLiters, CHARGE_TYPES, chargeLabel, chargesOf, sumCharges } from "../ledgerStore";
+import { useLedger, productNo, sumQty, sumQtyWhere, isSample, notSample, sumAmount, toLiters, CHARGE_TYPES, chargeLabel, chargesOf, sumCharges } from "../ledgerStore";
 import TimelessBottomNav from "./TimelessBottomNav";
 
 /**
@@ -650,7 +650,7 @@ function NowOnSale() {
             {statusOf(p) && <StatusOverlay status={statusOf(p)} />}
           </div>
           <button onClick={() => setEditing(p)} className="w-full text-left">
-            <p className="text-lg font-semibold underline decoration-app-line underline-offset-4">{p.name}</p>
+            <p className="text-lg font-semibold underline decoration-app-line underline-offset-4"><span className="font-mono text-ink-sub text-[13px] mr-2 font-normal">{productNo(p)}</span>{p.name}</p>
           </button>
           <div className="grid grid-cols-2 gap-y-1 mt-3 text-xs font-mono">
             <span className="text-ink-sub">Volume</span><span className="text-right">{p.volumeMl}ml</span>
@@ -732,7 +732,7 @@ function LedgerCard({ product, entries, year, kind, onAdd, onUpdate, onDelete, p
       <button onClick={() => setOpen((o) => !o)} className="w-full text-left">
         <div className="flex items-baseline gap-2">
           <span className="text-ink-sub text-xs w-3 shrink-0">{open ? "▾" : "▸"}</span>
-          <span className="text-lg font-semibold flex-1">{product.name}</span>
+          <span className="text-lg font-semibold flex-1"><span className="font-mono text-ink-sub text-[13px] mr-2 font-normal">{productNo(product)}</span>{product.name}</span>
         </div>
         <div className="flex justify-between items-baseline mt-1 pl-5">
           <span className="text-[11px] font-mono text-ink-sub">
@@ -826,7 +826,7 @@ function LedgerCard({ product, entries, year, kind, onAdd, onUpdate, onDelete, p
 
       {adding && (
         <EntrySheet
-          title={`${adding === "sample" ? "Add sample" : kind === "purchase" ? "Add purchase" : "Add sale"} — ${product.name}`}
+          title={`${adding === "sample" ? "Add sample" : kind === "purchase" ? "Add purchase" : "Add sale"} — ${productNo(product)} ${product.name}`}
           showCustomer={kind === "sale"}
           sample={adding === "sample"}
           unitPrice={priceValue}
@@ -838,7 +838,7 @@ function LedgerCard({ product, entries, year, kind, onAdd, onUpdate, onDelete, p
       {editing && (
         <EntryEditSheet
           entry={editing}
-          productName={product.name}
+          productName={`${productNo(product)} ${product.name}`}
           unitPrice={priceValue}
           unitLabel={priceLabel}
           onCancel={() => setEditing(null)}
@@ -914,7 +914,7 @@ function Purchasing() {
             const inStock = purchased - sold - sampled;
             return (
               <article key={p.id} className="bg-app-surface border border-app-line mx-5 my-4 p-4">
-                <p className="text-lg font-semibold">{p.name}</p>
+                <p className="text-lg font-semibold"><span className="font-mono text-ink-sub text-[13px] mr-2 font-normal">{productNo(p)}</span>{p.name}</p>
                 <p className="text-[11px] font-mono text-ink-sub mt-1">
                   {p.volumeMl}ml · {(p.volumeMl / 1000).toFixed(2)}L
                 </p>
@@ -1079,7 +1079,7 @@ function Total() {
               return (
                 <div key={p.id} className={idx > 0 ? "mt-5 pt-4 border-t border-app-line" : "mt-3"}>
                   <p className="text-[11px] font-mono text-ink-sub">
-                    {p.volumeMl}ml · {(p.volumeMl / 1000).toFixed(2)}L
+                    <span className="text-ink mr-2">{productNo(p)}</span>{p.volumeMl}ml · {(p.volumeMl / 1000).toFixed(2)}L
                   </p>
                   {/* 本数がまだ0でも単価は決まっているので、行の頭に出しておく。
                       左が単価、右がその単価で積み上がった金額。 */}
