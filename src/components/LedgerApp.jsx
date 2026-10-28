@@ -384,7 +384,13 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
   function onWholesaleChange(v) {
     setWholesalePrice(v);
     const w = Number(v);
-    setRetailPrice(w > 0 ? String(Math.floor(w / MARGIN_DIVISOR)) : "");
+    setRetailPrice(w > 0 ? String(Math.floor(w / MARGIN_DIVISOR + 1e-9)) : "");
+  }
+  // 逆向き。販売価格を入れたら、卸価格 = 販売価格 × 0.7(1円未満は四捨五入)。
+  function onRetailChange(v) {
+    setRetailPrice(v);
+    const r = Number(v);
+    setWholesalePrice(r > 0 ? String(Math.round(r * MARGIN_DIVISOR)) : "");
   }
 
   return (
@@ -487,7 +493,7 @@ function ProductSheet({ product, onCancel, onSave, onDelete }) {
           )}
           <input value={wholesalePrice} onChange={(e) => onWholesaleChange(e.target.value)} inputMode="numeric" placeholder="Wholesale price (¥)"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
-          <input value={retailPrice} onChange={(e) => setRetailPrice(e.target.value)} inputMode="numeric" placeholder="Retail price (¥)"
+          <input value={retailPrice} onChange={(e) => onRetailChange(e.target.value)} inputMode="numeric" placeholder="Retail price (¥)"
             className="w-full rounded-xl border border-app-line px-3 py-2.5 text-sm bg-app-surface" />
           {/* 改行して自由に書ける。欄は中身の高さに合わせて伸ばし、中でスクロールさせない。 */}
           <textarea value={pairingNote}
