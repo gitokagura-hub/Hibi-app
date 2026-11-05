@@ -60,6 +60,8 @@ function emptyData() {
     pinnedTasks: [], // { id, title, createdAt } — 日付に紐づかない常設のタスク。
                      // カレンダーの下に常に表示され、月を移動しても変わらない。
                      // 完了チェックは持たず、終わったら削除する運用。
+    journals: {},  // { [date]: { text, updatedAt } } — その日の日誌。夜にClaudeがAPI経由で書き込み、
+                   // 日付画面(DayDetail)で読み書きできる。memos とは別物。
     notes: [],     // { id, text, images: [], files: [], tags: [], source: 'text'|'voice', createdAt }
     projects: [],  // { id, name, items: [{id, text, images, files, createdAt}], driveFolderId: '', driveFiles: [], createdAt }
     libraryPhotos: [], // { id, src, createdAt } — Photos画面から直接追加された写真(他の画面のメモ等には紐付かない)
@@ -391,6 +393,13 @@ export function DataProvider({ children }) {
     setData(prev => ({
       ...prev,
       pinnedTasks: (prev.pinnedTasks || []).filter(t => t.id !== id),
+    }));
+  }
+
+  function setJournal(date, text) {
+    setData(prev => ({
+      ...prev,
+      journals: { ...(prev.journals || {}), [date]: { text, updatedAt: Date.now() } },
     }));
   }
 
@@ -851,6 +860,7 @@ export function DataProvider({ children }) {
     setMemo, clearMemo, addMemoImages, removeMemoImage, updateMemoImageCategories, addMemoFiles, removeMemoFile,
     addNote, deleteNote, updateNote, reorderNotes, setTagColor,
     addPinnedTask, updatePinnedTask, deletePinnedTask,
+    setJournal,
     addLibraryPhotos, deleteLibraryPhoto, deletePhotosBySrc,
     addLibraryFiles, deleteLibraryFile, renameLibraryFile, addLibraryFolder, deleteLibraryFolder, renameLibraryFolder,
     setLibraryTags, setLibraryComments, setLibraryCategories,
