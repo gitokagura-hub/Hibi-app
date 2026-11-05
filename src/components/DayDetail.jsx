@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useLayoutEffect } from "react";
+import { useMemo, useState } from "react";
 import TimeWheel from "./TimeWheel";
 import { useResetZoomOnOpen } from "../useResetZoom";
 
@@ -154,7 +154,7 @@ function ItemEditForm({ item, onSave, onDelete, onCancel, defaultTime }) {
 // スケジュール(予定)を親、タスクをその下にぶら下げて表示する。
 // どの予定にも属さないタスクは末尾にまとめる(B欄で作った既存のタスクなど)。
 // 画面内の文言はすべて英語で統一する。
-function DayList({ date, items, footer }) {
+function DayList({ date, items }) {
   const { addTask, updateTask, deleteTask, toggleTask, addEvent, updateEvent, deleteEvent, space } = useData();
   const isTeam = space === "team";
   const [editingId, setEditingId] = useState(null);
@@ -281,40 +281,6 @@ function DayList({ date, items, footer }) {
           <Plus size={14} /> Add Schedule
         </button>
       )}
-
-      {footer}
-    </div>
-  );
-}
-
-// ===== 日誌 =====
-// その日に考えたこと・話したことの記録。欄の中でスクロールさせず、中身の高さに合わせて伸ばす。
-function JournalSection({ date }) {
-  const { data, setJournal } = useData();
-  const saved = (data.journals || {})[date]?.text || "";
-  const [text, setText] = useState(saved);
-  const ref = useRef(null);
-
-  // 他端末やClaudeの書き込みで中身が変わったら反映する
-  useLayoutEffect(() => { setText(saved); }, [saved]);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [text]);
-
-  return (
-    <div className="pt-3">
-      <p className="text-[11px] font-semibold text-ink-sub uppercase tracking-wide mb-1">Journal</p>
-      <textarea
-        ref={ref}
-        value={text}
-        rows={3}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => { if (text !== saved) setJournal(date, text); }}
-        className="w-full resize-none overflow-hidden rounded-xl border border-app-line bg-transparent p-3 text-base leading-relaxed text-ink outline-none"
-      />
     </div>
   );
 }
@@ -438,7 +404,7 @@ export default function DayDetailScreen({ date, onClose }) {
         <span className="w-7" />
       </div>
 
-      <DayList date={date} items={items} footer={isTeam ? null : <JournalSection date={date} />} />
+      <DayList date={date} items={items} />
 
     </div>
   );

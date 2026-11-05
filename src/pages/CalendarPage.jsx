@@ -733,6 +733,9 @@ export default function CalendarPage({ setTab }) {
             </div>
           ))}
 
+          {/* 4. Journal — 選んでいる日の日誌。欄の中でスクロールさせず中身の高さに合わせて伸ばす。 */}
+          {!isTeam && <JournalBox key={selectedDate} date={selectedDate} />}
+
           <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={handlePickPhoto} className="hidden" />
           <input ref={fileInputRef} type="file" multiple onChange={handlePickFile} className="hidden" />
         </section>
@@ -747,6 +750,35 @@ export default function CalendarPage({ setTab }) {
       {timeGridDate && (
         <TimeGridScreen date={timeGridDate} onClose={() => setTimeGridDate(null)} />
       )}
+    </div>
+  );
+}
+
+function JournalBox({ date }) {
+  const { data, setJournal } = useData();
+  const saved = (data.journals || {})[date]?.text || "";
+  const [text, setText] = useState(saved);
+  const ref = useRef(null);
+
+  // Claudeや他の端末の書き込みで中身が変わったら反映する
+  useEffect(() => { setText(saved); }, [saved]);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.max(el.scrollHeight, 192)}px`;
+  }, [text]);
+
+  return (
+    <div className="mb-5">
+      <h2 className="text-2xl font-semibold mb-3">Journal</h2>
+      <textarea
+        ref={ref}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => { if (text !== saved) setJournal(date, text); }}
+        className="w-full rounded-2xl border p-4 resize-none overflow-hidden"
+      />
     </div>
   );
 }
