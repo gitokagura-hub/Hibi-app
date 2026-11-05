@@ -1,12 +1,12 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Plus, Paperclip, Camera, PencilLine, FileText, Rows3, CalendarDays, Trash2 } from "lucide-react";
+import { Plus, Paperclip, Camera, PencilLine, FileText, Rows3, CalendarDays, Trash2, BookOpen } from "lucide-react";
 import { useData, todayStr, fileToCompressedDataUrl, fileToDataUrl } from "../dataStore";
 import { handleEnterToConfirm } from "../useEnterConfirm";
 import BottomNavigation from "../components/BottomNavigation";
 import SpaceSwitcher from "../components/SpaceSwitcher";
 import { useConfirm } from "../components/ConfirmModal";
 import MediaImg from "../components/MediaImg";
-import DayDetailScreen, { DateListView, TimeGridScreen } from "../components/DayDetail";
+import DayDetailScreen, { DateListView, TimeGridScreen, JournalListView } from "../components/DayDetail";
 import TimeWheel from "../components/TimeWheel";
 
 function pad(n) { return String(n).padStart(2, "0"); }
@@ -305,6 +305,14 @@ export default function CalendarPage({ setTab }) {
               <span className="text-sm text-ink-sub">{calMonth.y}</span>
             </div>
             <div className="flex items-center gap-4 pb-1 text-ink-sub">
+              {/* Journal一覧 ⇄ 月表示 */}
+              <button
+                className={`p-1 ${calView === "journal" ? "text-ink" : ""}`}
+                onClick={() => setCalView((v) => (v === "journal" ? "month" : "journal"))}
+                aria-label="Journal"
+              >
+                <BookOpen size={18} />
+              </button>
               {/* A(月表示) ⇄ D(縦列) の切り替え */}
               <button
                 className="p-1"
@@ -379,6 +387,15 @@ export default function CalendarPage({ setTab }) {
             })}
           </div>
           </>
+          ) : calView === "journal" ? (
+            <JournalListView
+              onOpenDate={(ds) => {
+                const [y, m] = ds.split("-").map(Number);
+                setCalMonth({ y, m: m - 1 });
+                setSelectedDate(ds);
+                setCalView("month");
+              }}
+            />
           ) : (
             /* D: 日付が縦に並ぶリスト。A(月表示)と同列で、上部のボタンで行き来する。
                日付をタップすると E(その日の時間軸表示)を開く。 */

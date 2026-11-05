@@ -472,6 +472,53 @@ export function DateListView({ month, onOpenDate }) {
   );
 }
 
+// ===== Journal: 日誌を日付の新しい順に並べて読む。上の欄で言葉を入れると絞り込む =====
+export function JournalListView({ onOpenDate }) {
+  const { data } = useData();
+  const [q, setQ] = useState("");
+  const ql = q.trim().toLowerCase();
+
+  const entries = useMemo(() => {
+    return Object.entries(data.journals || {})
+      .filter(([, j]) => (j?.text || "").trim())
+      .filter(([, j]) => !ql || j.text.toLowerCase().includes(ql))
+      .sort(([a], [b]) => b.localeCompare(a));
+  }, [data.journals, ql]);
+
+  return (
+    <div>
+      <div className="px-5 py-2 border-b border-app-line/70">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search"
+          className="w-full rounded-xl border border-app-line bg-transparent px-3 py-2 text-base outline-none"
+        />
+      </div>
+      {entries.length === 0 && (
+        <p className="px-5 py-6 text-sm text-ink-sub/50">—</p>
+      )}
+      {entries.map(([date, j]) => {
+        const d = new Date(date + "T00:00:00");
+        const wd = WD[d.getDay()];
+        return (
+          <button
+            key={date}
+            onClick={() => onOpenDate(date)}
+            className="w-full block px-5 py-4 border-b border-app-line/70 text-left"
+          >
+            <span className="block text-[15px] font-bold text-ink mb-1.5">
+              {d.getFullYear()}.{d.getMonth() + 1}.{d.getDate()}
+              <span className="text-[11px] font-normal text-ink-sub ml-1.5">{wd}</span>
+            </span>
+            <span className="block text-[15px] leading-relaxed text-ink whitespace-pre-wrap break-words">{j.text}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ===== E: その日の時間軸表示(全画面) =====
 // D の日付をタップすると開く。5:00始まりの24時間グリッド。
 export function TimeGridScreen({ date, onClose }) {
